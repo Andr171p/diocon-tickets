@@ -53,22 +53,11 @@ class MailSettings(BaseSettings):
 
     smtp_host: str = "localhost"
     smtp_port: int = 1025
-    smtp_use_tls: bool = True
+    smtp_use_tls: bool = False
     smtp_user: str = ""
     smtp_password: str = ""
     default_from_email: str = "diocon@mail.ru"
     support_email: str = "diocon.support@mail.ru"
-
-
-class RedisSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="REDIS_")
-
-    host: str = "localhost"
-    port: int = 6679
-
-    @property
-    def url(self) -> str:
-        return f"redis://{self.host}:{self.port}"
 
 
 class AppSettings(BaseSettings):

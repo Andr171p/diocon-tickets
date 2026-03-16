@@ -10,7 +10,6 @@ import jinja2
 
 from ..core.errors import EmailSendingFailedError
 from ..settings import TEMPLATES_DIR, settings
-from ..utils.commons import current_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +24,6 @@ smtp_config = {
     "hostname": settings.mail.smtp_host,
     "port": settings.mail.smtp_port,
     "use_tls": settings.mail.smtp_use_tls,
-    "username": settings.mail.smtp_user,
-    "password": settings.mail.smtp_password,
 }
 
 

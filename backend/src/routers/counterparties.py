@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Query, HTTPException, status
 
 from ..core.entities import ContactPerson, Counterparty
 from ..db.repos import CounterpartyRepository
@@ -46,6 +46,20 @@ async def get_counterparty(
             headers={"X-Error-Code": "COUNTERPARTY_NOT_FOUND"}
         )
     return counterparty
+
+
+@router.get(
+    path="",
+    status_code=status.HTTP_200_OK,
+    response_model=list[Counterparty],
+    summary="Получение списка контрагентов"
+)
+async def get_counterparties(
+        page: int = Query(1, ge=1, description="Страница"),
+        limit: int = Query(10, ge=1, le=50, description="Лимит"),
+        repository: CounterpartyRepository = Depends(get_counterparty_repo),
+) -> list[Counterparty]:
+    return await repository.read_all(page, limit)
 
 
 @router.patch(

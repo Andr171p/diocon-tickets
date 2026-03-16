@@ -94,6 +94,8 @@ class InvitationCreate(BaseModel):
 class InvitationResponse(BaseModel):
     """Схема ответа отправленного приглашения"""
 
+    model_config = ConfigDict(from_attributes=True)
+
     email: EmailStr
     created_by: UUID
     intended_role: UserRole
