@@ -70,6 +70,10 @@ class AppSettings(BaseSettings):
     def url(self) -> str:
         return f"http://localhost:{self.port}"
 
+    @property
+    def api_url(self) -> str:
+        return f"{self.url}/api/v1"
+
 
 class AdminSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="ADMIN_")

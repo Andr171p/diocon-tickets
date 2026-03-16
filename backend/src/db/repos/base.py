@@ -51,6 +51,10 @@ class SqlAlchemyRepository[EntityT: Entity, ModelT: Base]:
         model = result.scalar_one_or_none()
         return None if model is None else self.entity.model_validate(model)
 
+    async def upsert(self, entity: EntityT) -> None:
+        model = self.model(**entity.model_dump())
+        await self.session.merge(model)
+
     async def delete(self, uid: UUID) -> None:
         stmt = delete(self.model).where(self.model.id == uid)
         await self.session.execute(stmt)

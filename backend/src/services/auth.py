@@ -4,13 +4,18 @@ from datetime import timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.entities import RefreshToken
-from ..core.errors import UnauthorizedError
-from ..db.repos import RefreshTokenRepository, UserRepository
+from ..core.entities import RefreshToken, User
+from ..core.errors import (
+    InvitationExpiredError,
+    NotFoundError,
+    UnauthorizedError,
+    UserAlreadyExistsError,
+)
+from ..db.repos import InvitationRepository, RefreshTokenRepository, UserRepository
 from ..schemas import Token, TokensPair, TokenType, UserCreateForm
 from ..settings import settings
 from ..utils.commons import current_datetime, get_expiration_timestamp
-from ..utils.secutiry import generate_token, verify_password
+from ..utils.secutiry import generate_token, hash_password, verify_password
 
 
 def create_tokens_pair(payload: dict[str, Any]) -> TokensPair:
@@ -46,9 +51,34 @@ class AuthService:
         self.session = session
         self.user_repo = UserRepository(session)
         self.refresh_repo = RefreshTokenRepository(session)
+        self.invitation_repo = InvitationRepository(session)
 
-    async def register(self, token: str, form: UserCreateForm) -> TokensPair:
+    async def register(self, token: str, form_data: UserCreateForm) -> TokensPair:
         """Регистрация нового пользователя"""
+
+        invitation = await self.invitation_repo.get_by_token(token)
+        if invitation is None:
+            raise NotFoundError("Invitation not found")
+        if not invitation.is_valid:
+            raise InvitationExpiredError("Invitation expired or already used")
+        existing_user = await self.user_repo.get_by_email(invitation.email)
+        if existing_user is not None:
+            raise UserAlreadyExistsError(f"User with email - '{invitation.email}' already exists'")
+
+        user = User(
+            email=invitation.email,
+            username=form_data.username,
+            full_name=form_data.full_name,
+            role=invitation.intended_role,
+            password_hash=hash_password(form_data.password),
+        )
+        await self.user_repo.create(user)
+        invitation.mark_as_used()
+        await self.invitation_repo.upsert(invitation)
+
+        tokens = await self._create_and_save_tokens_for_user(user)
+        await self.session.commit()
+        return tokens
 
     async def authenticate(self, email: str, password: str) -> TokensPair:
         """Аутентификация пользователя по логин + пароль"""
@@ -62,21 +92,7 @@ class AuthService:
         ):
             raise UnauthorizedError("Invalid password or user is not active")
 
-        payload = {
-            "iss": settings.app.url,
-            "sub": f"{user.id}",
-            "username": user.username,
-            "full_name": user.full_name,
-            "email": user.email,
-            "role": user.role.value,
-        }
-        tokens = create_tokens_pair(payload)
-        refresh_token = RefreshToken(
-            user_id=user.id,
-            token=tokens.refresh_token,
-            expires_at=current_datetime() + timedelta(settings.jwt.refresh_token_expires_in_days),
-        )
-        await self.refresh_repo.create(refresh_token)
+        tokens = await self._create_and_save_tokens_for_user(user)
         await self.session.commit()
         return tokens
 
@@ -94,19 +110,26 @@ class AuthService:
             raise UnauthorizedError("User is not active")
         await self.refresh_repo.revoke(stored_token.id)
 
+        new_tokens = await self._create_and_save_tokens_for_user(user)
+        await self.session.commit()
+        return new_tokens
+
+    async def _create_and_save_tokens_for_user(self, user: User) -> TokensPair:
+        """Выпуск пары токенов + сохранение 'refresh' токена для возможности ротации"""
+
         payload = {
             "iss": settings.app.url,
             "sub": f"{user.id}",
             "username": user.username,
+            "full_name": user.full_name,
             "email": user.email,
             "role": user.role.value,
         }
-        new_tokens = create_tokens_pair(payload)
-        new_refresh_token = RefreshToken(
+        tokens = create_tokens_pair(payload)
+        refresh_record = RefreshToken(
             user_id=user.id,
-            token=new_tokens.refresh_token,
-            expires_at=current_datetime() + timedelta(settings.jwt.refresh_token_expires_in_days)
+            token=tokens.refresh_token,
+            expires_at=current_datetime() + timedelta(settings.jwt.refresh_token_expires_in_days),
         )
-        await self.refresh_repo.create(new_refresh_token)
-        await self.session.commit()
-        return new_tokens
+        await self.refresh_repo.create(refresh_record)
+        return tokens
