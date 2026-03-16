@@ -12,6 +12,8 @@ from ..schemas import TokenType
 from ..settings import settings
 from .commons import current_datetime
 
+ALGORITHM = "HS256"
+
 # Хеширование паролей
 MEMORY_COST = 100  # Размер выделяемой памяти в mb
 TIME_COST = 2
@@ -63,7 +65,7 @@ def generate_token(
     return jwt.encode(
         payload=payload,
         key=settings.secret_key,
-        algorithm=settings.jwt.algorithm
+        algorithm=ALGORITHM,
     )
 
 
@@ -74,7 +76,7 @@ def validate_token(token: str) -> dict[str, Any]:
         return jwt.decode(
             token,
             key=settings.secret_key,
-            algorithms=[settings.jwt.algorithm],
+            algorithms=[ALGORITHM],
             options={"verify_aud": False}
         )
     except jwt.ExpiredSignatureError:

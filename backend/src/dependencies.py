@@ -11,7 +11,7 @@ from .core.entities import UserRole
 from .core.errors import UnauthorizedError
 from .db.base import session_factory
 from .db.repos import CounterpartyRepository
-from .services.notification import NotificationService
+from .services import AuthService, NotificationService
 from .utils.secutiry import validate_token
 
 oauth2_scheme = OAuth2PasswordBearer(
@@ -34,6 +34,10 @@ def get_notification_service(session: AsyncSession = Depends(get_db)) -> Notific
     return NotificationService(session)
 
 
+def get_auth_service(session: AsyncSession = Depends(get_db)) -> AuthService:
+    return AuthService(session)
+
+
 class CurrentUser(BaseModel):
     """Авторизованный пользователь, который делает запрос к сервису"""
 
@@ -52,7 +56,7 @@ def get_current_user(
     payload = validate_token(token)
     user_id = payload.get("sub")
     if user_id is None:
-        raise UnauthorizedError("Failed to parse JWT claims")
+        raise UnauthorizedError("Invalid token: missing sub claim")
     return CurrentUser(
         user_id=user_id,
         username=payload.get("username"),
