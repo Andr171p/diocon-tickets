@@ -61,10 +61,12 @@ class AuthService:
                 and not user.is_active
         ):
             raise UnauthorizedError("Invalid password or user is not active")
+
         payload = {
             "iss": settings.app.url,
             "sub": f"{user.id}",
             "username": user.username,
+            "full_name": user.full_name,
             "email": user.email,
             "role": user.role.value,
         }
