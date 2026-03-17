@@ -140,3 +140,20 @@ class UserCreateForm(BaseModel):
         None, max_length=150, description="ФИО", examples=["Иванов Иван Иванович"]
     )
     password: str = Field(..., description="Пароль, который придумал пользователь")
+
+
+class UserResponse(BaseModel):
+    """Модель для API ответа с данными о пользователе"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    email: EmailStr
+    username: str | None = None
+    full_name: str | None = None
+    avatar_url: str | None = None
+    role: UserRole
+    counterparty_id: UUID | None = None
+    is_active: bool = True
+    created_at: datetime
+    updated_at: datetime

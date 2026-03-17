@@ -1,15 +1,17 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from ..core.entities import ContactPerson, Counterparty
+from ..core.errors import NotFoundError
 from ..db.repos import CounterpartyRepository
-from ..dependencies import get_counterparty_repo
+from ..dependencies import get_counterparty_repo, get_pagination
 from ..schemas import (
     ContactPersonAdd,
     ContactPersonUpdate,
     CounterpartyCreate,
     CounterpartyUpdate,
+    UserResponse,
 )
 
 router = APIRouter(prefix="/counterparties", tags=["Контрагенты"])
@@ -40,11 +42,7 @@ async def get_counterparty(
 ) -> Counterparty:
     counterparty = await repository.read(counterparty_id)
     if counterparty is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Counterparty with ID {counterparty_id} not found",
-            headers={"X-Error-Code": "COUNTERPARTY_NOT_FOUND"}
-        )
+        raise NotFoundError(f"Counterparty with ID {counterparty_id} not found")
     return counterparty
 
 
@@ -55,10 +53,10 @@ async def get_counterparty(
     summary="Получение списка контрагентов"
 )
 async def get_counterparties(
-        page: int = Query(1, ge=1, description="Страница"),
-        limit: int = Query(10, ge=1, le=50, description="Лимит"),
+        pagination: tuple[int, int] = Depends(get_pagination),
         repository: CounterpartyRepository = Depends(get_counterparty_repo),
 ) -> list[Counterparty]:
+    page, limit = pagination
     return await repository.read_all(page, limit)
 
 
@@ -75,11 +73,7 @@ async def update_counterparty(
 ) -> Counterparty:
     counterparty = await repository.update(counterparty_id, **data.model_dump(exclude_none=True))
     if counterparty is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Counterparty with ID {counterparty_id} not found",
-            headers={"X-Error-Code": "COUNTERPARTY_NOT_FOUND"}
-        )
+        raise NotFoundError(f"Counterparty with ID {counterparty_id} not found")
     return counterparty
 
 
@@ -96,11 +90,7 @@ async def delete_counterparty(
 ) -> Counterparty:
     counterparty = await repository.update(counterparty_id, is_active=False)
     if counterparty is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Counterparty with ID {counterparty_id} not found",
-            headers={"X-Error-Code": "COUNTERPARTY_NOT_FOUND"},
-        )
+        raise NotFoundError(f"Counterparty with ID {counterparty_id} not found")
     return counterparty
 
 
@@ -134,10 +124,8 @@ async def get_contact_person(
 ) -> ContactPerson:
     contact_person = await repository.get_contact_person(counterparty_id)
     if contact_person is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Contact person not found for counterparty with ID {counterparty_id}",
-            headers={"X-Error-Code": "CONTACT_PERSON_NOT_FOUND"},
+        raise NotFoundError(
+            f"Contact person not found for counterparty with ID '{counterparty_id}'"
         )
     return contact_person
 
@@ -157,9 +145,23 @@ async def update_contact_person(
         counterparty_id, **data.model_dump(exclude_none=True)
     )
     if contact_person is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Contact person not found for counterparty with ID {counterparty_id}",
-            headers={"X-Error-Code": "CONTACT_PERSON_NOT_FOUND"},
+        raise NotFoundError(
+            f"Contact person not found for counterparty with ID '{counterparty_id}'"
         )
     return contact_person
+
+
+@router.get(
+    path="/{counterparty_id}/customers",
+    status_code=status.HTTP_200_OK,
+    response_model=list[UserResponse],
+    summary="Получение клиентов внутри контрагента"
+)
+async def get_customers(
+        counterparty_id: UUID,
+        pagination: tuple[int, int] = Depends(get_pagination),
+        repository: CounterpartyRepository = Depends(get_counterparty_repo),
+) -> list[UserResponse]:
+    page, limit = pagination
+    users = await repository.get_customers(counterparty_id, page, limit)
+    return [UserResponse.model_validate(user) for user in users]

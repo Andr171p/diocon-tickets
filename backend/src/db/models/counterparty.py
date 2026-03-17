@@ -1,3 +1,8 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .user import UserOrm
+
 from uuid import UUID
 
 from sqlalchemy import Enum, ForeignKey
@@ -23,6 +28,7 @@ class CounterpartyOrm(Base):
     is_active: Mapped[bool]
 
     contact_person: Mapped["ContactPersonOrm"] = relationship(back_populates="counterparty")
+    customers: Mapped[list["UserOrm"]] = relationship(back_populates="counterparty")
 
 
 class ContactPersonOrm(Base):

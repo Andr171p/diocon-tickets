@@ -1,10 +1,13 @@
+from typing import Self
+
 from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
-from pydantic import EmailStr, Field, SecretStr
+from pydantic import EmailStr, Field, model_validator
 
 from ...utils.commons import current_datetime
+from ..errors import InvariantViolationError
 from .base import Entity
 
 
@@ -32,8 +35,24 @@ class User(Entity):
         examples=["Иванов Иван Иванович"])
     avatar_url: str | None = Field(None, description="Аватарка пользователя")
     role: UserRole = Field(..., description="Роль пользователя", examples=[UserRole.CUSTOMER])
+    counterparty_id: UUID | None = Field(
+        None,
+        description="""\
+        Контрагент к которому принадлежит пользователь.
+        Не нужно указывать для внутренних сотрудников.
+        """
+    )
     password_hash: str = Field(..., description="Хеш пароля")
     is_active: bool = Field(True, description="Активен ли пользователь")
+
+    @model_validator(mode="after")
+    def validate_rules(self) -> Self:
+        """Проверка правил существования сущности"""
+
+        if self.counterparty_id is None \
+                and self.role in {UserRole.CUSTOMER, UserRole.CUSTOMER_ADMIN}:
+            raise InvariantViolationError("Counterparty must be specified for clients")
+        return self
 
 
 class RefreshToken(Entity):

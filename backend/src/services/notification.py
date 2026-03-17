@@ -43,7 +43,7 @@ class NotificationService:
                 counterparty_id=counterparty_id,
                 expires_at=current_datetime() + timedelta(days=INVITATION_EXPIRES_IN_DAYS),
             )
-        invite_url = f"{settings.app.api_url}/auth/invite/accept?token={invitation.token}"
+        invite_url = f"{settings.frontend_url}/auth/invite/accept?token={invitation.token}"
         context = {
             "email": email,
             "role": intended_role.value.replace("_", " ").title(),

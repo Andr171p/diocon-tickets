@@ -56,3 +56,9 @@ class UserAlreadyExistsError(AppError):
     status_code = status.HTTP_409_CONFLICT
     error_code = "USER_ALREADY_EXISTS"
     public_message = "Пользователь с таким email уже существует"
+
+
+class InvariantViolationError(AppError):
+    status_code = status.HTTP_409_CONFLICT
+    error_code = "INVARIANT_VIOLATION"
+    public_message = "Нарушены условия существования объекта"

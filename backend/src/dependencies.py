@@ -2,7 +2,7 @@ from typing import Annotated
 
 from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, Query
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,3 +64,10 @@ def get_current_user(
         email=payload.get("email"),
         role=payload.get("role"),
     )
+
+
+def get_pagination(
+        page: int = Query(1, ge=1, description="Страница"),
+        limit: int = Query(10, ge=1, le=50, description="Количество элементов на странице")
+) -> tuple[int, int]:
+    return page, limit

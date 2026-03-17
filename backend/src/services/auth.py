@@ -70,6 +70,7 @@ class AuthService:
             username=form_data.username,
             full_name=form_data.full_name,
             role=invitation.intended_role,
+            counterparty_id=invitation.counterparty_id,
             password_hash=hash_password(form_data.password),
         )
         await self.user_repo.create(user)
