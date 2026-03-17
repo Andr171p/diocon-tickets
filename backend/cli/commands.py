@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 from src.core.entities import User, UserRole

@@ -1,4 +1,5 @@
 import logging
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -10,6 +11,7 @@ from src.core.errors import AppError
 from src.db.base import create_tables
 from src.routers import router
 from src.settings import settings
+from src.utils.commons import run_cli_command
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await create_tables()
+    await run_cli_command(sys.executable, "-m", "cli", "create-first-admin")
     yield
 
 
