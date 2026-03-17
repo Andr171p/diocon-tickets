@@ -56,7 +56,7 @@ unit.xml
 .DS_Store
 *.sublime-workspace
 *.sublime-project
-TyuiuAIChatBotAPI.iml
+*.iml
 
 # Jupyter
 .ipynb_checkpoints/
