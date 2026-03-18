@@ -1,11 +1,16 @@
+import logging
 from uuid import UUID, uuid4
 
 from fastapi import UploadFile
+from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 
 from ..core.entities import Attachment
 from ..core.errors import FileTooLargeError
 from ..db.repos import AttachmentRepository
 from ..s3 import S3Client
+
+logger = logging.getLogger(__name__)
 
 
 class AttachmentService:
@@ -55,16 +60,21 @@ class AttachmentService:
             public_url = self.s3_client.get_public_url(object_key)
 
         # 4. Создание записи в БД
-        attachment = Attachment(
-            entity_type=entity_type,
-            entity_id=entity_id,
-            file_name=file_name,
-            original_name=original_name,
-            object_key=object_key,
-            public_url=public_url,
-            mime_type=mime_type,
-            size_bytes=len(content),
-            uploaded_by=uploaded_by,
-        )
-        await self.attachment_repo.create(attachment)
-        return attachment
+        try:
+            attachment = Attachment(
+                entity_type=entity_type,
+                entity_id=entity_id,
+                file_name=file_name,
+                original_name=original_name,
+                object_key=object_key,
+                public_url=public_url,
+                mime_type=mime_type,
+                size_bytes=len(content),
+                uploaded_by=uploaded_by,
+            )
+            await self.attachment_repo.create(attachment)
+        except (ValidationError, SQLAlchemyError):
+            logger.exception("Error occurred while saving attachment in database")
+            await self.s3_client.delete(object_key)
+        else:
+            return attachment

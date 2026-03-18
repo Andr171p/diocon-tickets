@@ -68,3 +68,9 @@ class FileTooLargeError(AppError):
     status_code = status.HTTP_413_CONTENT_TOO_LARGE
     error_code = "FILE_TOO_LARGE"
     public_message = "Размер файла превышает установленное ограничение на сервере"
+
+
+class DBError(AppError):
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    error_code = "DB_SERVER_ERROR"
+    public_message = "Произошла ошибка на сервере с базой данных"
