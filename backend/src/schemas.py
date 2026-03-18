@@ -157,3 +157,10 @@ class UserResponse(BaseModel):
     is_active: bool = True
     created_at: datetime
     updated_at: datetime
+
+
+class UserUpdate(BaseModel):
+    """Редактирование учётной записи пользователя"""
+
+    username: str | None
+    full_name: str | None = None

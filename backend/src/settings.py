@@ -19,6 +19,15 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 # Время истечения приглашения
 INVITATION_EXPIRES_IN_DAYS = 7
 
+# Максимальный размер аватарки пользователя
+MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024  # 5 mb
+# Разрешённые типы изображений
+ALLOWED_IMAGES_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
+
+# S3 бакеты
+S3_PUBLIC_BUCKET = "diocon-data-public"
+S3_PRIVATE_BUCKET = "diocon-data-private"
+
 
 class PostgresSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="POSTGRES_")

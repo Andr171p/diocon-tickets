@@ -1,4 +1,5 @@
 __all__ = (
+    "AttachmentOrm",
     "ContactPersonOrm",
     "CounterpartyOrm",
     "InvitationOrm",
@@ -6,6 +7,7 @@ __all__ = (
     "UserOrm",
 )
 
+from .attachment import AttachmentOrm
 from .counterparty import ContactPersonOrm, CounterpartyOrm
 from .invitation import InvitationOrm
 from .refresh_token import RefreshTokenOrm

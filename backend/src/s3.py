@@ -5,6 +5,9 @@ from collections.abc import AsyncIterable
 from contextlib import asynccontextmanager
 
 from aiobotocore.session import get_session
+from botocore.exceptions import ClientError
+
+from .settings import S3_PRIVATE_BUCKET, S3_PUBLIC_BUCKET, settings
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +34,19 @@ class S3Client:
         async with self.session.create_client(**self.config) as client:
             yield client
 
+    async def create_bucket(self) -> None:
+        """Создание бакета"""
+
+        async with self.get_client() as client:
+            try:
+                await client.create_bucket(Bucket=self.bucket_name)
+                logger.info("S3 bucket `%s` created successfully", self.bucket_name)
+            except ClientError as e:
+                if e.response["Error"]["Code"] == "BucketAlreadyOwnedByYou":
+                    logger.info("Private bucket already exists, skipping creation")
+                else:
+                    logger.exception("Error occurred while creating bucket")
+
     async def make_bucket_public(self) -> None:
         """Сделать бакет публичным"""
 
@@ -48,6 +64,7 @@ class S3Client:
         }
         async with self.get_client() as client:
             await client.put_bucket_policy(Bucket=self.bucket_name, Policy=json.dumps(policy))
+        logger.info("S3 bucket `%s` now is public", self.bucket_name)
 
     async def upload(self, file_data: bytes, key: str) -> None:
         """Загрузка файла в хранилище"""
@@ -137,3 +154,25 @@ class S3Client:
 
         endpoint = self.config["endpoint_url"].rstrip("/")
         return f"{endpoint}/{self.bucket_name}/{key.lstrip('/')}"
+
+
+def get_public_s3_client() -> S3Client:
+    """Зависимость для получения публичного S3 клиента"""
+
+    return S3Client(
+        access_key=settings.minio.access_key_id,
+        secret_key=settings.minio.secret_access_key,
+        endpoint_url=settings.minio.endpoint_url,
+        bucket_name=S3_PUBLIC_BUCKET,
+    )
+
+
+def get_private_s3_client() -> S3Client:
+    """Зависимость для получения приватного S3 клиента"""
+
+    return S3Client(
+        access_key=settings.minio.access_key_id,
+        secret_key=settings.minio.secret_access_key,
+        endpoint_url=settings.minio.endpoint_url,
+        bucket_name=S3_PRIVATE_BUCKET,
+    )

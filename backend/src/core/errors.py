@@ -62,3 +62,9 @@ class InvariantViolationError(AppError):
     status_code = status.HTTP_409_CONFLICT
     error_code = "INVARIANT_VIOLATION"
     public_message = "Нарушены условия существования объекта"
+
+
+class FileTooLargeError(AppError):
+    status_code = status.HTTP_413_CONTENT_TOO_LARGE
+    error_code = "FILE_TOO_LARGE"
+    public_message = "Размер файла превышает установленное ограничение на сервере"

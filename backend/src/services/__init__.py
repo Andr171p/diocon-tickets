@@ -1,7 +1,11 @@
 __all__ = (
+    "AttachmentService",
     "AuthService",
-    "NotificationService",
+    "InvitationService",
+    "UserService",
 )
 
+from .attachment import AttachmentService
 from .auth import AuthService
-from .notification import NotificationService
+from .invitation import InvitationService
+from .user import UserService

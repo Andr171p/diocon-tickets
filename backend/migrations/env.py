@@ -10,6 +10,7 @@ from alembic import context
 from src.settings import settings
 from src.db.base import Base
 from src.db.models import (
+    AttachmentOrm,
     ContactPersonOrm,
     CounterpartyOrm,
     InvitationOrm,

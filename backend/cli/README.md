@@ -5,3 +5,9 @@
 ```bash
 python -m cli create-first-admin
 ```
+
+## Инициализация S3 хранилища
+
+```bash
+python -m cli init-s3-storage
+```

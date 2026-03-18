@@ -22,18 +22,20 @@ INVITATION_TEXT = (
 logger = logging.getLogger(__name__)
 
 
-class NotificationService:
+class InvitationService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.invitation_repo = InvitationRepository(session)
 
-    async def send_invitation(
+    async def invite(
             self,
             invited_by: UUID,
             email: str,
             intended_role: UserRole,
             counterparty_id: UUID | None = None
     ) -> Invitation:
+        """Приглашает пользователя в систему через отправку письма"""
+
         invitation = await self.invitation_repo.find_active_by_email_and_role(email, intended_role)
         if invitation is None:
             invitation = Invitation(
@@ -68,3 +70,6 @@ class NotificationService:
             await self.session.rollback()
         logger.info("Invitation sent: %s -> %s (%s)", invited_by, email, intended_role)
         return invitation
+
+    async def repeat(self):
+        """Повторная отправка приглашения"""

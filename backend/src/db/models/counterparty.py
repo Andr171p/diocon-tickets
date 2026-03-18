@@ -25,6 +25,7 @@ class CounterpartyOrm(Base):
     phone: Mapped[str]
     email: Mapped[str]
     address: Mapped[str | None] = mapped_column(nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(nullable=True)
     is_active: Mapped[bool]
 
     contact_person: Mapped["ContactPersonOrm"] = relationship(back_populates="counterparty")

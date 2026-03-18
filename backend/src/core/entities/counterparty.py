@@ -37,6 +37,7 @@ class Counterparty(Entity):
     phone: str = Field(..., title="Номер телефона", max_length=20)
     email: EmailStr = Field(..., title="Основной email")
     address: str | None = Field(default=None, title="Адрес")
+    avatar_url: str | None = Field(None, description="URL адрес аватарки")
     is_active: bool = Field(default=True, description="Активен ли контрагент")
 
 

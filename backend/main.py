@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await create_tables()
     await run_cli_command(sys.executable, "-m", "cli", "create-first-admin")
+    await run_cli_command(sys.executable, "-m", "cli", "init-s3-storage")
     yield
 
 

@@ -10,8 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .core.entities import UserRole
 from .core.errors import UnauthorizedError
 from .db.base import session_factory
-from .db.repos import CounterpartyRepository
-from .services import AuthService, NotificationService
+from .db.repos import AttachmentRepository, CounterpartyRepository
+from .s3 import get_private_s3_client, get_public_s3_client
+from .services import AttachmentService, AuthService, InvitationService, UserService
 from .utils.secutiry import validate_token
 
 oauth2_scheme = OAuth2PasswordBearer(
@@ -30,12 +31,35 @@ def get_counterparty_repo(session: AsyncSession = Depends(get_db)) -> Counterpar
     return CounterpartyRepository(session)
 
 
-def get_notification_service(session: AsyncSession = Depends(get_db)) -> NotificationService:
-    return NotificationService(session)
+def get_attachment_repo(session: AsyncSession = Depends(get_db)) -> AttachmentRepository:
+    return AttachmentRepository(session)
+
+
+def get_invitation_service(session: AsyncSession = Depends(get_db)) -> InvitationService:
+    return InvitationService(session)
 
 
 def get_auth_service(session: AsyncSession = Depends(get_db)) -> AuthService:
     return AuthService(session)
+
+
+def get_pubic_attachment_service(
+        repository: AttachmentRepository = Depends(get_attachment_repo)
+) -> AttachmentService:
+    return AttachmentService(attachment_repo=repository, s3_client=get_public_s3_client())
+
+
+def get_private_attachment_service(
+        repository: AttachmentRepository = Depends(get_attachment_repo)
+) -> AttachmentService:
+    return AttachmentService(attachment_repo=repository, s3_client=get_private_s3_client())
+
+
+def get_user_service(
+        session: AsyncSession = Depends(get_db),
+        attachment_service: AttachmentService = Depends(get_pubic_attachment_service),
+) -> UserService:
+    return UserService(session, attachment_service)
 
 
 class CurrentUser(BaseModel):
