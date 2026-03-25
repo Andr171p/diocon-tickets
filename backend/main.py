@@ -4,32 +4,34 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI, Request, status
+from fastapi import APIRouter, FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
-from src.core.errors import AppError
-from src.db.base import create_tables
-from src.routers import router
-from src.settings import settings
-from src.utils.commons import run_cli_command
+from src.core.settings import settings
+from src.counterparties.router import router as counterparty_router
+from src.iam.routers import router as iam_router
+from src.shared.domain.exceptions import AppError
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    await create_tables()
-    await run_cli_command(sys.executable, "-m", "cli", "create-first-admin")
-    await run_cli_command(sys.executable, "-m", "cli", "init-s3-storage")
+    """await run_cli_command(sys.executable, "-m", "cli", "create-first-admin")
+    await run_cli_command(sys.executable, "-m", "cli", "init-s3-storage")"""
     yield
-
 
 app = FastAPI(
     title="Ticket management system",
     description="REST API тикет-системы компании **ДИО-Консалт**",
     version="0.1.0",
-    lifespan=lifespan,
+    lifespan=...,
 )
+
+router = APIRouter(prefix="/api/v1")
+
+router.include_router(iam_router)
+router.include_router(counterparty_router)
 
 app.include_router(router)
 
