@@ -4,8 +4,8 @@ from uuid import UUID, uuid4
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-import src.counterparties.infra.models  # noqa: F401
-import src.iam.infra.models  # noqa: F401
+import src.counterparties.infra.models
+import src.iam.infra.models
 from src.counterparties.dependencies import get_counterparty_repo, get_counterparty_service
 from src.counterparties.domain.entities import Counterparty
 from src.counterparties.domain.repo import CounterpartyRepository

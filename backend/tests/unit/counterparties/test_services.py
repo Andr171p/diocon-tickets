@@ -1,15 +1,12 @@
 # Тестирование Use cases
 
 from unittest.mock import AsyncMock
-from uuid import UUID
 
 import pytest
 
-from src.counterparties.domain.entities import Counterparty
-from src.counterparties.domain.vo import CounterpartyType, Inn
+from src.counterparties.domain.vo import CounterpartyType
 from src.counterparties.schemas import ContactPersonIn, CounterpartyCreate
 from src.counterparties.services import CounterpartyService
-from src.shared.infra.repos import InMemoryRepository
 
 
 @pytest.fixture
@@ -53,33 +50,13 @@ def branch_data():
         ),
     )
 
-# ====================== In memory реализация для DIP ======================
 
-
-class InMemoryCounterpartyRepository(InMemoryRepository[Counterparty]):
-    async def get_by_email(self, email: str) -> Counterparty | None:
-        for entity in self.data.values():
-            if entity.email == email:
-                return entity
-        return None
-
-    async def get_by_inn(self, inn: Inn) -> Counterparty | None:
-        for entity in self.data.values():
-            if entity.inn == inn:
-                return entity
-        return None
-
-    async def get_with_descendants(self, counterparty_id: UUID) -> list[Counterparty]:
-        return [entity for entity in self.data.values() if entity.parent_id == counterparty_id]
-
-
-# ====================== Тесты для сценариев работы с контрагентом ======================
+# ====================== Тесты для сервисов контрагента ======================
 
 
 @pytest.mark.asyncio
-async def test_create_counterparty_success(legal_entity_data):
-    repo = InMemoryCounterpartyRepository()
-    service = CounterpartyService(session=AsyncMock(), repository=repo)
+async def test_create_counterparty_success(legal_entity_data, mock_counterparty_repo):
+    service = CounterpartyService(session=AsyncMock(), repository=mock_counterparty_repo)
 
     response = await service.create(legal_entity_data)
 
@@ -87,9 +64,10 @@ async def test_create_counterparty_success(legal_entity_data):
 
 
 @pytest.mark.asyncio
-async def test_add_slave_to_exists_counterparty(legal_entity_data, branch_data):
-    repo = InMemoryCounterpartyRepository()
-    service = CounterpartyService(session=AsyncMock(), repository=repo)
+async def test_add_branch_to_exists_counterparty(
+        legal_entity_data, branch_data, mock_counterparty_repo
+):
+    service = CounterpartyService(session=AsyncMock(), repository=mock_counterparty_repo)
 
     counterparty = await service.create(legal_entity_data)
     response = await service.add_branch(counterparty.id, branch_data)

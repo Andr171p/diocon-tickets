@@ -13,7 +13,7 @@ from .domain.exceptions import UnauthorizedError
 from .domain.vo import UserRole
 
 # Хеширование паролей
-MEMORY_COST = 100  # Размер выделяемой памяти в mb
+MEMORY_COST = 100  # Размер выделяемой памяти в MB
 TIME_COST = 2
 PARALLELISM = 2
 SALT_SIZE = 16
@@ -56,7 +56,7 @@ def create_access_token(
     now = current_datetime()
     expires_at = now + timedelta(minutes=settings.jwt.access_token_expires_in_minutes)
     payload = {
-        "sub": user_id,
+        "sub": f"{user_id}",
         "exp": expires_at.timestamp(),
         "iat": now.timestamp(),
         "type": "access",
@@ -65,7 +65,7 @@ def create_access_token(
         "role": user_role.value,
     }
     if counterparty_id is not None:
-        payload["counterparty_id"] = counterparty_id
+        payload["counterparty_id"] = f"{counterparty_id}"
 
     return jwt.encode(payload=payload, key=settings.secret_key, algorithm=settings.jwt.algorithm)
 
@@ -76,7 +76,7 @@ def create_refresh_token(user_id: UUID) -> str:
     now = current_datetime()
     expires_at = now + timedelta(days=settings.jwt.refresh_token_expires_in_days)
     payload = {
-        "sub": user_id,
+        "sub": f"{user_id}",
         "exp": expires_at.timestamp(),
         "iat": now.timestamp(),
         "type": "refresh",
@@ -86,7 +86,7 @@ def create_refresh_token(user_id: UUID) -> str:
 
 
 def validate_token(token: str) -> dict[str, Any]:
-    """Декодирование токена"""
+    """Декодирование и проверка подписи токена"""
 
     try:
         return jwt.decode(

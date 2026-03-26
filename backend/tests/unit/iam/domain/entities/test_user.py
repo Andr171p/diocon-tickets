@@ -26,8 +26,6 @@ def counterparty_id():
     return uuid.uuid4()
 
 
-# --- Тесты для служб ---
-
 def test_create_customer_minimal(valid_email, valid_password_hash, counterparty_id):
     user = create_customer(
         email=valid_email,

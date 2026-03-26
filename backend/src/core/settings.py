@@ -11,8 +11,9 @@ timezone = pytz.timezone(TIMEZONE)
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ENV_FILE = BASE_DIR / ".env"
+ENV_DEV_FILE = BASE_DIR / ".env.dev"
 
-load_dotenv(ENV_FILE)
+load_dotenv(ENV_DEV_FILE)  # Среда для разработки
 
 TEMPLATES_DIR = BASE_DIR / "templates"
 
@@ -45,7 +46,8 @@ class MinIOSettings(BaseSettings):
 
 
 class JWTSettings(BaseSettings):
-    access_token_expires_in_minutes: int = 30
+    algorithm: str = "HS256"
+    access_token_expires_in_minutes: int = 15
     refresh_token_expires_in_days: int = 30
 
 
