@@ -44,6 +44,33 @@ services:
       - "9901:9001"              # Web Console (UI)
     restart: unless-stopped
 
+  imgproxy:
+    image: ghcr.io/imgproxy/imgproxy:latest
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    environment:
+      # --- Основные настройки ---
+      IMGPROXY_USE_S3: "true"
+      IMGPROXY_S3_ENDPOINT: "http://minio:9000"
+      IMGPROXY_S3_REGION: "us-east-1"
+      IMGPROXY_S3_ENDPOINT_USE_PATH_STYLE: "true"
+      # --- Ключи доступа от MinIO ---
+      AWS_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_SECRET_ACCESS_KEY}
+      # --- Безопасность ---
+      IMGPROXY_KEY: ${IMGPROXY_KEY}
+      IMGPROXY_SALT: ${IMGPROXY_SALT}
+      # --- Дополнительные опции ---
+      IMGPROXY_MAX_SRC_RESOLUTION: "50"
+      IMGPROXY_MAX_SRC_FILE_SIZE: "0"
+      IMGPROXY_ENABLE_WEBP_DETECTION: "true"
+      IMGPROXY_ENABLE_AVIF: "true"
+      IMGPROXY_CONCURRENCY: "10"
+
+    depends_on:
+      - minio
+
   # backend:
   #   build:
   #     context: ./backend

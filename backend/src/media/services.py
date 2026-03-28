@@ -3,15 +3,25 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..shared.utils.time import current_datetime
 from .constants import PRESIGNED_URL_EXPIRES_IN
 from .domain.entities import Attachment
 from .domain.ports import AttachmentRepository, Storage
-from .schemas import ConfirmUploadRequest, PresignedUploadRequest, PresignedUploadResponse
+from .mappers import map_attachment_to_response
+from .schemas import (
+    AttachmentResponse,
+    ConfirmUploadRequest,
+    PresignedUploadRequest,
+    PresignedUploadResponse,
+)
 
 
 class AttachmentService:
     def __init__(
-            self, session: AsyncSession, storage: Storage, repository: AttachmentRepository
+            self,
+            session: AsyncSession,
+            storage: Storage,
+            repository: AttachmentRepository,
     ) -> None:
         self.session = session
         self.storage = storage
@@ -39,12 +49,17 @@ class AttachmentService:
             upload_url=presigned_url, storage_key=storage_key, expires_in=PRESIGNED_URL_EXPIRES_IN,
         )
 
-    async def confirm_upload(self, request: ConfirmUploadRequest, uploaded_by_id: UUID):
+    async def confirm_upload(
+            self, request: ConfirmUploadRequest, uploaded_by_id: UUID
+    ) -> AttachmentResponse:
         """Подтверждение загрузки файла"""
 
         # 1. Получение размера файла из хранилища
         file_info = await self.storage.get_file_info(request.storage_key)
         size_bytes = file_info["size"]
+        uploaded_at = file_info.get("uploaded_at")
+        if uploaded_at is None:
+            uploaded_at = current_datetime()
 
         # 2. Создание доменной сущности вложения
         attachment = Attachment(
@@ -54,7 +69,11 @@ class AttachmentService:
             storage_key=request.storage_key,
             owner_type=request.owner_type,
             owner_id=request.owner_id,
-            uploaded_at=...,
+            uploaded_at=uploaded_at,
             uploaded_by_id=uploaded_by_id,
         )
         await self.repository.create(attachment)
+        await self.session.commit()
+
+        # 3. Формирование ответа + получение preview для изображений
+        return map_attachment_to_response(attachment)

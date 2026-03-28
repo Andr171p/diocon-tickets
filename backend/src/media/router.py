@@ -3,7 +3,9 @@ from uuid import UUID
 from fastapi import APIRouter, status
 
 from ..iam.dependencies import CurrentUserDep
-from .dependencies import AttachmentServiceDep
+from ..shared.domain.exceptions import NotFoundError
+from .dependencies import AttachmentRepoDep, AttachmentServiceDep
+from .mappers import map_attachment_to_response
 from .schemas import (
     AttachmentResponse,
     ConfirmUploadRequest,
@@ -45,10 +47,14 @@ async def confirm_upload(
 @router.get(
     path="/{attachment_id}",
     status_code=status.HTTP_200_OK,
-    response_model=...,
+    response_model=AttachmentResponse,
     summary="Получение информации и файле"
 )
-async def get_attachment(attachment_id: UUID) -> ...: ...
+async def get_attachment(attachment_id: UUID, repository: AttachmentRepoDep) -> AttachmentResponse:
+    attachment = await repository.read(attachment_id)
+    if attachment is None:
+        raise NotFoundError(f"Attachment with ID {attachment_id} not found")
+    return map_attachment_to_response(attachment)
 
 
 @router.delete(
@@ -56,7 +62,8 @@ async def get_attachment(attachment_id: UUID) -> ...: ...
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удалить файл (Soft-delete)"
 )
-async def delete_attachment(attachment_id: UUID) -> ...: ...
+async def delete_attachment(attachment_id: UUID, repository: AttachmentRepoDep) -> None:
+    ...
 
 
 @router.get(

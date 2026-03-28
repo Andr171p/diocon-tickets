@@ -20,7 +20,7 @@ class Attachment(Entity):
     storage_key: str
     owner_type: str
     owner_id: UUID
-    is_public: bool = True
+    is_public: bool = False
     uploaded_at: datetime
     uploaded_by_id: UUID
 
@@ -31,7 +31,11 @@ class Attachment(Entity):
         if len(self.original_filename) > MAX_FILENAME_LENGTH:
             raise ValueError(f"Original filename too long (max {MAX_FILENAME_LENGTH} characters)")
 
-        # 2. Валидация владельца файла
+        # 2. Проверка размера файла
+        if self.size_bytes < 0:
+            raise InvariantViolationError("File size cannot be negative")
+
+        # 3. Валидация владельца файла
         if self.owner_type not in ALLOWED_OWNER_TYPES:
             raise InvariantViolationError(f"Unsupported owner type: {self.owner_type}")
 

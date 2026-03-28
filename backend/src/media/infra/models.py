@@ -16,5 +16,6 @@ class AttachmentOrm(Base):
     storage_key: Mapped[str] = mapped_column(unique=True)
     owner_type: Mapped[str]
     owner_id: Mapped[UUID]
+    is_public: Mapped[bool]
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     uploaded_by_id: Mapped[UUID]

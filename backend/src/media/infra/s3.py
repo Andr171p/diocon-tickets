@@ -1,4 +1,4 @@
-from typing import BinaryIO
+from typing import Any, BinaryIO
 
 from contextlib import asynccontextmanager
 
@@ -53,3 +53,12 @@ class S3Storage(Storage):
                 },
                 ExpiresIn=expires_in
             )
+
+    async def get_file_info(self, storage_key: str) -> dict[str, Any]:
+        async with self.get_client() as client:
+            response = await client.head_object(Bucket=self.bucket_name, Key=storage_key)
+            return {
+                "size": response["ContentLength"],
+                "content_type": response["ContentType"],
+                "uploaded_at": response["LastModified"],
+            }

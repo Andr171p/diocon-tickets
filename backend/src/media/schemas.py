@@ -1,7 +1,17 @@
+from typing import TypedDict
+
 from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field, PositiveInt
+
+
+class FileInfo(TypedDict):
+    """Информация о файле полученная из хранилища"""
+
+    size: int
+    content_type: str
+    uploaded_at: datetime
 
 
 class PresignedUploadRequest(BaseModel):
@@ -53,14 +63,15 @@ class ConfirmUploadRequest(BaseModel):
 
 
 class AttachmentResponse(BaseModel):
-    id: UUID
-    original_filename: str
-    mime_type: str
-    size_bytes: int
-    storage_key: str
-    owner_type: str
-    owner_id: UUID
-    uploaded_by_id: UUID
-    uploaded_at: datetime
-    preview_url: str | None = None
-    full_url: str | None = None
+    """API схема ответа для вложения"""
+
+    id: UUID = Field(..., description="Уникальный ID файла")
+    original_filename: str = Field(..., description="Оригинальное имя файла")
+    mime_type: str = Field(..., description="Mime тип файла")
+    size_bytes: PositiveInt = Field(..., description="Размер файла в байтах")
+    storage_key: str = Field(..., description="Уникальный ключ объекта в хранилище")
+    owner_type: str = Field(..., description="Тип сущности, которой принадлежит файл")
+    owner_id: UUID = Field(..., description="ID сущности, которой принадлежит вложение")
+    uploaded_by_id: UUID = Field(..., description="ID пользователя, который загрузил файл")
+    uploaded_at: datetime = Field(..., description="Дата загрузки объекта в хранилище")
+    preview_url: str | None = Field(None, description="URL адрес для preview изображения")

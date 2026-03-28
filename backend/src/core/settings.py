@@ -45,6 +45,14 @@ class MinIOSettings(BaseSettings):
     endpoint_url: str = "http://localhost:9900"
 
 
+class ImgProxySettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="IMGPROXY_")
+
+    base_url: str = "http://localhost:8080"
+    key: str = "<KEY>"
+    salt: str = "<SALT>"
+
+
 class JWTSettings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expires_in_minutes: int = 15
@@ -92,6 +100,7 @@ class Settings(BaseSettings):
     app: AppSettings = AppSettings()
     postgres: PostgresSettings = PostgresSettings()
     minio: MinIOSettings = MinIOSettings()
+    imgproxy: ImgProxySettings = ImgProxySettings()
     jwt: JWTSettings = JWTSettings()
     mail: MailSettings = MailSettings()
     admin: AdminSettings = AdminSettings()
