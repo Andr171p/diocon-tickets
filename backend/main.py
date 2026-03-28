@@ -4,34 +4,46 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import uvicorn
+from alembic import command
+from alembic.config import Config
 from fastapi import APIRouter, FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from src.core.settings import settings
 from src.counterparties.router import router as counterparty_router
 from src.iam.routers import router as iam_router
+from src.media.router import router as media_router
 from src.shared.domain.exceptions import AppError
+from src.shared.utils.cli import run_cli_command
 
 logger = logging.getLogger(__name__)
 
 
+def run_migrations() -> None:
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, "head")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    """await run_cli_command(sys.executable, "-m", "cli", "create-first-admin")
-    await run_cli_command(sys.executable, "-m", "cli", "init-s3-storage")"""
+    # run_migrations()
+    await run_cli_command(sys.executable, "-m", "cli", "create-first-admin")
+    await run_cli_command(sys.executable, "-m", "cli", "init-s3-storage")
     yield
+
 
 app = FastAPI(
     title="Ticket management system",
     description="REST API тикет-системы компании **ДИО-Консалт**",
     version="0.1.0",
-    lifespan=...,
+    lifespan=lifespan,
 )
 
 router = APIRouter(prefix="/api/v1")
 
 router.include_router(iam_router)
 router.include_router(counterparty_router)
+router.include_router(media_router)
 
 app.include_router(router)
 

@@ -17,9 +17,8 @@ load_dotenv(ENV_DEV_FILE)  # Среда для разработки
 
 TEMPLATES_DIR = BASE_DIR / "templates"
 
-# S3 бакеты
-S3_PUBLIC_BUCKET = "diocon-data-public"
-S3_PRIVATE_BUCKET = "diocon-data-private"
+# Имя основного S3 бакета
+S3_BUCKET_NAME = "diocon-tickets-uploads"
 
 
 class PostgresSettings(BaseSettings):
@@ -48,9 +47,14 @@ class MinIOSettings(BaseSettings):
 class ImgProxySettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="IMGPROXY_")
 
-    base_url: str = "http://localhost:8080"
+    host: str = "localhost"
+    port: int = 8081
     key: str = "<KEY>"
     salt: str = "<SALT>"
+
+    @property
+    def url(self) -> str:
+        return f"http://{self.host}:{self.port}"
 
 
 class JWTSettings(BaseSettings):

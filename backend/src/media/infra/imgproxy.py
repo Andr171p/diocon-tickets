@@ -92,7 +92,7 @@ class ImgProxyService:
 
 
 imgproxy_service = ImgProxyService(
-    base_url=settings.imgproxy.base_url,
+    base_url=settings.imgproxy.url,
     bucket_name="",
     key=settings.imgproxy.key,
     salt=settings.imgproxy.salt,

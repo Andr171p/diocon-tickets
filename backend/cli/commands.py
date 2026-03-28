@@ -1,11 +1,13 @@
 import logging
 
-from src.core.entities import User, UserRole
-from src.db.base import session_factory
-from src.db.repos import UserRepository
-from src.s3 import get_private_s3_client, get_public_s3_client
-from src.settings import settings
-from src.utils.secutiry import hash_password
+from botocore.exceptions import ClientError
+
+from src.core.database import session_factory
+from src.core.settings import S3_BUCKET_NAME, settings
+from src.iam.domain.services import create_admin
+from src.iam.infra.repos import SqlUserRepository
+from src.iam.security import hash_password
+from src.media.infra.s3 import S3Storage
 
 logger = logging.getLogger(__name__)
 
@@ -14,18 +16,13 @@ async def create_first_admin() -> None:
     """Создание системного администратора"""
 
     async with session_factory() as session:
-        user_repo = UserRepository(session)
+        user_repo = SqlUserRepository(session)
         exists = await user_repo.get_by_email(settings.admin.email)
         if exists:
             logger.warning("Admin already exists")
             return
-        admin = User(
-            email=settings.admin.email,
-            username="admin",
-            full_name="Иванов Иван Иванович",
-            role=UserRole.ADMIN,
-            password_hash=hash_password(settings.admin.password),
-            is_active=True,
+        admin = create_admin(
+            email=settings.admin.email, password_hash=hash_password(settings.admin.password)
         )
         await user_repo.create(admin)
         await session.commit()
@@ -36,12 +33,20 @@ async def init_s3_storage() -> None:
     """Создание S3 бакетов"""
 
     # 1. Инициализация приватного S3 клиента
-    private_s3_client = get_private_s3_client()
-    await private_s3_client.create_bucket()
+    storage = S3Storage(
+        endpoint_url=settings.minio.endpoint_url,
+        access_key=settings.minio.access_key_id,
+        secret_key=settings.minio.secret_access_key,
+        bucket_name=S3_BUCKET_NAME,
+    )
 
     # 2. Инициализация публичного S3 клиента
-    public_s3_client = get_public_s3_client()
-    await public_s3_client.create_bucket()
-    await public_s3_client.make_bucket_public()
+    async with storage.get_client() as client:
+        try:
+            await client.head_bucket(Bucket=S3_BUCKET_NAME)
+            logger.info("S3 bucket already exists, skipping creation")
+        except ClientError:
+            logger.info("S3 bucket does not exist, start creating")
+            await client.create_bucket(Bucket=S3_BUCKET_NAME)
 
     logger.info("S3 storage initialized successfully")

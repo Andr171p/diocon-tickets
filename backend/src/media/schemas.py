@@ -75,3 +75,13 @@ class AttachmentResponse(BaseModel):
     uploaded_by_id: UUID = Field(..., description="ID пользователя, который загрузил файл")
     uploaded_at: datetime = Field(..., description="Дата загрузки объекта в хранилище")
     preview_url: str | None = Field(None, description="URL адрес для preview изображения")
+
+
+class PresignedDownloadResponse(BaseModel):
+    """API ответ для скачивая файла напрямую из хранилища"""
+
+    download_url: str = Field(..., description="Временный URL для скачивания файла")
+    storage_key: str = Field(..., description="Уникальный ключ загружаемого объекта")
+    expires_in: PositiveInt = Field(
+        ..., description="Временной промежуток в формате Timestamp, через который истекает ссылка"
+    )

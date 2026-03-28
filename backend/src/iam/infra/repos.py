@@ -54,7 +54,7 @@ class SqlUserRepository(SqlAlchemyRepository[User, UserOrm]):
         stmt = select(self.model).where(self.model.email == email)
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
-        return self.model_mapper.to_entity(model)
+        return None if model is None else self.model_mapper.to_entity(model)
 
     async def store_token(self, user_id: UUID, token: str, expires_at: datetime) -> None:
         """Сохранение refresh токена для возможности ротации"""

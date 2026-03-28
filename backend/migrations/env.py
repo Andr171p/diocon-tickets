@@ -7,16 +7,11 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from src.settings import settings
-from src.db.base import Base
-from src.db.models import (
-    AttachmentOrm,
-    ContactPersonOrm,
-    CounterpartyOrm,
-    InvitationOrm,
-    RefreshTokenOrm,
-    UserOrm,
-)
+from src.core.settings import settings
+from src.core.database import Base
+from src.iam.infra.models import UserOrm, RefreshTokenOrm, InvitationOrm
+from src.counterparties.infra.models import CounterpartyOrm
+from src.media.infra.models import AttachmentOrm
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

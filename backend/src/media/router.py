@@ -9,6 +9,7 @@ from .mappers import map_attachment_to_response
 from .schemas import (
     AttachmentResponse,
     ConfirmUploadRequest,
+    PresignedDownloadResponse,
     PresignedUploadRequest,
     PresignedUploadResponse,
 )
@@ -45,6 +46,18 @@ async def confirm_upload(
 
 
 @router.get(
+    path="/{attachment_id}/presigned-download",
+    status_code=status.HTTP_200_OK,
+    response_model=PresignedDownloadResponse,
+    summary="Получить presigned URL для скачивания"
+)
+async def get_presigned_download_url(
+        attachment_id: UUID, service: AttachmentServiceDep
+) -> PresignedDownloadResponse:
+    return await service.create_presigned_download_url(attachment_id)
+
+
+@router.get(
     path="/{attachment_id}",
     status_code=status.HTTP_200_OK,
     response_model=AttachmentResponse,
@@ -57,7 +70,7 @@ async def get_attachment(attachment_id: UUID, repository: AttachmentRepoDep) -> 
     return map_attachment_to_response(attachment)
 
 
-@router.delete(
+"""@router.delete(
     path="/{attachment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удалить файл (Soft-delete)"
@@ -72,4 +85,4 @@ async def delete_attachment(attachment_id: UUID, repository: AttachmentRepoDep) 
     response_model=...,
     summary="Получение всех файлов владельца"
 )
-async def get_owner_attachments(owner_type: str, owner_id: UUID) -> ...: ...
+async def get_owner_attachments(owner_type: str, owner_id: UUID) -> ...: ..."""

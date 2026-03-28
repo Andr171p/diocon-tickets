@@ -47,11 +47,21 @@ class S3Storage(Storage):
     ) -> str:
         async with self.get_client() as client:
             return await client.generate_presigned_url(
-                "get_object",
+                "put_object",
                 Params={
                     "Bucket": self.bucket_name, "Key": storage_key, "ContentType": content_type
                 },
-                ExpiresIn=expires_in
+                ExpiresIn=expires_in,
+                HttpMethod="PUT",
+            )
+
+    async def create_presigned_download_url(self, storage_key: str, expires_in: int = 3600) -> str:
+        async with self.get_client() as client:
+            return await client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": self.bucket_name, "Key": storage_key},
+                ExpiresIn=expires_in,
+                HttpMethod="GET",
             )
 
     async def get_file_info(self, storage_key: str) -> dict[str, Any]:

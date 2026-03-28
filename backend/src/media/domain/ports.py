@@ -51,7 +51,7 @@ class Storage(Protocol):
         Генерирует подписанный URL для прямой загрузки с фронтенда
         """
 
-    async def get_public_url(self, storage_key: str, expires_in: int | None = 3600) -> str:
+    async def create_presigned_download_url(self, storage_key: str, expires_in: int = 3600) -> str:
         """
         Возвращает публичный (или временный) URL для просмотра файла.
         """

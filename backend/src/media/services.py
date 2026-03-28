@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..shared.domain.exceptions import NotFoundError
 from ..shared.utils.time import current_datetime
 from .constants import PRESIGNED_URL_EXPIRES_IN
 from .domain.entities import Attachment
@@ -11,6 +12,7 @@ from .mappers import map_attachment_to_response
 from .schemas import (
     AttachmentResponse,
     ConfirmUploadRequest,
+    PresignedDownloadResponse,
     PresignedUploadRequest,
     PresignedUploadResponse,
 )
@@ -77,3 +79,24 @@ class AttachmentService:
 
         # 3. Формирование ответа + получение preview для изображений
         return map_attachment_to_response(attachment)
+
+    async def create_presigned_download_url(
+            self, attachment_id: UUID
+    ) -> PresignedDownloadResponse:
+        """Создание временной ссылки для скачивания файла"""
+
+        # 1. Получение вложения из БД
+        attachment = await self.repository.read(attachment_id)
+        if attachment is None:
+            raise NotFoundError(f"Attachment with ID {attachment_id} not found")
+
+        # 2. Генерация подписанного (временного) URL
+        presigned_url = await self.storage.create_presigned_download_url(
+            storage_key=attachment.storage_key, expires_in=PRESIGNED_URL_EXPIRES_IN
+        )
+
+        return PresignedDownloadResponse(
+            download_url=presigned_url,
+            storage_key=attachment.storage_key,
+            expires_in=PRESIGNED_URL_EXPIRES_IN,
+        )
