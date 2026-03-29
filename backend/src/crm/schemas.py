@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
-from src.counterparties.domain.vo import CounterpartyType
+from .domain.vo import CounterpartyType
 
 
 class ContactPersonIn(BaseModel):
@@ -53,6 +53,24 @@ class CounterpartyCreate(BaseModel):
     contact_person: ContactPersonIn | None = Field(None, description="Контактное лицо")
 
 
+class BranchAdd(BaseModel):
+    """Добавление обособленного подразделения
+    (контактное лицо можно добавить через обновление контрагента).
+    """
+
+    name: str = Field(..., max_length=255, description="Наименование")
+    legal_name: str = Field(..., max_length=255, description="Юридическое наименование")
+    kpp: str = Field(..., max_length=9, description="КПП - код причины постановки на учёт")
+    okpo: str | None = Field(
+        None,
+        max_length=10,
+        description="ОКПО — Общероссийский классификатор предприятий и организаций",
+    )
+    phone: str = Field(..., description="Номер телефона", examples=["88005553535", "+78005553535"])
+    email: EmailStr = Field(..., description="Адрес электронной почты")
+    address: str | None = Field(None, description="Фактический адрес компании")
+
+
 class CounterpartyResponse(BaseModel):
     """API ответ для получения контрагента"""
 
@@ -74,7 +92,7 @@ class CounterpartyResponse(BaseModel):
     address: str | None = Field(None, description="Фактический адрес компании")
     avatar_url: str | None = Field(None, description="URL адрес аватарки")
     contact_person: ContactPersonOut | None = Field(None, description="Контактное лицо")
-    is_master: bool = Field(True, description="Является ли контрагент головным")
-    is_slave: bool = Field(False, description="Является ли дочерним объектом")
     parent_id: UUID | None = Field(None, description="ID головного контрагента")
     is_active: bool = Field(True, description="Доступен ли контрагент в системе")
+    is_head: bool = Field(True, description="Является ли контрагент головным")
+    is_branch: bool = Field(False, description="Является ли дочерним объектом")

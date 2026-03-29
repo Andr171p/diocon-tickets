@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.counterparties.domain.vo import CounterpartyType
-from src.counterparties.schemas import ContactPersonIn, CounterpartyCreate
-from src.counterparties.services import CounterpartyService
+from src.crm.domain.vo import CounterpartyType
+from src.crm.schemas import BranchAdd, ContactPersonIn, CounterpartyCreate
+from src.crm.services import CounterpartyService
 
 
 @pytest.fixture
@@ -32,22 +32,13 @@ def legal_entity_data():
 
 @pytest.fixture
 def branch_data():
-    return CounterpartyCreate(
-        counterparty_type=CounterpartyType.BRANCH,
+    return BranchAdd(
         name="Филиал",
         legal_name="ООО Головная компания (филиал)",
-        inn="1234567890",
         kpp="987654321",
         phone="88005553536",
         email="branch@example.com",
         address="Санкт-Петербург, Невский пр., д.10",
-        contact_person=ContactPersonIn(
-            first_name="Петр",
-            last_name="Петров",
-            middle_name="Петрович",
-            phone="88005553536",
-            email="petrov@example.com",
-        ),
     )
 
 

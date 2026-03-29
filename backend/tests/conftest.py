@@ -4,13 +4,13 @@ from uuid import UUID, uuid4
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-import src.counterparties.infra.models
+import src.crm.infra.models
 import src.iam.infra.models
-from src.counterparties.dependencies import get_counterparty_repo, get_counterparty_service
-from src.counterparties.domain.entities import Counterparty
-from src.counterparties.domain.repo import CounterpartyRepository
-from src.counterparties.domain.vo import Inn
-from src.counterparties.services import CounterpartyService
+from src.crm.dependencies import get_counterparty_repo, get_counterparty_service
+from src.crm.domain.entities import Counterparty
+from src.crm.domain.repo import CounterpartyRepository
+from src.crm.domain.vo import Inn
+from src.crm.services import CounterpartyService
 from src.iam.dependencies import get_current_user
 from src.iam.domain.vo import UserRole
 from src.iam.schemas import CurrentUser

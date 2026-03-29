@@ -38,7 +38,6 @@ class CounterpartyMapper(ModelMapper[Counterparty, CounterpartyOrm]):
             ),
             is_active=model.is_active,
             parent_id=model.parent_id,
-            is_slave=model.is_slave,
         )
 
     @staticmethod
@@ -67,7 +66,6 @@ class CounterpartyMapper(ModelMapper[Counterparty, CounterpartyOrm]):
             ),
             is_active=entity.is_active,
             parent_id=entity.parent_id,
-            is_slave=entity.is_slave,
         )
 
 

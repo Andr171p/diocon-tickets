@@ -166,3 +166,12 @@ ignore_names = [
     "delete",
     "head"
 ]
+
+# --- Pytest ---
+[tool.pytest.ini_options]
+markers = [
+    "unit: быстрые unit-тесты для доменной логики",
+    "integration: тесты с использованием инфраструктуры",
+    "e2e: end-to-end сценарии"
+]
+testpaths = ["tests"]

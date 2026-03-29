@@ -32,7 +32,6 @@ class Counterparty(Entity):
 
     # Поля для master-slave иерархии (удобно для филиалов)
     parent_id: UUID | None = None
-    is_slave: bool = False
 
     def __post_init__(self) -> None:
         """Проверка инвариантов контрагента"""
@@ -64,18 +63,51 @@ class Counterparty(Entity):
                 f"For counterparty type {self.counterparty_type.value} KPP not required"
             )
 
-        # 4. Инвариант: если контрагент дочерний, то нужна ссылка на головной
-        if self.is_slave and self.parent_id is None:
+        # 4. Обособленное подразделение должно быть привязано к основному контрагенту
+        if self.counterparty_type == CounterpartyType.BRANCH and self.parent_id is None:
             raise InvariantViolationError(
-                "Slave counterparty (branch) must have a link to the parent ID (parent company)"
+                "It is necessary to specify the ID of the head counterparty "
+                "to attach a branch. Missing parent_id value."
             )
 
-        # 5. Инвариант: Master не может быть slave
-        if self.parent_id is not None and self.is_slave is False:
-            object.__setattr__(self, "is_slave", True)
-
     @property
-    def is_master(self) -> bool:
+    def is_head(self) -> bool:
         """Является ли контрагент основным"""
 
         return self.parent_id is None
+
+    @property
+    def is_branch(self) -> bool:
+        """Является ли контрагент дочерним (подчинённым основному)"""
+
+        return self.parent_id is not None
+
+    def create_branch(
+            self,
+            name: str,
+            legal_name: str,
+            kpp: str,
+            phone: str,
+            email: EmailStr,
+            okpo: str | None = None,
+            address: str | None = None,
+    ) -> "Counterparty":
+        """Создание обособленного подразделения с привязкой к контрагенту"""
+
+        if self.counterparty_type != CounterpartyType.LEGAL_ENTITY:
+            raise InvariantViolationError(
+                "It is impossible to assign a branch to a non-legal entity"
+            )
+
+        return Counterparty(
+            counterparty_type=CounterpartyType.BRANCH,
+            name=name,
+            legal_name=legal_name,
+            inn=self.inn,
+            kpp=Kpp(kpp),
+            okpo=None if okpo is None else Okpo(okpo),
+            phone=Phone(phone),
+            email=email,
+            address=address,
+            parent_id=self.id
+        )

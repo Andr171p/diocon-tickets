@@ -21,9 +21,9 @@ def map_counterparty_to_response(counterparty: Counterparty) -> CounterpartyResp
         email=counterparty.email,
         address=counterparty.address,
         avatar_url=counterparty.avatar_url,
-        is_master=counterparty.is_master,
+        is_head=counterparty.is_head,
         parent_id=counterparty.parent_id,
-        is_slave=counterparty.is_slave,
+        is_branch=counterparty.is_branch,
         is_active=counterparty.is_active,
         contact_person=(
             None

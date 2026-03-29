@@ -32,13 +32,12 @@ class CounterpartyOrm(Base):
     parent_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("counterparties.id"), nullable=True, unique=False
     )
-    is_slave: Mapped[bool]
 
-    parent: Mapped[Optional["CounterpartyOrm"]] = relationship(
-        remote_side="CounterpartyOrm.id", back_populates="slaves",
+    head: Mapped[Optional["CounterpartyOrm"]] = relationship(
+        remote_side="CounterpartyOrm.id", back_populates="branches",
     )
-    slaves: Mapped[list["CounterpartyOrm"]] = relationship(
-        back_populates="parent", cascade="all, delete-orphan"
+    branches: Mapped[list["CounterpartyOrm"]] = relationship(
+        back_populates="head", cascade="all, delete-orphan"
     )
 
     customers: Mapped[list["UserOrm"]] = relationship(back_populates="counterparty")

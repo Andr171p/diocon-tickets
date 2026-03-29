@@ -2,8 +2,8 @@ import uuid
 
 import pytest
 
-from src.counterparties.domain.entities import Counterparty
-from src.counterparties.domain.vo import (
+from src.crm.domain.entities import Counterparty
+from src.crm.domain.vo import (
     ContactPerson,
     CounterpartyType,
     Inn,
@@ -16,12 +16,12 @@ from src.shared.domain.exceptions import InvariantViolationError
 
 @pytest.fixture
 def valid_inn_legal():
-    return Inn("7707083893")  # 10 цифр
+    return Inn("7707083893")
 
 
 @pytest.fixture
 def valid_inn_ip():
-    return Inn("123456789012")  # 12 цифр
+    return Inn("123456789012")
 
 
 @pytest.fixture
@@ -57,8 +57,8 @@ def test_create_legal_entity_success(valid_inn_legal, valid_kpp, valid_phone):
     )
 
     assert counterparty.counterparty_type == CounterpartyType.LEGAL_ENTITY
-    assert counterparty.is_master is True
-    assert counterparty.is_slave is False
+    assert counterparty.is_head is True
+    assert counterparty.is_branch is False
 
 
 def test_create_individual_entrepreneur_success(valid_inn_ip, valid_phone):
@@ -74,32 +74,66 @@ def test_create_individual_entrepreneur_success(valid_inn_ip, valid_phone):
     )
 
     assert counterparty.counterparty_type == CounterpartyType.INDIVIDUAL_ENTREPRENEUR
+    assert counterparty.is_head is True
+    assert counterparty.is_branch is False
 
 
-def test_create_branch_success(valid_inn_legal, valid_kpp, valid_phone):
-    master_id = uuid.uuid4()
+# ====================== Создание филиала через фабричный метод ======================
 
-    branch = Counterparty(
-        counterparty_type=CounterpartyType.BRANCH,
-        name="Филиал в Санкт-Петербурге",
-        legal_name="ООО Ромашка (филиал в СПб)",
+def test_create_branch(valid_inn_legal, valid_kpp, valid_phone):
+    counterparty = Counterparty(
+        counterparty_type=CounterpartyType.LEGAL_ENTITY,
+        name="ООО Ромашка",
+        legal_name="Общество с ограниченной ответственностью «Ромашка»",
         inn=valid_inn_legal,
         kpp=valid_kpp,
         phone=valid_phone,
-        email="spb@romashka.ru",
-        parent_id=master_id,
-        is_slave=True,
+        email="info@romashka.ru",
     )
 
-    assert branch.is_slave is True
-    assert branch.is_master is False
-    assert branch.parent_id == master_id
+    branch = counterparty.create_branch(
+        name="Филиал в Санкт-Петербурге",
+        legal_name="ООО Ромашка (филиал в СПб)",
+        kpp="784201001",
+        phone="+78121234567",
+        email="spb@romashka.ru",
+        address="г. Санкт-Петербург, Невский пр., 1",
+    )
+
+    assert branch.counterparty_type == CounterpartyType.BRANCH
+    assert branch.parent_id == counterparty.id
+    assert branch.inn == counterparty.inn
+    assert branch.is_head is False
+    assert branch.is_branch is True
+    assert branch.kpp.value == "784201001"
 
 
-# ====================== Ошибки инвариантов ======================
+def test_create_branch_invalid_counterparty_type(valid_inn_ip, valid_phone):
+    counterparty = Counterparty(
+        counterparty_type=CounterpartyType.INDIVIDUAL_ENTREPRENEUR,
+        name="ИП Иванов",
+        legal_name="ИП Иванов И.И.",
+        inn=valid_inn_ip,
+        phone=valid_phone,
+        email="ip@example.com",
+    )
+
+    with pytest.raises(
+            InvariantViolationError, match="impossible to assign a branch to a non-legal entity"
+    ):
+        counterparty.create_branch(
+            name="Филиал",
+            legal_name="Филиал ИП",
+            kpp="123456789",
+            phone="+79991234567",
+            email="branch@ip.ru",
+        )
+
+
+# ====================== Ошибки инвариантов при прямом создании ======================
 
 def test_legal_entity_without_kpp_raises_error(valid_inn_legal, valid_phone):
-    with pytest.raises(InvariantViolationError) as exc:
+    with pytest.raises(InvariantViolationError, match="KPP required"):
         Counterparty(
             counterparty_type=CounterpartyType.LEGAL_ENTITY,
             name="ООО Ромашка",
@@ -110,11 +144,9 @@ def test_legal_entity_without_kpp_raises_error(valid_inn_legal, valid_phone):
             email="info@romashka.ru",
         )
 
-    assert "KPP required" in str(exc.value)
-
 
 def test_ip_with_kpp_raises_error(valid_inn_ip, valid_kpp, valid_phone):
-    with pytest.raises(InvariantViolationError) as exc:
+    with pytest.raises(InvariantViolationError, match="KPP not required"):
         Counterparty(
             counterparty_type=CounterpartyType.INDIVIDUAL_ENTREPRENEUR,
             name="ИП Иванов",
@@ -125,11 +157,9 @@ def test_ip_with_kpp_raises_error(valid_inn_ip, valid_kpp, valid_phone):
             email="ip@example.com",
         )
 
-    assert "KPP not required" in str(exc.value)
-
 
 def test_wrong_inn_length_for_legal_entity(valid_inn_ip, valid_kpp, valid_phone):
-    with pytest.raises(InvariantViolationError) as exc:
+    with pytest.raises(InvariantViolationError, match="10 digits"):
         Counterparty(
             counterparty_type=CounterpartyType.LEGAL_ENTITY,
             name="ООО Ромашка",
@@ -140,11 +170,9 @@ def test_wrong_inn_length_for_legal_entity(valid_inn_ip, valid_kpp, valid_phone)
             email="info@romashka.ru",
         )
 
-    assert "10 digits" in str(exc.value)
-
 
 def test_wrong_inn_length_for_ip(valid_inn_legal, valid_phone):
-    with pytest.raises(InvariantViolationError) as exc:
+    with pytest.raises(InvariantViolationError, match="12 digits"):
         Counterparty(
             counterparty_type=CounterpartyType.INDIVIDUAL_ENTREPRENEUR,
             name="ИП Иванов",
@@ -154,11 +182,9 @@ def test_wrong_inn_length_for_ip(valid_inn_legal, valid_phone):
             email="ip@example.com",
         )
 
-    assert "12 digits" in str(exc.value)
 
-
-def test_slave_without_parent_id_raises_error(valid_inn_legal, valid_kpp, valid_phone):
-    with pytest.raises(InvariantViolationError) as exc:
+def test_branch_without_parent_id_raises_error(valid_inn_legal, valid_kpp, valid_phone):
+    with pytest.raises(InvariantViolationError, match="specify the ID of the head counterparty"):
         Counterparty(
             counterparty_type=CounterpartyType.BRANCH,
             name="Филиал",
@@ -167,17 +193,14 @@ def test_slave_without_parent_id_raises_error(valid_inn_legal, valid_kpp, valid_
             kpp=valid_kpp,
             phone=valid_phone,
             email="branch@example.com",
-            is_slave=True,
-            parent_id=None,
+            parent_id=None,  # явно None
         )
-
-    assert "must have a link to the parent ID" in str(exc.value)
 
 
 # ====================== Свойства ======================
 
-def test_is_master_and_is_slave_properties():
-    master = Counterparty(
+def test_is_head_and_is_branch_properties():
+    counterparty = Counterparty(
         counterparty_type=CounterpartyType.LEGAL_ENTITY,
         name="Головная компания",
         legal_name="Головная компания",
@@ -187,10 +210,10 @@ def test_is_master_and_is_slave_properties():
         email="head@company.ru",
     )
 
-    assert master.is_master is True
-    assert master.is_slave is False
+    assert counterparty.is_head is True
+    assert counterparty.is_branch is False
 
-    slave = Counterparty(
+    branch = Counterparty(
         counterparty_type=CounterpartyType.BRANCH,
         name="Филиал",
         legal_name="Филиал",
@@ -199,25 +222,7 @@ def test_is_master_and_is_slave_properties():
         phone=Phone("+79991234567"),
         email="branch@company.ru",
         parent_id=uuid.uuid4(),
-        is_slave=True,
     )
 
-    assert slave.is_master is False
-    assert slave.is_slave is True
-
-
-# ====================== Дополнительные тесты ======================
-
-"""
-def test_foreign_legal_entity_allows_any_inn_length():
-    foreign = Counterparty(
-        counterparty_type=CounterpartyType.FOREIGN_LEGAL_ENTITY,
-        name="Foreign Company Ltd",
-        legal_name="Foreign Company Ltd",
-        inn=Inn("123456"),
-        phone=Phone("+441234567890"),
-        email="foreign@company.com",
-    )
-
-    assert foreign.counterparty_type == CounterpartyType.FOREIGN_LEGAL_ENTITY
-"""
+    assert branch.is_head is False
+    assert branch.is_branch is True

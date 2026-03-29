@@ -3,9 +3,9 @@ from uuid import UUID
 
 import pytest
 
-from src.counterparties.domain.entities import Counterparty
-from src.counterparties.domain.repo import CounterpartyRepository
-from src.counterparties.domain.vo import Inn
+from src.crm.domain.entities import Counterparty
+from src.crm.domain.repo import CounterpartyRepository
+from src.crm.domain.vo import Inn
 from src.iam.domain.entities import Invitation, User
 from src.iam.domain.repos import InvitationRepository, UserRepository
 from src.iam.domain.vo import UserRole

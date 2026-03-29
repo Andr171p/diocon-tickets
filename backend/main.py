@@ -10,7 +10,7 @@ from fastapi import APIRouter, FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
 from src.core.settings import settings
-from src.counterparties.router import router as counterparty_router
+from src.crm.router import router as counterparty_router
 from src.iam.routers import router as iam_router
 from src.media.router import router as media_router
 from src.shared.domain.exceptions import AppError

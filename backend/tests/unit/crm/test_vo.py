@@ -1,6 +1,6 @@
 import pytest
 
-from src.counterparties.domain.vo import Inn, Kpp, Okpo, Phone
+from src.crm.domain.vo import Inn, Kpp, Okpo, Phone
 
 
 @pytest.mark.parametrize(

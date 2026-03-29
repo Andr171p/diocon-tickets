@@ -9,9 +9,11 @@ from ..shared.domain.exceptions import NotFoundError
 from ..shared.schemas import Page
 from .dependencies import CounterpartyRepoDep, CounterpartyServiceDep
 from .mappers import map_counterparty_to_response
-from .schemas import CounterpartyCreate, CounterpartyResponse
+from .schemas import BranchAdd, CounterpartyCreate, CounterpartyResponse
 
-router = APIRouter(prefix="/counterparties", tags=["Контрагенты"])
+router = APIRouter(
+    prefix="/counterparties", tags=["Контрагенты"], dependencies=[]
+)
 
 
 @router.post(
@@ -45,14 +47,14 @@ async def get_counterparty(
     path="/{counterparty_id}",
     response_model=CounterpartyResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Добавление дочернего контрагента",
+    summary="Добавление обособленного подразделения",
 )
-async def add_branch_counterparty(
+async def add_branch(
         counterparty_id: Annotated[
             UUID,
             Path(..., description="ID контрагента, к которому нужно привязать нового")
         ],
-        data: CounterpartyCreate,
+        data: BranchAdd,
         service: CounterpartyServiceDep
 ) -> CounterpartyResponse:
     return await service.add_branch(counterparty_id, data)

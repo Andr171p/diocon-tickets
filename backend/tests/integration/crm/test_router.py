@@ -26,21 +26,12 @@ def legal_entity_payload():
 @pytest.fixture
 def branch_payload():
     return {
-        "counterparty_type": "Обособленное подразделение",
         "name": "Филиал",
         "legal_name": "ООО Головная компания (филиал)",
-        "inn": "1234567890",
         "kpp": "987654321",
         "phone": "88005553536",
         "email": "branch@example.com",
         "address": "Санкт-Петербург, Невский пр., д.10",
-        "contact_person": {
-            "first_name": "Петр",
-            "last_name": "Петров",
-            "middle_name": "Петрович",
-            "phone": "88005553536",
-            "email": "petrov@example.com",
-        },
     }
 
 
