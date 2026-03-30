@@ -1,65 +1,205 @@
-import io
 from uuid import uuid4
 
-import httpx
+import aiohttp
 import pytest
 from fastapi import status
 
-from src.media.domain.entities import Attachment
-from src.shared.utils.time import current_datetime
+from src.media.schemas import ConfirmUploadRequest, PresignedUploadRequest
+from src.media.services import AttachmentService
+from src.shared.domain.exceptions import NotFoundError
 
 
-@pytest.mark.asyncio(loop_scope="session")
-async def test_full_upload_and_preview_flow(
-        session,
-        s3_storage,
+@pytest.fixture
+def attachment_service(session, attachment_repo, s3_storage):
+    return AttachmentService(session=session, repository=attachment_repo, storage=s3_storage)
+
+
+@pytest.fixture
+def owner_id():
+    return uuid4()
+
+
+@pytest.fixture
+def owner_type():
+    return "ticket"
+
+
+@pytest.fixture
+def uploaded_by():
+    return uuid4()
+
+
+@pytest.fixture
+def sample_file_bytes():
+    return b"Test file content for service"
+
+
+@pytest.fixture
+def original_filename():
+    return "test_file.txt"
+
+
+@pytest.fixture
+def content_type():
+    return "text/plain"
+
+
+class TestAttachmentService:
+    @pytest.mark.asyncio
+    async def test_create_presigned_upload_url(
+            self,
+            attachment_service,
+            owner_type,
+            owner_id,
+            original_filename,
+            content_type,
+    ):
+        request = PresignedUploadRequest(
+            filename=original_filename,
+            content_type=content_type,
+            owner_type=owner_type,
+            owner_id=owner_id,
+        )
+        response = await attachment_service.create_presigned_upload_url(request)
+
+        assert response.upload_url is not None
+        assert response.storage_key.startswith(f"{owner_type}/{owner_id}/")
+        assert response.storage_key.endswith(".txt")
+
+    @pytest.mark.asyncio
+    async def test_confirm_upload(
+        self,
         attachment_repo,
         attachment_service,
-        imgproxy_service,
-):
-    owner_id = uuid4()
-    storage_key = f"test/{owner_id}/avatar.jpg"
-    content_type = "image/jpeg"
+        owner_type,
+        owner_id,
+        original_filename,
+        content_type,
+        uploaded_by,
+        sample_file_bytes,
+    ):
+        # 1. Создание подписанного URL для загрузки
+        upload_request = PresignedUploadRequest(
+            filename=original_filename,
+            content_type=content_type,
+            owner_type=owner_type,
+            owner_id=owner_id,
+        )
+        presigned_response = await attachment_service.create_presigned_upload_url(upload_request)
 
-    # 1. Загрузка тестового изображения в S3
-    test_image = b"fake image content"
-    await s3_storage.upload(io.BytesIO(test_image), storage_key, content_type=content_type)
+        # 2. Загрузка файла по подписанному URL
+        async with aiohttp.ClientSession() as session, session.put(
+            url=presigned_response.upload_url,
+                data=sample_file_bytes,
+                headers={"Content-Type": content_type},
+        ) as response:
+            assert response.status == status.HTTP_200_OK
 
-    # 2. Создание attachment
-    attachment = Attachment(
-        original_filename="avatar.jpg",
-        mime_type=content_type,
-        size_bytes=len(test_image),
-        storage_key=storage_key,
-        owner_type="user",
-        owner_id=owner_id,
-        is_public=True,
-        uploaded_at=current_datetime(),
-        uploaded_by_id=uuid4(),
-    )
-    await attachment_repo.create(attachment)
-    await session.commit()
+        # 3. Подтверждение загрузки
+        confirm_request = ConfirmUploadRequest(
+            storage_key=presigned_response.storage_key,
+            original_filename=original_filename,
+            content_type=content_type,
+            owner_type=owner_type,
+            owner_id=owner_id,
+        )
+        confirmed_response = await attachment_service.confirm_upload(
+            confirm_request, uploaded_by=uploaded_by
+        )
 
-    # 3. Проверка успешной загрузки файла
-    file_info = await s3_storage.get_file_info(storage_key)
+        # 4. Проверка ответа
+        assert confirmed_response.id is not None
+        assert confirmed_response.original_filename == original_filename
+        assert confirmed_response.mime_type == content_type
+        assert confirmed_response.size_bytes == len(sample_file_bytes)
+        assert confirmed_response.storage_key == presigned_response.storage_key
+        assert confirmed_response.owner_type == owner_type
+        assert confirmed_response.owner_id == owner_id
+        assert confirmed_response.uploaded_by == uploaded_by
 
-    assert file_info.get("size") is not None
-    assert file_info["size"] == len(test_image)
+        # 5. Проверка того, что запись действительно создана в БД
+        attachment = await attachment_repo.read(confirmed_response.id)
 
-    # 4. Проверка генерации preview через imgproxy
-    preview_url = imgproxy_service.preview(storage_key)
-    print(preview_url)
+        assert attachment is not None
+        assert attachment.storage_key == presigned_response.storage_key
 
-    # 5. Проверка preview URL на валидность и доступность
-    async with httpx.AsyncClient() as client:
-        response = await client.get(preview_url, follow_redirects=True)
-        print(f"Response Body: {response.text[:1000]}")
+    @pytest.mark.asyncio
+    async def test_create_presigned_download_url_success(
+            self,
+            attachment_service,
+            owner_type,
+            owner_id,
+            original_filename,
+            content_type,
+            uploaded_by,
+            sample_file_bytes,
+    ):
+        # 1. Загрузка файла в хранилище
+        upload_request = PresignedUploadRequest(
+            filename=original_filename,
+            content_type=content_type,
+            owner_type=owner_type,
+            owner_id=owner_id,
+        )
+        upload_response = await attachment_service.create_presigned_upload_url(upload_request)
 
-        assert response.status_code == status.HTTP_200_OK
-        assert response.headers.get("Content-Type") in {"image/webp", "image/jpeg", "image/png"}
+        async with aiohttp.ClientSession() as session, session.put(
+            upload_response.upload_url,
+            data=sample_file_bytes,
+            headers={"Content-Type": content_type},
+        ) as resp:
+            assert resp.status == status.HTTP_200_OK
 
-    # 6. Проверка записи в БД
-    existing_attachment = await attachment_repo.read(attachment.id)
+        confirm_request = ConfirmUploadRequest(
+            storage_key=upload_response.storage_key,
+            original_filename=original_filename,
+            content_type=content_type,
+            owner_type=owner_type,
+            owner_id=owner_id,
+        )
+        attachment = await attachment_service.confirm_upload(confirm_request, uploaded_by)
 
-    assert existing_attachment is not None
-    assert existing_attachment.storage_key == storage_key
+        # 2. Скачивание файла из хранилища
+        download_response = await attachment_service.create_presigned_download_url(attachment.id)
+
+        assert download_response.download_url is not None
+        assert download_response.storage_key == upload_response.storage_key
+
+        async with aiohttp.ClientSession() as session, session.get(
+                download_response.download_url
+        ) as response:
+            assert response.status == status.HTTP_200_OK
+
+            downloaded_file = await response.read()
+
+        assert downloaded_file == sample_file_bytes
+
+    @pytest.mark.asyncio
+    async def test_create_presigned_download_url_raises_not_found(self, attachment_service):
+        non_existing_attachment_id = uuid4()
+
+        with pytest.raises(NotFoundError) as exc:
+            await attachment_service.create_presigned_download_url(non_existing_attachment_id)
+        assert f"Attachment with ID {non_existing_attachment_id} not found" in str(exc.value)
+
+    @pytest.mark.asyncio
+    async def test_confirm_upload_file_missing(
+            self,
+            attachment_service,
+            owner_type,
+            owner_id,
+            original_filename,
+            content_type,
+            uploaded_by,
+    ):
+        storage_key = f"{owner_type}/{owner_id}/{uuid4()}.txt"
+        confirm_request = ConfirmUploadRequest(
+            storage_key=storage_key,
+            original_filename=original_filename,
+            content_type=content_type,
+            owner_type=owner_type,
+            owner_id=owner_id,
+        )
+
+        with pytest.raises(NotFoundError):
+            await attachment_service.confirm_upload(confirm_request, uploaded_by)

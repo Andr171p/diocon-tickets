@@ -14,7 +14,7 @@ from .schemas import (
     PresignedUploadResponse,
 )
 
-router = APIRouter(prefix="/media", tags=["Медиа контент"])
+router = APIRouter(prefix="/attachments", tags=["Медиа контент"])
 
 
 @router.post(
