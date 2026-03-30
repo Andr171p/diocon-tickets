@@ -52,7 +52,7 @@ class AttachmentService:
         )
 
     async def confirm_upload(
-            self, request: ConfirmUploadRequest, uploaded_by_id: UUID
+            self, request: ConfirmUploadRequest, uploaded_by: UUID
     ) -> AttachmentResponse:
         """Подтверждение загрузки файла"""
 
@@ -72,7 +72,7 @@ class AttachmentService:
             owner_type=request.owner_type,
             owner_id=request.owner_id,
             uploaded_at=uploaded_at,
-            uploaded_by_id=uploaded_by_id,
+            uploaded_by=uploaded_by,
         )
         await self.repository.create(attachment)
         await self.session.commit()

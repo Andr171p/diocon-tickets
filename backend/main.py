@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 from collections.abc import AsyncIterator
@@ -19,14 +20,14 @@ from src.shared.utils.cli import run_cli_command
 logger = logging.getLogger(__name__)
 
 
-def run_migrations() -> None:
+async def run_migrations() -> None:
     alembic_cfg = Config("alembic.ini")
-    command.upgrade(alembic_cfg, "head")
+    await asyncio.to_thread(command.upgrade, alembic_cfg, "head", False, None)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    # run_migrations()
+    await run_migrations()
     await run_cli_command(sys.executable, "-m", "cli", "create-first-admin")
     await run_cli_command(sys.executable, "-m", "cli", "init-s3-storage")
     yield

@@ -169,6 +169,7 @@ ignore_names = [
 
 # --- Pytest ---
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 markers = [
     "unit: быстрые unit-тесты для доменной логики",
     "integration: тесты с использованием инфраструктуры",

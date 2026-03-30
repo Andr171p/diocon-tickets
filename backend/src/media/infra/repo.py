@@ -22,7 +22,7 @@ class AttachmentMapper(ModelMapper):
             owner_id=model.owner_id,
             is_public=model.is_public,
             uploaded_at=model.uploaded_at,
-            uploaded_by_id=model.uploaded_by_id,
+            uploaded_by=model.uploaded_by,
         )
 
     @staticmethod
@@ -39,7 +39,7 @@ class AttachmentMapper(ModelMapper):
             owner_id=entity.owner_id,
             is_public=entity.is_public,
             uploaded_at=entity.uploaded_at,
-            uploaded_by_id=entity.uploaded_by_id,
+            uploaded_by=entity.uploaded_by,
         )
 
 

@@ -72,9 +72,8 @@ class AttachmentResponse(BaseModel):
     storage_key: str = Field(..., description="Уникальный ключ объекта в хранилище")
     owner_type: str = Field(..., description="Тип сущности, которой принадлежит файл")
     owner_id: UUID = Field(..., description="ID сущности, которой принадлежит вложение")
-    uploaded_by_id: UUID = Field(..., description="ID пользователя, который загрузил файл")
+    uploaded_by: UUID = Field(..., description="ID пользователя, который загрузил файл")
     uploaded_at: datetime = Field(..., description="Дата загрузки объекта в хранилище")
-    preview_url: str | None = Field(None, description="URL адрес для preview изображения")
 
 
 class PresignedDownloadResponse(BaseModel):

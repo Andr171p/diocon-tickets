@@ -1,7 +1,3 @@
-import os
-
-os.environ["TESTCONTAINERS_RYUK_DISABLED"] = "true"
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from testcontainers.core.wait_strategies import PortWaitStrategy
@@ -42,7 +38,7 @@ def postgres_container():
         yield postgres
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def engine(postgres_container):
     engine = create_async_engine(
         url=postgres_container.get_connection_url(), echo=True, pool_pre_ping=True
@@ -53,7 +49,7 @@ async def engine(postgres_container):
     await engine.dispose()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def session(engine):
     sessionmaker = async_sessionmaker(
         engine, class_=AsyncSession, autoflush=False, expire_on_commit=False
@@ -72,6 +68,6 @@ def s3_storage(minio_container, minio_secret_key):
     )
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def attachment_repo(session):
     return SqlAttachmentRepository(session)

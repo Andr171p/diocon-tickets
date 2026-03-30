@@ -28,9 +28,7 @@ def get_attachment_service(
         storage: Storage = Depends(get_storage),
         repository: AttachmentRepository = Depends(get_attachment_repo),
 ) -> AttachmentService:
-    return AttachmentService(
-        session=session, storage=storage, repository=repository, imgproxy_service=...
-    )
+    return AttachmentService(session=session, storage=storage, repository=repository)
 
 
 AttachmentRepoDep = Annotated[AttachmentRepository, Depends(get_attachment_repo)]

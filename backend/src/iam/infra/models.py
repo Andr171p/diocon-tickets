@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from ...counterparties.infra.models import CounterpartyOrm
+    from ...crm.infra.models import CounterpartyOrm
 
 from datetime import datetime
 from uuid import UUID
