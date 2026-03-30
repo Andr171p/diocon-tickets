@@ -75,6 +75,19 @@ class MailSettings(BaseSettings):
     support_email: str = "diocon.support@mail.ru"
 
 
+class RabbitSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="RABBIT_")
+
+    host: str = "localhost"
+    port: int = 5672
+    user: str = "guest"
+    password: str = "quest"
+
+    @property
+    def url(self) -> str:
+        return f"amqp://{self.user}:{self.password}@{self.host}:{self.port}/"
+
+
 class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="APP_")
 
@@ -107,6 +120,7 @@ class Settings(BaseSettings):
     imgproxy: ImgProxySettings = ImgProxySettings()
     jwt: JWTSettings = JWTSettings()
     mail: MailSettings = MailSettings()
+    rabbit: RabbitSettings = RabbitSettings()
     admin: AdminSettings = AdminSettings()
 
 

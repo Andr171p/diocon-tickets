@@ -2,8 +2,9 @@ from typing import Annotated, Any
 
 from uuid import UUID
 
-from fastapi import APIRouter, Path, status
+from fastapi import APIRouter, Depends, Path, status
 
+from ..iam.dependencies import get_current_support_user
 from ..shared.dependencies import PageParamsDep
 from ..shared.domain.exceptions import NotFoundError
 from ..shared.schemas import Page
@@ -12,7 +13,9 @@ from .mappers import map_counterparty_to_response
 from .schemas import BranchAdd, CounterpartyCreate, CounterpartyResponse
 
 router = APIRouter(
-    prefix="/counterparties", tags=["Контрагенты"], dependencies=[]
+    prefix="/counterparties",
+    tags=["Контрагенты"],
+    dependencies=[Depends(get_current_support_user)],
 )
 
 

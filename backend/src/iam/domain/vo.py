@@ -12,8 +12,9 @@ class UserRole(StrEnum):
 
     CUSTOMER_ADMIN = "customer_admin"  # администратор клиентской стороны
     CUSTOMER = "customer"  # клиент / обычный пользователь
-    SUPPORT_AGENT = "support_agent"  # сотрудник поддержки
-    SUPPORT_MANAGER = "support_manager"  # старший сотрудник поддержки
+    SUPPORT_AGENT = "support_agent"  # сотрудник поддержки (1 линия)
+    SUPPORT_MANAGER = "support_manager"  # старший сотрудник поддержки (team lead)
+    EXECUTOR = "executor"  # исполнитель (видит назначенные ему тикеты)
     ADMIN = "admin"  # системный администратор
 
     def is_customer(self) -> bool:
