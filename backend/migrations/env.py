@@ -10,7 +10,7 @@ from alembic import context
 from src.core.settings import settings
 from src.core.database import Base
 from src.iam.infra.models import UserOrm, RefreshTokenOrm, InvitationOrm
-from src.counterparties.infra.models import CounterpartyOrm
+from src.crm.infra.models import CounterpartyOrm
 from src.media.infra.models import AttachmentOrm
 
 # this is the Alembic Config object, which provides

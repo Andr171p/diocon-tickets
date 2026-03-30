@@ -18,4 +18,4 @@ class AttachmentOrm(Base):
     owner_id: Mapped[UUID]
     is_public: Mapped[bool]
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    uploaded_by_id: Mapped[UUID]
+    uploaded_by: Mapped[UUID]

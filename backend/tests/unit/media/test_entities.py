@@ -21,7 +21,7 @@ def valid_data():
         "owner_id": uuid4(),
         "is_public": False,
         "uploaded_at": current_datetime(),
-        "uploaded_by_id": uuid4(),
+        "uploaded_by": uuid4(),
     }
 
 
@@ -63,7 +63,7 @@ def test_is_image_property():
         owner_type="user",
         owner_id=uuid4(),
         uploaded_at=current_datetime(),
-        uploaded_by_id=uuid4(),
+        uploaded_by=uuid4(),
     )
     assert attachment.is_image is True
 
@@ -76,7 +76,7 @@ def test_is_image_property():
         owner_type="ticket",
         owner_id=uuid4(),
         uploaded_at=current_datetime(),
-        uploaded_by_id=uuid4(),
+        uploaded_by=uuid4(),
     )
     assert non_image_attachment.is_image is False
 
@@ -91,7 +91,7 @@ def test_is_document_property():
         owner_type="ticket",
         owner_id=uuid4(),
         uploaded_at=current_datetime(),
-        uploaded_by_id=uuid4(),
+        uploaded_by=uuid4(),
     )
     assert attachment.is_document is True
 
@@ -104,7 +104,7 @@ def test_is_document_property():
         owner_type="user",
         owner_id=uuid4(),
         uploaded_at=current_datetime(),
-        uploaded_by_id=uuid4(),
+        uploaded_by=uuid4(),
     )
     assert non_doc_attachment.is_document is False
 

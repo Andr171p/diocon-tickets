@@ -22,7 +22,7 @@ class Attachment(Entity):
     owner_id: UUID
     is_public: bool = False
     uploaded_at: datetime
-    uploaded_by_id: UUID
+    uploaded_by: UUID
 
     def __post_init__(self) -> None:
         # 1. Валидация оригинального имени файла
