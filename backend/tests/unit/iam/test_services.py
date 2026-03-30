@@ -1,19 +1,23 @@
 from datetime import timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
 from faker import Faker
 from freezegun import freeze_time
-from pydantic import SecretStr
 
-from src.iam.domain.entities import Invitation, User
-from src.iam.domain.exceptions import InvitationExpiredError, UnauthorizedError
-from src.iam.domain.services import create_admin, create_customer, create_support, invite_customer
+from src.iam.domain.exceptions import InvitationExpiredError
+from src.iam.domain.services import (
+    create_admin,
+    create_customer,
+    create_support,
+    invite_customer,
+    invite_support,
+)
 from src.iam.domain.vo import UserRole
 from src.iam.schemas import Tokens, UserCreateForm
 from src.iam.security import hash_password, validate_token
-from src.iam.services import AuthService
+from src.iam.services import AuthService, InvitationService
 from src.shared.domain.exceptions import AlreadyExistsError, NotFoundError
 from src.shared.utils.time import current_datetime
 
@@ -56,6 +60,20 @@ def mock_invitation_for_customer(sample_counterparty_id):
 def sample_form_data(sample_password):
     return UserCreateForm(
         username="customer1", full_name="Иванов Иван Иванович", password=sample_password,
+    )
+
+
+@pytest.fixture
+def mock_mail_sender():
+    return AsyncMock()
+
+
+@pytest.fixture
+def mock_invitation_service(mock_session, mock_invitation_repo, mock_mail_sender):
+    return InvitationService(
+        session=mock_session,
+        repository=mock_invitation_repo,
+        mail_sender=mock_mail_sender,
     )
 
 
@@ -243,3 +261,149 @@ class TestAuthServiceAuthenticate:
         tokens = await mock_auth_service.authenticate(user.email, sample_password)
 
         assert isinstance(tokens, Tokens)
+
+
+class TestInvitationServiceSendInvitation:
+    """
+    Тестирование отправки приглашения
+    """
+
+    @pytest.mark.asyncio
+    async def test_send_invitation_support_new(
+            self, mock_invitation_service, mock_invitation_repo, mock_session, mock_mail_sender
+    ):
+        # 1. Создание и отправка приглашения
+        invited_by = uuid4()
+        email = fake.email()
+        assigned_role = UserRole.SUPPORT_AGENT
+
+        invitation = await mock_invitation_service.send_invitation(
+            invited_by=invited_by, email=email, assigned_role=assigned_role
+        )
+
+        # 2. Проверка успешного создания и записи приглашения
+        created_invitation = await mock_invitation_repo.read(invitation.id)
+
+        mock_session.commit.assert_awaited_once()
+        assert created_invitation is not None
+        assert created_invitation.invited_by == invited_by
+        assert created_invitation.assigned_role == assigned_role
+        assert created_invitation.email == email
+
+        # 3. Проверка отправки письма
+        mock_mail_sender.send.assert_awaited_once()
+
+        send_call_kwargs = mock_mail_sender.send.call_args[1]
+
+        assert send_call_kwargs["to"] == email
+        assert created_invitation.token in send_call_kwargs["context"]["invite_url"]
+
+        assert invitation == created_invitation
+
+    @pytest.mark.asyncio
+    async def test_send_invitation_customer_new(
+            self, mock_invitation_service, mock_invitation_repo, mock_session, mock_mail_sender
+    ):
+        # 1. Создание и отправка приглашения
+        invited_by = uuid4()
+        email = fake.email()
+        assigned_role = UserRole.CUSTOMER
+        counterparty_id = uuid4()
+
+        invitation = await mock_invitation_service.send_invitation(
+            invited_by=invited_by,
+            email=email,
+            assigned_role=assigned_role,
+            counterparty_id=counterparty_id,
+        )
+
+        # 2. Проверка успешного создания и записи приглашения
+        created_invitation = await mock_invitation_repo.read(invitation.id)
+
+        mock_session.commit.assert_awaited_once()
+        assert created_invitation is not None
+        assert created_invitation.invited_by == invited_by
+        assert created_invitation.assigned_role == assigned_role
+        assert created_invitation.email == email
+        assert created_invitation.counterparty_id == counterparty_id
+
+        # 3. Проверка отправки письма
+        mock_mail_sender.send.assert_awaited_once()
+
+        send_call_kwargs = mock_mail_sender.send.call_args[1]
+
+        assert send_call_kwargs["to"] == email
+        assert created_invitation.token in send_call_kwargs["context"]["invite_url"]
+
+        assert invitation == created_invitation
+
+    @pytest.mark.asyncio
+    async def test_send_invitation_already_exists(
+            self, mock_invitation_service, mock_invitation_repo, mock_session, mock_mail_sender
+    ):
+        # 1. Создание и сохранение приглашения
+        invited_by = uuid4()
+        email = fake.email()
+        assigned_role = UserRole.SUPPORT_AGENT
+
+        invitation = invite_support(
+            invited_by=invited_by, email=email, assigned_role=assigned_role
+        )
+        await mock_invitation_repo.create(invitation)
+
+        # 2. Попытка отправки приглашения
+        sent_invitation = await mock_invitation_service.send_invitation(
+            invited_by=invited_by, email=email, assigned_role=assigned_role
+        )
+
+        mock_session.commit.assert_not_called()
+        mock_mail_sender.send.assert_awaited_once()
+
+        send_call_kwargs = mock_mail_sender.send.call_args[1]
+
+        assert send_call_kwargs["to"] == email
+        assert sent_invitation.token in send_call_kwargs["context"]["invite_url"]
+
+        assert invitation == sent_invitation
+
+    @pytest.mark.asyncio
+    async def test_send_invitation_raises_invalid_params(
+            self, mock_invitation_service
+    ):
+        invited_by = uuid4()
+        email = fake.email()
+
+        with pytest.raises(ValueError, match="Invalid invite params"):
+            await mock_invitation_service.send_invitation(
+                invited_by=invited_by,
+                email=email,
+                assigned_role=UserRole.CUSTOMER,
+            )
+
+
+class TestInvitationServiceRevokeInvitation:
+    """
+    Тестирование отзыва приглашения
+    """
+
+    @pytest.mark.asyncio
+    async def test_revoke_invitation_success(
+            self, mock_invitation_service, mock_invitation_repo, mock_session
+    ):
+        invitation = invite_support(
+            invited_by=uuid4(), email=fake.email(), assigned_role=UserRole.SUPPORT_AGENT
+        )
+        await mock_invitation_repo.create(invitation)
+
+        await mock_invitation_service.revoke_invitation(invitation.id)
+
+        mock_session.commit.assert_awaited_once()
+
+        existing_invitation = await mock_invitation_repo.read(invitation.id)
+
+        assert existing_invitation is None
+
+    @pytest.mark.asyncio
+    async def test_revoke_invitation_raises_not_found(self, mock_invitation_service):
+        with pytest.raises(NotFoundError):
+            await mock_invitation_service.revoke_invitation(uuid4())

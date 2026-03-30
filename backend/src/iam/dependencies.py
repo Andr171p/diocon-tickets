@@ -50,10 +50,10 @@ def get_mail_sender() -> SmtpMailSender:
 
 def get_invitation_service(
         session: SessionDep,
-        invitation_repo: Annotated[InvitationRepository, Depends(get_invitation_repo)],
+        repository: Annotated[InvitationRepository, Depends(get_invitation_repo)],
         mail_sender: Annotated[SmtpMailSender, Depends(get_mail_sender)],
 ) -> InvitationService:
-    return InvitationService(session, invitation_repo=invitation_repo, mail_sender=mail_sender)
+    return InvitationService(session, repository=repository, mail_sender=mail_sender)
 
 
 InvitationServiceDep = Annotated[InvitationService, Depends(get_invitation_service)]

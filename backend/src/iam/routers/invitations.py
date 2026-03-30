@@ -18,7 +18,8 @@ router = APIRouter(prefix="/invitations", tags=["Приглашения"])
 @router.post(
     path="",
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Отправка приглашения"
+    summary="Отправка приглашения",
+    description="Приглашения можно отправлять только с ролью `support` и выше"
 )
 async def send_invitation(
         current_user: CurrentSupportUserDep,
@@ -55,7 +56,7 @@ async def get_invitation(
     path="",
     status_code=status.HTTP_200_OK,
     response_model=Page[dict[str, Any]],
-    summary="Получение всех приглашений"
+    summary="Получение всех приглашений",
 )
 async def get_invitations(
         params: PageParamsDep, repository: InvitationRepository = Depends(get_invitation_repo)

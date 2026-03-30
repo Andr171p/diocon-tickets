@@ -9,7 +9,7 @@ from ..shared.domain.exceptions import AlreadyExistsError, NotFoundError
 from ..shared.infra.mail import SmtpMailSender
 from ..shared.utils.time import current_datetime, get_expiration_time, get_expiration_timestamp
 from .constants import INVITATION_EXPIRE_IN_DAYS, INVITATION_SUBJECT, INVITATION_TEXT
-from .domain.entities import User
+from .domain.entities import Invitation, User
 from .domain.exceptions import InvitationExpiredError, UnauthorizedError
 from .domain.repos import InvitationRepository, UserRepository
 from .domain.services import create_customer, create_support, invite_customer, invite_support
@@ -166,7 +166,7 @@ class InvitationService:
             email: str,
             assigned_role: UserRole,
             counterparty_id: UUID | None = None,
-    ):
+    ) -> Invitation:
         """Отправка приглашения на почту"""
 
         # 1. Поиск уже существующего приглашения
@@ -224,4 +224,5 @@ class InvitationService:
             raise NotFoundError("Invitation not found")
 
         await self.repository.delete(invitation_id)
+        await self.session.commit()
         logger.info("Invitation deleted successfully")
