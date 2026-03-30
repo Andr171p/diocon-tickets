@@ -17,6 +17,8 @@ from .schemas import (
     PresignedUploadResponse,
 )
 
+# TODO @AndreyKosov: Добавить функционал сессий загрузки (pending upload). Использовать Redis для сессий  # noqa: E501, FIX002, TD003
+
 
 class AttachmentService:
     def __init__(
