@@ -1,0 +1,269 @@
+from typing import override
+
+from uuid import UUID
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
+
+from ...media.infra.repo import AttachmentMapper
+from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
+from ...shared.schemas import Page, PageParams
+from ..domain.entities import Comment, Ticket, TicketHistoryEntry
+from ..domain.vo import Tag, TicketPriority, TicketStatus
+from .models import CommentOrm, TicketHistoryEntryOrm, TicketOrm
+
+
+class CommentMapper(ModelMapper[Comment, CommentOrm]):
+    @staticmethod
+    def to_entity(model: CommentOrm) -> Comment:
+        attachment_mapper = AttachmentMapper()
+        return Comment(
+            id=model.id,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            ticket_id=model.ticket_id,
+            author_id=model.author_id,
+            author_role=model.author_role,
+            text=model.text,
+            type=model.type,
+            attachments=[
+                attachment_mapper.to_entity(attachment) for attachment in model.attachments
+            ],
+        )
+
+    @staticmethod
+    def from_entity(entity: Comment) -> CommentOrm:
+        attachment_mapper = AttachmentMapper()
+        return CommentOrm(
+            id=entity.id,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+            ticket_id=entity.ticket_id,
+            author_id=entity.author_id,
+            author_role=entity.author_role,
+            text=entity.text,
+            type=entity.type,
+            attachments=[
+                attachment_mapper.from_entity(attachment) for attachment in entity.attachments
+            ],
+        )
+
+
+class TicketHistoryEntryMapper(ModelMapper[TicketHistoryEntry, TicketHistoryEntryOrm]):
+    @staticmethod
+    def to_entity(model: TicketHistoryEntryOrm) -> TicketHistoryEntry:
+        return TicketHistoryEntry(
+            id=model.id,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            ticket_id=model.ticket_id,
+            actor_id=model.actor_id,
+            action=model.action,
+            old_value=model.old_value,
+            new_value=model.new_value,
+            description=model.description,
+        )
+
+    @staticmethod
+    def from_entity(entity: TicketHistoryEntry) -> TicketHistoryEntryOrm:
+        return TicketHistoryEntryOrm(
+            id=entity.id,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+            ticket_id=entity.ticket_id,
+            actor_id=entity.actor_id,
+            action=entity.action,
+            old_value=entity.old_value,
+            new_value=entity.new_value,
+            description=entity.description,
+        )
+
+
+class TicketMapper(ModelMapper[Ticket, TicketOrm]):
+    @staticmethod
+    def to_entity(model: TicketOrm) -> Ticket:
+        attachment_mapper = AttachmentMapper()
+        comment_mapper = CommentMapper()
+        history_mapper = TicketHistoryEntryMapper()
+        return Ticket(
+            id=model.id,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            counterparty_id=model.counterparty_id,
+            created_by_role=model.created_by_role,
+            created_by=model.created_by,
+            title=model.title,
+            description=model.description,
+            status=model.status,
+            priority=model.priority,
+            assigned_to=model.assigned_to,
+            closed_at=model.closed_at,
+            tags=[Tag(name=tag["name"], color=tag["color"]) for tag in model.tags],
+            comments=[comment_mapper.to_entity(comment) for comment in model.comments],
+            attachments=[
+                attachment_mapper.to_entity(attachment) for attachment in model.attachments
+            ],
+            history=[history_mapper.to_entity(entry) for entry in model.history]
+        )
+
+    @staticmethod
+    def from_entity(entity: Ticket) -> TicketOrm:
+        attachment_mapper = AttachmentMapper()
+        comment_mapper = CommentMapper()
+        history_mapper = TicketHistoryEntryMapper()
+        return TicketOrm(
+            id=entity.id,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+            counterparty_id=entity.counterparty_id,
+            created_by_role=entity.created_by_role,
+            created_by=entity.created_by,
+            title=entity.title,
+            description=entity.description,
+            status=entity.status,
+            priority=entity.priority,
+            assigned_to=entity.assigned_to,
+            closed_at=entity.closed_at,
+            tags=[{"name": tag.name, "color": tag.color} for tag in entity.tags],
+            comments=[comment_mapper.from_entity(comment) for comment in entity.comments],
+            attachments=[
+                attachment_mapper.from_entity(attachment) for attachment in entity.attachments
+            ],
+            history=[history_mapper.from_entity(entry) for entry in entity.history],
+        )
+
+
+class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
+    model = TicketOrm
+    model_mapper = TicketMapper
+
+    @override
+    async def read(self, ticket_id: UUID, comments_limit: int = 10) -> Ticket | None:
+        # 1. Получение тикета с вложениями и историей изменений
+        stmt = (
+            select(self.model)
+            .where(self.model.id == ticket_id)
+            .options(
+                selectinload(self.model.history),
+                selectinload(self.model.attachments),
+            )
+        )
+        result = await self.session.execute(stmt)
+        ticket = result.scalar_one_or_none()
+        if ticket is None:
+            return None
+
+        # 2. Получение комментариев с заданным лимитом
+        comments_stmt = (
+            select(CommentOrm)
+            .where(CommentOrm.ticket_id == ticket_id)
+            .order_by(CommentOrm.created_at.desc())
+            .limit(comments_limit)
+        )
+        results = await self.session.execute(comments_stmt)
+        comments = results.scalars().all()
+
+        ticket.comments = comments
+
+        return self.model_mapper.to_entity(ticket)
+
+    async def get_by_counterparty(
+            self, counterparty_id: UUID,
+            params: PageParams,
+            ticket_status: TicketStatus | None = None,
+            ticket_priority: TicketPriority | None = None,
+    ) -> Page[Ticket]:
+        # 1. Подсчёт общего количества тикетов для пагинации
+        count_stmt = select(func.count()).where(self.model.counterparty_id == counterparty_id)
+        total_items = await self.session.scalar(count_stmt)
+        if total_items == 0:
+            return Page.create_empty()
+
+        # 2. Запрос для получения тикетов с загрузкой истории и вложений
+        stmt = (
+            select(self.model)
+            .where(self.model.counterparty_id == counterparty_id)
+        )
+        if ticket_status is not None:
+            stmt = stmt.where(self.model.status == ticket_status)
+        if ticket_priority is not None:
+            stmt = stmt.where(self.model.priority == ticket_priority)
+        stmt = (
+            stmt
+            .order_by(self.model.created_at.desc())
+            .offset(params.offset)
+            .limit(params.size)
+        )
+
+        results = await self.session.execute(stmt)
+        models = results.scalars().all()
+
+        # 3. Для станицы не нашлось тикетов
+        if not models:
+            return Page(
+                page=params.page,
+                size=params.size,
+                total_items=total_items,
+                total_pages=(total_items + params.size - 1) // params.size,
+                has_next=params.page * params.size < total_items,
+                has_prev=params.page > 1,
+                items=[],
+            )
+
+        # 4. Формирование страницы
+        return Page(
+            page=params.page,
+            size=params.size,
+            total_items=total_items,
+            total_pages=(total_items + params.size - 1) // params.size,
+            has_next=params.page * params.size < total_items,
+            has_prev=params.page > 1,
+            items=[self.model_mapper.to_entity(model) for model in models],
+        )
+
+    async def get_by_creator(
+            self,
+            creator_id: UUID,
+            params: PageParams,
+            ticket_status: TicketStatus | None = None,
+            ticket_priority: TicketPriority | None = None,
+    ) -> Page[Ticket]:
+        # 1. Подсчёт общего количества тикетов для пагинации
+        count_stmt = select(func.count()).where(self.model.created_by == creator_id)
+        total_items = await self.session.scalar(count_stmt)
+        if total_items == 0:
+            return Page.create_empty()
+
+        # 2. Запрос для получения тикетов с загрузкой истории и вложений
+        stmt = select(self.model).where(self.model.created_by == creator_id)
+        if ticket_status is not None:
+            stmt = stmt.where(self.model.status == ticket_status)
+        if ticket_priority is not None:
+            stmt = stmt.where(self.model.priority == ticket_priority)
+        stmt = stmt.order_by(self.model.created_at.desc()).offset(params.offset).limit(params.size)
+
+        results = await self.session.execute(stmt)
+        models = results.scalars().all()
+
+        # 3. Для станицы не нашлось тикетов
+        if not models:
+            return Page(
+                page=params.page,
+                size=params.size,
+                total_items=total_items,
+                total_pages=(total_items + params.size - 1) // params.size,
+                has_next=params.page * params.size < total_items,
+                has_prev=params.page > 1,
+                items=[],
+            )
+
+        # 4. Формирование страницы
+        return Page(
+            page=params.page,
+            size=params.size,
+            total_items=total_items,
+            total_pages=(total_items + params.size - 1) // params.size,
+            has_next=params.page * params.size < total_items,
+            has_prev=params.page > 1,
+            items=[self.model_mapper.to_entity(model) for model in models],
+        )

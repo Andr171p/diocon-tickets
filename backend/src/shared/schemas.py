@@ -1,8 +1,8 @@
-from typing import Any
+from typing import Any, Self
 
-from dataclasses import asdict
+from collections.abc import Callable
 
-from pydantic import BaseModel, Field, PositiveInt, model_serializer
+from pydantic import BaseModel, Field, PositiveInt
 
 from .domain.entities import Entity
 
@@ -33,8 +33,21 @@ class Page[T: Entity](BaseModel):
     has_prev: bool = Field(..., description="Есть ли предыдущая страница")
     items: list[T] = Field(default_factory=list, description="Полученные элементы")
 
-    @model_serializer
-    def serialize(self) -> dict[str, Any]:
+    @classmethod
+    def create_empty(cls) -> Self:
+        return Page(
+            page=0,
+            size=0,
+            total_items=0,
+            total_pages=0,
+            has_next=False,
+            has_prev=False,
+            items=[],
+        )
+
+    def to_response(self, mapper: Callable[[T], BaseModel]) -> dict[str, Any]:
+        """Преобразование страницы к API схеме ответа"""
+
         return {
             "page": self.page,
             "size": self.size,
@@ -42,5 +55,5 @@ class Page[T: Entity](BaseModel):
             "total_pages": self.total_pages,
             "has_next": self.has_next,
             "has_prev": self.has_prev,
-            "items": [asdict(item) for item in self.items],
+            "items": [mapper(item).model_dump() for item in self.items],
         }
