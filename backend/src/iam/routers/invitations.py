@@ -7,12 +7,21 @@ from fastapi import APIRouter, BackgroundTasks, Depends, status
 from ...shared.dependencies import PageParamsDep
 from ...shared.domain.exceptions import NotFoundError
 from ...shared.schemas import Page
-from ..dependencies import CurrentSupportUserDep, InvitationServiceDep, get_invitation_repo
+from ..dependencies import (
+    CurrentSupportUserDep,
+    InvitationServiceDep,
+    get_current_support_user,
+    get_invitation_repo,
+)
 from ..domain.repos import InvitationRepository
 from ..mappers import map_invitation_to_response
 from ..schemas import InvitationCreate, InvitationResponse
 
-router = APIRouter(prefix="/invitations", tags=["Приглашения"])
+router = APIRouter(
+    prefix="/invitations",
+    tags=["Приглашения"],
+    dependencies=[Depends(get_current_support_user)]
+)
 
 
 @router.post(
