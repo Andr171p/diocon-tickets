@@ -6,8 +6,15 @@ from ...iam.dependencies import CurrentUserDep, get_current_support_user
 from ...shared.dependencies import PageParamsDep
 from ...shared.schemas import Page
 from ..dependencies import FilterParamsDep, TicketRepoDep, TicketServiceDep
+from ..infra.ai import predict_ticket_fields
 from ..mappers import map_ticket_to_preview
-from ..schemas import TicketCreate, TicketPreview, TicketResponse
+from ..schemas import (
+    PredictionResponse,
+    TicketCreate,
+    TicketPredict,
+    TicketPreview,
+    TicketResponse,
+)
 
 router = APIRouter(prefix="/tickets", tags=["Тикеты"])
 
@@ -70,7 +77,8 @@ async def get_tickets(
 @router.post(
     path="/predict",
     status_code=status.HTTP_200_OK,
-    response_model=...,
+    response_model=PredictionResponse,
     summary="Определение приоритета и генерация тегов"
 )
-async def get_predict_for_ticket(): ...
+async def predict_for_ticket(data: TicketPredict) -> PredictionResponse:
+    return await predict_ticket_fields(data)

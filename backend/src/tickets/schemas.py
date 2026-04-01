@@ -133,7 +133,7 @@ class PredictionConfidence(BaseModel):
 class PredictionResponse(BaseModel):
     """API схема ответа с определённым приоритетом и сгенерированными тегами"""
 
-    suggested_priority: str = Field(..., description="Предложенный приоритет")
+    suggested_priority: TicketPriority = Field(..., description="Предложенный приоритет")
     suggested_tags: list[Tag] = Field(
         default_factory=list, min_length=1, max_length=10, description="Предложенные теги"
     )

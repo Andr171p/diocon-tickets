@@ -12,18 +12,15 @@ from .dependencies import CounterpartyRepoDep, CounterpartyServiceDep
 from .mappers import map_counterparty_to_response
 from .schemas import BranchAdd, CounterpartyCreate, CounterpartyResponse
 
-router = APIRouter(
-    prefix="/counterparties",
-    tags=["Контрагенты"],
-    dependencies=[Depends(get_current_support_user)],
-)
+router = APIRouter(prefix="/counterparties", tags=["Контрагенты"])
 
 
 @router.post(
     path="",
     response_model=CounterpartyResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Создание контрагента"
+    dependencies=[Depends(get_current_support_user)],
+    summary="Создание контрагента",
 )
 async def create_counterparty(
         data: CounterpartyCreate, service: CounterpartyServiceDep
@@ -35,8 +32,8 @@ async def create_counterparty(
     path="/{counterparty_id}",
     response_model=CounterpartyResponse,
     status_code=status.HTTP_200_OK,
-    summary="Получение контрагента",
     dependencies=[Depends(get_current_user)],
+    summary="Получение контрагента",
 )
 async def get_counterparty(
         counterparty_id: UUID, repository: CounterpartyRepoDep
@@ -51,6 +48,7 @@ async def get_counterparty(
     path="/{counterparty_id}",
     response_model=CounterpartyResponse,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(get_current_support_user)],
     summary="Добавление обособленного подразделения",
 )
 async def add_branch(
@@ -68,7 +66,8 @@ async def add_branch(
     path="",
     response_model=Page[dict[str, Any]],
     status_code=status.HTTP_200_OK,
-    summary="Получение списка контрагентов"
+    dependencies=[Depends(get_current_support_user)],
+    summary="Получение списка контрагентов",
 )
 async def get_counterparties(
         params: PageParamsDep, repository: CounterpartyRepoDep
@@ -80,6 +79,7 @@ async def get_counterparties(
 @router.delete(
     path="/{counterparty_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_current_support_user)],
     summary="Удаление контрагента",
     description="Soft-delete метод, делает контрагента не активным не удаляя физически"
 )
