@@ -93,6 +93,9 @@ services:
   #     # --- Admin ---
   #     ADMIN_EMAIL: ${ADMIN_EMAIL}
   #     ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+  #      # --- Yandex Cloud ---
+  #      YANDEX_CLOUD_FOLDER_ID: ${YANDEX_CLOUD_FOLDER_ID}
+  #      YANDEX_CLOUD_API_KEY: ${YANDEX_CLOUD_API_KEY}
   #   depends_on:
   #     postgres:
   #       condition: service_healthy
