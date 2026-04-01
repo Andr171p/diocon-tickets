@@ -26,7 +26,7 @@ class TicketPriority(StrEnum):
     CRITICAL = "Критический"  # Время реакции поддержки - мгновенное
 
 
-@dataclass
+@dataclass(frozen=True, kw_only=True)
 class Tag(ValueObject):
     """
     Теги - метки (ключевые слова), которые можно присваивать тикетам для дополнительной,

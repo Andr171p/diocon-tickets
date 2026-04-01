@@ -34,7 +34,7 @@ class TicketOrm(Base):
     attachments: Mapped[list["AttachmentOrm"]] = relationship(
         primaryjoin=(
             "and_(AttachmentOrm.owner_type=='ticket', "
-            "foreign(AttachmentOrm.owner_id)==TicketOrm.id"
+            "foreign(AttachmentOrm.owner_id)==TicketOrm.id)"
         ),
         viewonly=True,
     )
@@ -53,7 +53,7 @@ class CommentOrm(Base):
     attachments: Mapped[list["AttachmentOrm"]] = relationship(
         primaryjoin=(
             "and_(AttachmentOrm.owner_type=='comment', "
-            "foreign(AttachmentOrm.owner_id)==CommentOrm.id"
+            "foreign(AttachmentOrm.owner_id)==CommentOrm.id)"
         ),
         viewonly=True,
     )

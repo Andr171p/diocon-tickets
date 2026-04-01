@@ -5,7 +5,11 @@ from pydantic import PositiveInt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db
+from .domain.events import EventPublisher
+from .infra.events import EventBus
 from .schemas import PageParams
+
+event_bus = EventBus()
 
 SessionDep = Annotated[AsyncSession, Depends(get_db)]
 
@@ -33,3 +37,10 @@ def get_page_params(
 
 
 PageParamsDep = Annotated[PageParams, Depends(get_page_params)]
+
+
+def get_event_publisher() -> EventPublisher:
+    return event_bus
+
+
+EventPublisherDep = Annotated[EventPublisher, Depends(get_event_publisher)]

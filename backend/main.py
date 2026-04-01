@@ -14,6 +14,7 @@ from src.iam.routers import router as iam_router
 from src.media.router import router as media_router
 from src.shared.domain.exceptions import AppError
 from src.shared.utils.cli import run_cli_command
+from src.tickets.routers import router as tickets_router
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ router = APIRouter(prefix="/api/v1")
 router.include_router(iam_router)
 router.include_router(counterparty_router)
 router.include_router(media_router)
+router.include_router(tickets_router)
 
 app.include_router(router)
 

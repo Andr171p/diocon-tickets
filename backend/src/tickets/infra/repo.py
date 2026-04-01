@@ -2,7 +2,7 @@ from typing import override
 
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import selectinload
 
 from ...media.infra.repo import AttachmentMapper
@@ -167,79 +167,47 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
 
         return self.model_mapper.to_entity(ticket)
 
-    async def get_by_counterparty(
-            self, counterparty_id: UUID,
-            params: PageParams,
-            ticket_status: TicketStatus | None = None,
-            ticket_priority: TicketPriority | None = None,
-    ) -> Page[Ticket]:
-        # 1. Подсчёт общего количества тикетов для пагинации
-        count_stmt = select(func.count()).where(self.model.counterparty_id == counterparty_id)
-        total_items = await self.session.scalar(count_stmt)
-        if total_items == 0:
-            return Page.create_empty()
-
-        # 2. Запрос для получения тикетов с загрузкой истории и вложений
-        stmt = (
-            select(self.model)
-            .where(self.model.counterparty_id == counterparty_id)
-        )
-        if ticket_status is not None:
-            stmt = stmt.where(self.model.status == ticket_status)
-        if ticket_priority is not None:
-            stmt = stmt.where(self.model.priority == ticket_priority)
-        stmt = (
-            stmt
-            .order_by(self.model.created_at.desc())
-            .offset(params.offset)
-            .limit(params.size)
-        )
-
-        results = await self.session.execute(stmt)
-        models = results.scalars().all()
-
-        # 3. Для станицы не нашлось тикетов
-        if not models:
-            return Page(
-                page=params.page,
-                size=params.size,
-                total_items=total_items,
-                total_pages=(total_items + params.size - 1) // params.size,
-                has_next=params.page * params.size < total_items,
-                has_prev=params.page > 1,
-                items=[],
-            )
-
-        # 4. Формирование страницы
-        return Page(
-            page=params.page,
-            size=params.size,
-            total_items=total_items,
-            total_pages=(total_items + params.size - 1) // params.size,
-            has_next=params.page * params.size < total_items,
-            has_prev=params.page > 1,
-            items=[self.model_mapper.to_entity(model) for model in models],
-        )
-
-    async def get_by_creator(
+    def _apply_filters(
             self,
-            creator_id: UUID,
-            params: PageParams,
-            ticket_status: TicketStatus | None = None,
-            ticket_priority: TicketPriority | None = None,
+            query: Select,
+            creator_id: UUID | None = None,
+            counterparty_id: UUID | None = None,
+            status: TicketStatus | None = None,
+            priority: TicketPriority | None = None
+    ) -> Select:
+        if creator_id is not None:
+            query = query.where(self.model.created_by == creator_id)
+        if counterparty_id is not None:
+            query = query.where(self.model.counterparty_id == counterparty_id)
+        if status is not None:
+            query = query.where(self.model.status == status)
+        if priority is not None:
+            query = query.where(self.model.priority == priority)
+        return query
+
+    @override
+    async def paginate(
+        self,
+        params: PageParams,
+        creator_id: UUID | None = None,
+        counterparty_id: UUID | None = None,
+        ticket_status: TicketStatus | None = None,
+        ticket_priority: TicketPriority | None = None,
     ) -> Page[Ticket]:
-        # 1. Подсчёт общего количества тикетов для пагинации
-        count_stmt = select(func.count()).where(self.model.created_by == creator_id)
+        # 1. Подсчёт общего количества тикетов для пагинации, учитывая фильтрацию
+        count_stmt = select(func.count()).where(self.model.counterparty_id == counterparty_id)
+        count_stmt = self._apply_filters(
+            count_stmt, creator_id, counterparty_id, ticket_status, ticket_priority
+        )
+
         total_items = await self.session.scalar(count_stmt)
         if total_items == 0:
             return Page.create_empty()
 
-        # 2. Запрос для получения тикетов с загрузкой истории и вложений
-        stmt = select(self.model).where(self.model.created_by == creator_id)
-        if ticket_status is not None:
-            stmt = stmt.where(self.model.status == ticket_status)
-        if ticket_priority is not None:
-            stmt = stmt.where(self.model.priority == ticket_priority)
+        # 2. Запрос для получения тикетов, с учётом фильтрации
+        stmt = self._apply_filters(
+            select(self.model), creator_id, counterparty_id, ticket_status, ticket_priority
+        )
         stmt = stmt.order_by(self.model.created_at.desc()).offset(params.offset).limit(params.size)
 
         results = await self.session.execute(stmt)

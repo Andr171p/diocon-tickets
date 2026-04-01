@@ -15,23 +15,16 @@ class TicketRepository(Repository[Ticket]):
         Получение тикета с лимитом на количество комментариев (для производительности)
         """
 
-    async def get_by_counterparty(
+    @override
+    async def paginate(
             self,
-            counterparty_id: UUID,
             params: PageParams,
+            creator_id: UUID | None = None,
+            counterparty_id: UUID | None = None,
             ticket_status: TicketStatus | None = None,
             ticket_priority: TicketPriority | None = None,
     ) -> Page[Ticket]:
-        """Получение всех тикетов, принадлежащих контрагенту"""
-
-    async def get_by_creator(
-            self,
-            creator_id: UUID,
-            params: PageParams,
-            ticket_status: TicketStatus | None = None,
-            ticket_priority: TicketPriority | None = None,
-    ) -> Page[Ticket]:
-        """Получение тикетов, принадлежащих их создателю"""
+        """Фильтрация тикетов"""
 
     async def get_comments(self, ticket_id: UUID, params: PageParams) -> Page[Comment]:
         """Получение комментариев для тикета"""

@@ -19,7 +19,7 @@ class CounterpartyOrm(Base):
     counterparty_type: Mapped[CounterpartyType] = mapped_column(Enum(CounterpartyType))
     name: Mapped[str]
     legal_name: Mapped[str]
-    inn: Mapped[str] = mapped_column(unique=True)
+    inn: Mapped[str]
     kpp: Mapped[str | None] = mapped_column(nullable=True)
     okpo: Mapped[str | None] = mapped_column(nullable=True)
     phone: Mapped[str]

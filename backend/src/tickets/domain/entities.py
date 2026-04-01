@@ -100,7 +100,8 @@ class Ticket(AggregateRoot):
             title: str,
             description: str,
             priority: TicketPriority,
-            counterparty_id: UUID | None = None
+            counterparty_id: UUID | None = None,
+            tags: list[Tag] | None = None,
     ) -> Self:
         """Создание тикета"""
 
@@ -114,6 +115,7 @@ class Ticket(AggregateRoot):
             priority=priority,
             status=TicketStatus.NEW,
             counterparty_id=counterparty_id,
+            tags=tags if tags is not None else [],
             history=[
                 TicketHistoryEntry(
                     ticket_id=ticket_id,
