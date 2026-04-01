@@ -37,7 +37,7 @@ class UserMapper(ModelMapper[User, UserOrm]):
             updated_at=entity.updated_at,
             email=entity.email,
             username=None if entity.username is None else entity.username.value,
-            full_name=None if entity.full_name is None else entity.full_name,
+            full_name=None if entity.full_name is None else entity.full_name.value,
             avatar_url=entity.avatar_url,
             counterparty_id=entity.counterparty_id,
             role=entity.role,
