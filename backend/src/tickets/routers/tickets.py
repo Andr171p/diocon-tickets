@@ -2,10 +2,10 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, status
 
-from ...iam.dependencies import CurrentSupportUserDep, CurrentUserDep
+from ...iam.dependencies import CurrentUserDep, get_current_support_user
 from ...shared.dependencies import PageParamsDep
 from ...shared.schemas import Page
-from ..dependencies import TicketRepoDep, TicketServiceDep
+from ..dependencies import FilterParamsDep, TicketRepoDep, TicketServiceDep
 from ..mappers import map_ticket_to_preview
 from ..schemas import TicketCreate, TicketResponse
 
@@ -26,17 +26,41 @@ async def create_ticket(
     )
 
 
-"""@router.get(
-    path="",
+@router.get(
+    path="/me",
     status_code=status.HTTP_200_OK,
     response_model=Page[TicketResponse],
-    summary="Получение всех тикетов с пагинацией"
+    summary="Получение тикетов текущего пользователя"
 )
-async def get_tickets(
+async def get_my_tickets(
         current_user: CurrentUserDep,
-        filtering_params: ...,
+        filter_params: FilterParamsDep,
         page_params: PageParamsDep,
         repository: TicketRepoDep,
 ) -> Page[dict[str, Any]]:
-    ...
-"""
+    page = await repository.paginate(
+        page_params,
+        creator_id=current_user.user_id,
+        counterparty_id=current_user.counterparty_id,
+        status=filter_params.status,
+        priority=filter_params.priority,
+    )
+    return page.to_response(map_ticket_to_preview)
+
+
+@router.get(
+    path="",
+    status_code=status.HTTP_200_OK,
+    response_model=Page[TicketResponse],
+    summary="Получение всех тикетов с пагинацией",
+    dependencies=[Depends(get_current_support_user)]
+)
+async def get_tickets(
+        filter_params: FilterParamsDep,
+        page_params: PageParamsDep,
+        repository: TicketRepoDep,
+) -> Page[dict[str, Any]]:
+    page = await repository.paginate(
+        page_params, status=filter_params.status, priority=filter_params.priority
+    )
+    return page.to_response(map_ticket_to_preview)

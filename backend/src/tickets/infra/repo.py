@@ -191,13 +191,13 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
         params: PageParams,
         creator_id: UUID | None = None,
         counterparty_id: UUID | None = None,
-        ticket_status: TicketStatus | None = None,
-        ticket_priority: TicketPriority | None = None,
+        status: TicketStatus | None = None,
+        priority: TicketPriority | None = None,
     ) -> Page[Ticket]:
         # 1. Подсчёт общего количества тикетов для пагинации, учитывая фильтрацию
         count_stmt = select(func.count()).where(self.model.counterparty_id == counterparty_id)
         count_stmt = self._apply_filters(
-            count_stmt, creator_id, counterparty_id, ticket_status, ticket_priority
+            count_stmt, creator_id, counterparty_id, status, priority
         )
 
         total_items = await self.session.scalar(count_stmt)
@@ -206,7 +206,7 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
 
         # 2. Запрос для получения тикетов, с учётом фильтрации
         stmt = self._apply_filters(
-            select(self.model), creator_id, counterparty_id, ticket_status, ticket_priority
+            select(self.model), creator_id, counterparty_id, status, priority
         )
         stmt = stmt.order_by(self.model.created_at.desc()).offset(params.offset).limit(params.size)
 

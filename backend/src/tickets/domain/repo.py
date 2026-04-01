@@ -21,8 +21,8 @@ class TicketRepository(Repository[Ticket]):
             params: PageParams,
             creator_id: UUID | None = None,
             counterparty_id: UUID | None = None,
-            ticket_status: TicketStatus | None = None,
-            ticket_priority: TicketPriority | None = None,
+            status: TicketStatus | None = None,
+            priority: TicketPriority | None = None,
     ) -> Page[Ticket]:
         """Фильтрация тикетов"""
 

@@ -105,3 +105,10 @@ class TicketCreate(BaseModel):
     tags: list[Tag] = Field(
         default_factory=list, description="Теги для упрощения поиск аи фильтрации"
     )
+
+
+class FilterParams(BaseModel):
+    """Параметры для фильтрации тикетов"""
+
+    status: TicketStatus | None = Field(None, description="Фильтрация по статусу")
+    priority: TicketPriority | None = Field(None, description="Фильтрация по приоритету")
