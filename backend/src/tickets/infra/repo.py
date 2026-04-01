@@ -107,6 +107,27 @@ class TicketMapper(ModelMapper[Ticket, TicketOrm]):
         )
 
     @staticmethod
+    def to_preview_entity(model: TicketOrm) -> Ticket:
+        return Ticket(
+            id=model.id,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            counterparty_id=model.counterparty_id,
+            created_by_role=model.created_by_role,
+            created_by=model.created_by,
+            title=model.title,
+            description=model.description,
+            status=model.status,
+            priority=model.priority,
+            assigned_to=model.assigned_to,
+            closed_at=model.closed_at,
+            tags=[Tag(name=tag["name"], color=tag["color"]) for tag in model.tags],
+            comments=[],
+            attachments=[],
+            history=[],
+        )
+
+    @staticmethod
     def from_entity(entity: Ticket) -> TicketOrm:
         attachment_mapper = AttachmentMapper()
         comment_mapper = CommentMapper()
@@ -195,14 +216,13 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
         priority: TicketPriority | None = None,
     ) -> Page[Ticket]:
         # 1. Подсчёт общего количества тикетов для пагинации, учитывая фильтрацию
-        count_stmt = select(func.count()).where(self.model.counterparty_id == counterparty_id)
         count_stmt = self._apply_filters(
-            count_stmt, creator_id, counterparty_id, status, priority
+            select(func.count()), creator_id, counterparty_id, status, priority
         )
 
         total_items = await self.session.scalar(count_stmt)
         if total_items == 0:
-            return Page.create_empty()
+            return Page.create_empty(params.page, params.size)
 
         # 2. Запрос для получения тикетов, с учётом фильтрации
         stmt = self._apply_filters(
@@ -233,5 +253,5 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
             total_pages=(total_items + params.size - 1) // params.size,
             has_next=params.page * params.size < total_items,
             has_prev=params.page > 1,
-            items=[self.model_mapper.to_entity(model) for model in models],
+            items=[self.model_mapper.to_preview_entity(model) for model in models],
         )

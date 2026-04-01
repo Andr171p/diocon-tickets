@@ -2,7 +2,7 @@ from typing import Any, Self
 
 from collections.abc import Callable
 
-from pydantic import BaseModel, Field, PositiveInt
+from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt
 
 from .domain.entities import Entity
 
@@ -27,17 +27,17 @@ class Page[T: Entity](BaseModel):
 
     page: PositiveInt = Field(..., description="Текущая страница")
     size: PositiveInt = Field(..., description="Количество элементов на странице")
-    total_items: PositiveInt = Field(..., description="Всего элементов на сервере")
-    total_pages: PositiveInt = Field(..., description="Всего страниц")
+    total_items: NonNegativeInt = Field(..., description="Всего элементов на сервере")
+    total_pages: NonNegativeInt = Field(..., description="Всего страниц")
     has_next: bool = Field(..., description="Есть ли следующая страница")
     has_prev: bool = Field(..., description="Есть ли предыдущая страница")
     items: list[T] = Field(default_factory=list, description="Полученные элементы")
 
     @classmethod
-    def create_empty(cls) -> Self:
+    def create_empty(cls, page: int, size: int) -> Self:
         return Page(
-            page=0,
-            size=0,
+            page=page,
+            size=size,
             total_items=0,
             total_pages=0,
             has_next=False,

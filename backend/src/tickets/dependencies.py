@@ -37,7 +37,7 @@ def get_filter_params(
             TicketPriority | None,
             Query(..., description="Фильтр по приоритету")
         ] = None,
-) -> FilteringParams:
+) -> FilterParams:
     return FilterParams(status=status, priority=priority)
 
 

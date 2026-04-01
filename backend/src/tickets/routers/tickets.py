@@ -7,7 +7,7 @@ from ...shared.dependencies import PageParamsDep
 from ...shared.schemas import Page
 from ..dependencies import FilterParamsDep, TicketRepoDep, TicketServiceDep
 from ..mappers import map_ticket_to_preview
-from ..schemas import TicketCreate, TicketResponse
+from ..schemas import TicketCreate, TicketPreview, TicketResponse
 
 router = APIRouter(prefix="/tickets", tags=["Тикеты"])
 
@@ -29,7 +29,7 @@ async def create_ticket(
 @router.get(
     path="/me",
     status_code=status.HTTP_200_OK,
-    response_model=Page[TicketResponse],
+    response_model=Page[TicketPreview],
     summary="Получение тикетов текущего пользователя"
 )
 async def get_my_tickets(
@@ -51,8 +51,9 @@ async def get_my_tickets(
 @router.get(
     path="",
     status_code=status.HTTP_200_OK,
-    response_model=Page[TicketResponse],
+    response_model=Page[TicketPreview],
     summary="Получение всех тикетов с пагинацией",
+    description="Метод предназначен для роли `support` и выше",
     dependencies=[Depends(get_current_support_user)]
 )
 async def get_tickets(
