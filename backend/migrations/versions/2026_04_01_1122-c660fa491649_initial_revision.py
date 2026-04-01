@@ -1,8 +1,8 @@
 """Initial revision
 
-Revision ID: 55bb17ce9812
+Revision ID: c660fa491649
 Revises: 
-Create Date: 2026-03-28 19:06:07.204525
+Create Date: 2026-04-01 11:22:21.701600
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '55bb17ce9812'
+revision: str = 'c660fa491649'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -30,7 +30,7 @@ def upgrade() -> None:
     sa.Column('owner_id', sa.Uuid(), nullable=False),
     sa.Column('is_public', sa.Boolean(), nullable=False),
     sa.Column('uploaded_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('uploaded_by_id', sa.Uuid(), nullable=False),
+    sa.Column('uploaded_by', sa.Uuid(), nullable=False),
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
@@ -51,7 +51,6 @@ def upgrade() -> None:
     sa.Column('contact_person', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('parent_id', sa.Uuid(), nullable=True),
-    sa.Column('is_slave', sa.Boolean(), nullable=False),
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
@@ -64,7 +63,7 @@ def upgrade() -> None:
     sa.Column('email', sa.String(), nullable=False),
     sa.Column('token', sa.String(), nullable=False),
     sa.Column('invited_by', sa.Uuid(), nullable=False),
-    sa.Column('assigned_role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'ADMIN', name='userrole'), nullable=False),
+    sa.Column('assigned_role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'EXECUTOR', 'ADMIN', name='userrole'), nullable=False),
     sa.Column('counterparty_id', sa.Uuid(), nullable=True),
     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('used_at', sa.DateTime(timezone=True), nullable=True),
@@ -87,12 +86,53 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('token')
     )
+    op.create_table('tickets',
+    sa.Column('counterparty_id', sa.Uuid(), nullable=True),
+    sa.Column('created_by_role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'EXECUTOR', 'ADMIN', name='userrole'), nullable=False),
+    sa.Column('created_by', sa.Uuid(), nullable=False),
+    sa.Column('title', sa.String(), nullable=False),
+    sa.Column('description', sa.TEXT(), nullable=False),
+    sa.Column('status', sa.Enum('NEW', 'OPEN', 'IN_PROGRESS', 'WAITING', 'RESOLVED', 'CLOSED', 'REOPENED', name='ticketstatus'), nullable=False),
+    sa.Column('priority', sa.Enum('LOW', 'MEDIUM', 'HIGH', 'CRITICAL', name='ticketpriority'), nullable=False),
+    sa.Column('assigned_to', sa.Uuid(), nullable=True),
+    sa.Column('closed_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('tags', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('comments',
+    sa.Column('ticket_id', sa.Uuid(), nullable=False),
+    sa.Column('author_id', sa.Uuid(), nullable=False),
+    sa.Column('author_role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'EXECUTOR', 'ADMIN', name='userrole'), nullable=False),
+    sa.Column('text', sa.TEXT(), nullable=False),
+    sa.Column('type', sa.Enum('PUBLIC', 'INTERNAL', 'NOTE', name='commenttype'), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.ForeignKeyConstraint(['ticket_id'], ['tickets.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('ticket_history_entries',
+    sa.Column('ticket_id', sa.Uuid(), nullable=False),
+    sa.Column('actor_id', sa.Uuid(), nullable=False),
+    sa.Column('action', sa.String(), nullable=False),
+    sa.Column('old_value', sa.String(), nullable=True),
+    sa.Column('new_value', sa.String(), nullable=True),
+    sa.Column('description', sa.TEXT(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.ForeignKeyConstraint(['ticket_id'], ['tickets.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('users',
     sa.Column('email', sa.String(), nullable=False),
     sa.Column('username', sa.String(), nullable=True),
     sa.Column('full_name', sa.String(), nullable=True),
     sa.Column('avatar_url', sa.String(), nullable=True),
-    sa.Column('role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'ADMIN', name='userrole'), nullable=False),
+    sa.Column('role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'EXECUTOR', 'ADMIN', name='userrole'), nullable=False),
     sa.Column('counterparty_id', sa.Uuid(), nullable=True),
     sa.Column('password_hash', sa.String(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
@@ -111,6 +151,9 @@ def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('users')
+    op.drop_table('ticket_history_entries')
+    op.drop_table('comments')
+    op.drop_table('tickets')
     op.drop_table('refresh_tokens')
     op.drop_table('invitations')
     op.drop_table('counterparties')

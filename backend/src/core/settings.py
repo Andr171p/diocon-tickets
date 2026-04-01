@@ -11,9 +11,9 @@ timezone = pytz.timezone(TIMEZONE)
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ENV_FILE = BASE_DIR / ".env"
-ENV_DEV_FILE = BASE_DIR / ".env.dev"
+ENV_DEV_FILE = BASE_DIR / ".env.dev"  # Среда для разработки
 
-load_dotenv(ENV_DEV_FILE)  # Среда для разработки
+load_dotenv(ENV_FILE)
 
 TEMPLATES_DIR = BASE_DIR / "templates"
 

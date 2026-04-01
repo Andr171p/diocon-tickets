@@ -24,7 +24,7 @@ class TicketOrm(Base):
     title: Mapped[str]
     description: Mapped[str] = mapped_column(TEXT)
     status: Mapped[TicketStatus] = mapped_column(Enum(TicketStatus))
-    priority: TicketPriority = mapped_column(Enum(TicketPriority))
+    priority: Mapped[TicketPriority] = mapped_column(Enum(TicketPriority))
     assigned_to: Mapped[UUID | None] = mapped_column(nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     tags: Mapped[list[dict[str, str]]] = mapped_column(JSONB)

@@ -205,8 +205,3 @@ class Ticket(AggregateRoot):
                 description=f"Добавлен {COMMENT_TYPE_DISPLAY_NAMES[comment_type]} комментарий"
             )
         )
-
-    def add_attachment(self, attachment: Attachment) -> None:
-        """Прикрепление файла"""
-
-        self.attachments.append(attachment)

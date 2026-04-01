@@ -26,7 +26,7 @@ class TicketRepository(Repository[Ticket]):
 
     async def get_by_creator(
             self,
-            user_id: UUID,
+            creator_id: UUID,
             params: PageParams,
             ticket_status: TicketStatus | None = None,
             ticket_priority: TicketPriority | None = None,

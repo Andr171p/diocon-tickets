@@ -1,15 +1,13 @@
-import asyncio
 import logging
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import uvicorn
-from alembic import command
-from alembic.config import Config
 from fastapi import APIRouter, FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
+from src.core.database import create_tables
 from src.core.settings import settings
 from src.crm.router import router as counterparty_router
 from src.iam.routers import router as iam_router
@@ -20,14 +18,9 @@ from src.shared.utils.cli import run_cli_command
 logger = logging.getLogger(__name__)
 
 
-async def run_migrations() -> None:
-    alembic_cfg = Config("alembic.ini")
-    await asyncio.to_thread(command.upgrade, alembic_cfg, "head", False, None)
-
-
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    await run_migrations()
+    await create_tables()
     await run_cli_command(sys.executable, "-m", "cli", "create-first-admin")
     await run_cli_command(sys.executable, "-m", "cli", "init-s3-storage")
     yield

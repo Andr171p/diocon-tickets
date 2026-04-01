@@ -69,8 +69,11 @@ async def add_branch(
     status_code=status.HTTP_200_OK,
     summary="Получение списка контрагентов"
 )
-async def get_counterparties(params: PageParamsDep, repository: CounterpartyRepoDep) -> Page:
-    return await repository.paginate(params)
+async def get_counterparties(
+        params: PageParamsDep, repository: CounterpartyRepoDep
+) -> dict[str, Any]:
+    page = await repository.paginate(params)
+    return page.to_response(map_counterparty_to_response)
 
 
 @router.delete(

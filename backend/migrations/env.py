@@ -12,6 +12,7 @@ from src.core.database import Base
 from src.iam.infra.models import UserOrm, RefreshTokenOrm, InvitationOrm
 from src.crm.infra.models import CounterpartyOrm
 from src.media.infra.models import AttachmentOrm
+from src.tickets.infra.models import TicketOrm, TicketHistoryEntryOrm, CommentOrm
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

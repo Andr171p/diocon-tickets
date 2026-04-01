@@ -60,8 +60,9 @@ async def get_invitation(
 )
 async def get_invitations(
         params: PageParamsDep, repository: InvitationRepository = Depends(get_invitation_repo)
-) -> Page:
-    return await repository.paginate(params)
+) -> dict[str, Any]:
+    page = await repository.paginate(params)
+    return page.to_response(map_invitation_to_response)
 
 
 @router.delete(
