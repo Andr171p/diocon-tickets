@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, status
 
-from ..iam.dependencies import get_current_support_user
+from ..iam.dependencies import get_current_support_user, get_current_user
 from ..shared.dependencies import PageParamsDep
 from ..shared.domain.exceptions import NotFoundError
 from ..shared.schemas import Page
@@ -35,7 +35,8 @@ async def create_counterparty(
     path="/{counterparty_id}",
     response_model=CounterpartyResponse,
     status_code=status.HTTP_200_OK,
-    summary="Получение контрагента"
+    summary="Получение контрагента",
+    dependencies=[Depends(get_current_user)],
 )
 async def get_counterparty(
         counterparty_id: UUID, repository: CounterpartyRepoDep

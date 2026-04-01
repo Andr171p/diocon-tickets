@@ -88,6 +88,30 @@ class RabbitSettings(BaseSettings):
         return f"amqp://{self.user}:{self.password}@{self.host}:{self.port}/"
 
 
+class YandexCloudSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="YANDEX_CLOUD_")
+
+    folder_id: str = "<FOLDER_ID>"
+    api_key: str = "<API_KEY>"
+    base_url: str = "https://llm.api.cloud.yandex.net/v1"
+
+    @property
+    def gemma_3_27b_it(self) -> str:
+        return f"gpt://{self.folder_id}/gemma-3-27b-it/latest"
+
+    @property
+    def aliceai_llm(self) -> str:
+        return f"gpt://{self.folder_id}/aliceai-llm"
+
+    @property
+    def qwen3_235b(self) -> str:
+        return f"gpt://{self.folder_id}/qwen3-235b-a22b-fp8/latest"
+
+    @property
+    def yandexgpt_rc(self) -> str:
+        return f"gpt://{self.folder_id}/yandexgpt/rc"
+
+
 class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="APP_")
 
@@ -121,6 +145,7 @@ class Settings(BaseSettings):
     jwt: JWTSettings = JWTSettings()
     mail: MailSettings = MailSettings()
     rabbit: RabbitSettings = RabbitSettings()
+    yandex_cloud: YandexCloudSettings = YandexCloudSettings()
     admin: AdminSettings = AdminSettings()
 
 

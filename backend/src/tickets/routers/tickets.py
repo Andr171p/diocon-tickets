@@ -65,3 +65,12 @@ async def get_tickets(
         page_params, status=filter_params.status, priority=filter_params.priority
     )
     return page.to_response(map_ticket_to_preview)
+
+
+@router.post(
+    path="/predict",
+    status_code=status.HTTP_200_OK,
+    response_model=...,
+    summary="Определение приоритета и генерация тегов"
+)
+async def get_predict_for_ticket(): ...

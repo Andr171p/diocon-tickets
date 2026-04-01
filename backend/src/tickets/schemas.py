@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, NonNegativeFloat
 
 from ..iam.domain.vo import UserRole
 from ..media.schemas import AttachmentResponse
@@ -112,3 +112,29 @@ class FilterParams(BaseModel):
 
     status: TicketStatus | None = Field(None, description="Фильтрация по статусу")
     priority: TicketPriority | None = Field(None, description="Фильтрация по приоритету")
+
+
+class TicketPredict(BaseModel):
+    """Авто-определение приоритетов + генерация тегов"""
+
+    title: str = Field(..., description="Заголовок тикета")
+    description: str = Field(..., description="Описание тикета")
+
+
+class PredictionConfidence(BaseModel):
+    """Уверенность в генерации"""
+
+    priority: NonNegativeFloat = Field(
+        ..., le=1.0, description="Уверенность в определении приоритета"
+    )
+    tags: NonNegativeFloat = Field(..., le=1.0, description="Уверенность в определении тегов")
+
+
+class PredictionResponse(BaseModel):
+    """API схема ответа с определённым приоритетом и сгенерированными тегами"""
+
+    suggested_priority: str = Field(..., description="Предложенный приоритет")
+    suggested_tags: list[Tag] = Field(
+        default_factory=list, min_length=1, max_length=10, description="Предложенные теги"
+    )
+    confidence: PredictionConfidence = Field(..., description="Уверенность в генерации")
