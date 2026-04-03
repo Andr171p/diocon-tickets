@@ -102,7 +102,7 @@ class AuthService:
         stored_token = await self.user_repo.get_token_data(refresh_token)
         if stored_token is None:
             raise UnauthorizedError("Refresh token not found")
-        if stored_token.revoked or stored_token.expires_at >= current_datetime():
+        if stored_token.revoked or stored_token.expires_at < current_datetime():
             raise UnauthorizedError("Refresh token is already revoked or expired")
 
         # 2. Получение и валидация пользователя
