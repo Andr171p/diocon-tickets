@@ -42,7 +42,7 @@ async def create_presigned_upload_url(
 async def confirm_upload(
         current_user: CurrentUserDep, request: ConfirmUploadRequest, service: AttachmentServiceDep
 ) -> AttachmentResponse:
-    return await service.confirm_upload(request, uploaded_by_id=current_user.user_id)
+    return await service.confirm_upload(request, uploaded_by=current_user.user_id)
 
 
 @router.get(
