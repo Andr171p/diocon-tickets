@@ -29,6 +29,9 @@ class Entity(abc.ABC):
     def __hash__(self) -> int:
         return hash(self.id)
 
+    def register_event(self, event: Event) -> None:
+        self._events.append(event)
+
     def collect_events(self) -> Iterator[Event]:
         while self._events:
             yield self._events.pop(0)

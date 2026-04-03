@@ -35,6 +35,7 @@ class TicketService:
             description=data.description,
             priority=data.priority,
             counterparty_id=data.counterparty_id,
+            counterparty_name=data.counterparty_name,
             tags=[Tag(name=tag.name, color=tag.color) for tag in data.tags],
         )
         await self.repository.create(ticket)

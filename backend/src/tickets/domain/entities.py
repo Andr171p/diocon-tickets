@@ -10,7 +10,8 @@ from ...media.domain.entities import Attachment
 from ...shared.domain.entities import AggregateRoot, Entity
 from ...shared.domain.exceptions import InvariantViolationError
 from ...shared.utils.time import current_datetime
-from .vo import CommentType, Tag, TicketPriority, TicketStatus
+from .events import TicketCreated
+from .vo import CommentType, Tag, TicketNumber, TicketPriority, TicketStatus
 
 COMMENT_TYPE_DISPLAY_NAMES: dict[CommentType, str] = {
     CommentType.INTERNAL: "внутренний",
@@ -66,6 +67,7 @@ class Ticket(AggregateRoot):
     counterparty_id: UUID | None = None
     created_by_role: UserRole
     created_by: UUID
+    number: TicketNumber
     title: str
     description: str
     status: TicketStatus
@@ -100,16 +102,22 @@ class Ticket(AggregateRoot):
             title: str,
             description: str,
             priority: TicketPriority,
+            counterparty_name: str | None = None,
             counterparty_id: UUID | None = None,
             tags: list[Tag] | None = None,
     ) -> Self:
         """Создание тикета"""
 
+        # 1. Генерация уникального ID и создание номера
         ticket_id = uuid4()
-        return cls(
+        ticket_number = TicketNumber.create(ticket_id, counterparty_name)
+
+        # 2. Создание доменной сущности
+        ticket = cls(
             id=ticket_id,
             created_by_role=created_by_role,
             created_by=created_by,
+            number=ticket_number,
             title=title,
             description=description,
             priority=priority,
@@ -121,10 +129,22 @@ class Ticket(AggregateRoot):
                     ticket_id=ticket_id,
                     actor_id=created_by,
                     action="ticket_created",
-                    description="Тикет создан"
+                    description=f"Создан тикет с номером - {ticket_number}"
                 )
             ]
         )
+
+        # 3. Регистрация доменного события
+        ticket.register_event(
+            TicketCreated(
+                ticket_id=ticket_id,
+                title=title,
+                created_by=created_by,
+                priority=priority,
+                counterparty_id=counterparty_id,
+            )
+        )
+        return ticket
 
     def assign_to(self, assignee_id: UUID, assigned_by: UUID, assigned_by_role: UserRole) -> None:
         """Назначает тикет на исполнителя"""

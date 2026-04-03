@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import TEXT, DateTime, Enum, ForeignKey
+from sqlalchemy import TEXT, DateTime, Enum, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -21,6 +21,7 @@ class TicketOrm(Base):
     counterparty_id: Mapped[UUID | None] = mapped_column(nullable=True)
     created_by_role: Mapped[UserRole] = mapped_column(Enum(UserRole))
     created_by: Mapped[UUID]
+    number: Mapped[str] = mapped_column(String(20), unique=True)
     title: Mapped[str]
     description: Mapped[str] = mapped_column(TEXT)
     status: Mapped[TicketStatus] = mapped_column(Enum(TicketStatus))

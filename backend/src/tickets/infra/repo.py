@@ -9,7 +9,7 @@ from ...media.infra.repo import AttachmentMapper
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
 from ...shared.schemas import Page, PageParams
 from ..domain.entities import Comment, Ticket, TicketHistoryEntry
-from ..domain.vo import Tag, TicketPriority, TicketStatus
+from ..domain.vo import Tag, TicketNumber, TicketPriority, TicketStatus
 from .models import CommentOrm, TicketHistoryEntryOrm, TicketOrm
 
 
@@ -92,6 +92,7 @@ class TicketMapper(ModelMapper[Ticket, TicketOrm]):
             counterparty_id=model.counterparty_id,
             created_by_role=model.created_by_role,
             created_by=model.created_by,
+            number=TicketNumber(model.number),
             title=model.title,
             description=model.description,
             status=model.status,
@@ -115,6 +116,7 @@ class TicketMapper(ModelMapper[Ticket, TicketOrm]):
             counterparty_id=model.counterparty_id,
             created_by_role=model.created_by_role,
             created_by=model.created_by,
+            number=TicketNumber(model.number),
             title=model.title,
             description=model.description,
             status=model.status,
@@ -139,6 +141,7 @@ class TicketMapper(ModelMapper[Ticket, TicketOrm]):
             counterparty_id=entity.counterparty_id,
             created_by_role=entity.created_by_role,
             created_by=entity.created_by,
+            number=entity.number.value,
             title=entity.title,
             description=entity.description,
             status=entity.status,
