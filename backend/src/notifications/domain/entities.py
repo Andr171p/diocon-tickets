@@ -24,5 +24,6 @@ class Notification(Entity):
     def mark_as_read(self) -> None:
         """Пометить как прочитанное"""
 
-        self.read = True
-        self.updated_at = current_datetime()
+        if not self.read:
+            self.read = True
+            self.updated_at = current_datetime()

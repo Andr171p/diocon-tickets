@@ -7,9 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.database import get_db
 from .domain.events import EventPublisher
 from .infra.events import EventBus
+from .infra.websocket import WebsocketManager
 from .schemas import PageParams
 
 event_bus = EventBus()
+
+ws_manager = WebsocketManager()
 
 SessionDep = Annotated[AsyncSession, Depends(get_db)]
 

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Query, WebSocket, status
 from fastapi.security import OAuth2PasswordBearer
 
 from ..core.redis import redis_client
@@ -102,3 +102,32 @@ def get_current_support_user(current_user: CurrentUserDep) -> CurrentUser:
 
 
 CurrentSupportUserDep = Annotated[CurrentUserDep, Depends(get_current_support_user)]
+
+
+async def get_current_user_ws(
+        websocket: WebSocket,
+        token: str | None = Query(None, description="Access токен"),
+        blacklist: TokenBlacklist = Depends(get_token_blacklist),
+) -> CurrentUser | None:
+    # 1. Получение access токена из текущего соединения
+    token = token or websocket.query_params.get("token")
+    if token is None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
+        return None
+
+    # 2. Декодирование токена и проверка нет ли его в черном списке
+    payload = validate_token(token)
+    jti, user_id = payload.get("jti"), payload.get("sub")
+    is_revoked = await blacklist.is_revoked(jti)
+    if jti is None or is_revoked or user_id is None:
+        await websocket.close(
+            code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token or blacklisted"
+        )
+        return None
+
+    return CurrentUser(
+        user_id=user_id,
+        email=payload.get("email"),
+        role=payload.get("role"),
+        counterparty_id=payload.get("counterparty_id"),
+    )
