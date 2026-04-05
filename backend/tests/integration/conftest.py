@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from testcontainers.core.wait_strategies import PortWaitStrategy
 from testcontainers.minio import MinioContainer
 from testcontainers.postgres import PostgresContainer
+from testcontainers.redis import RedisContainer
 
 from src.core.database import Base
 from src.media.infra.repo import SqlAttachmentRepository
@@ -36,6 +37,22 @@ def minio_container(minio_secret_key):
 def postgres_container():
     with PostgresContainer(image="postgres:16.9", driver="asyncpg") as postgres:
         yield postgres
+
+
+@pytest.fixture(scope="session")
+def redis_container():
+    container = RedisContainer("redis:7-alpine")
+    container.start()
+    yield container
+    container.stop()
+
+
+@pytest.fixture
+def redis_url(redis_container):
+    host = redis_container.get_container_host_ip()
+    port = redis_container.get_exposed_port(6379)
+
+    return f"redis://{host}:{port}/0"
 
 
 @pytest.fixture

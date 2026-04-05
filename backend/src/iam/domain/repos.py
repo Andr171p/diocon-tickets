@@ -1,9 +1,9 @@
-from datetime import datetime
+from typing import Protocol
+
 from uuid import UUID
 
 from ...shared.domain.repo import Repository
 from ..domain.vo import UserRole
-from ..schemas import TokenData
 from .entities import Invitation, User
 
 
@@ -11,11 +11,14 @@ class UserRepository(Repository[User]):
 
     async def get_by_email(self, email: str) -> User | None: ...
 
-    async def store_token(self, user_id: UUID, token: str, expires_at: datetime) -> None: ...
 
-    async def get_token_data(self, token: str) -> TokenData | None: ...
+class TokenBlacklist(Protocol):
 
-    async def revoke_token(self, token: str) -> None: ...
+    async def revoke(self, jti: UUID, user_id: UUID, exp: int, reason: str) -> bool:
+        """Отзыв токена (добавление токена в черный список)"""
+
+    async def is_revoked(self, jti: UUID) -> bool:
+        """Проверка токена на отзыв"""
 
 
 class InvitationRepository(Repository[Invitation]):

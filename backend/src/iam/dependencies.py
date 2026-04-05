@@ -3,12 +3,14 @@ from typing import Annotated
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 
+from ..core.redis import redis_client
 from ..core.settings import settings
 from ..shared.dependencies import SessionDep
 from ..shared.infra.mail import SmtpMailSender
 from .domain.exceptions import PermissionDeniedError, UnauthorizedError
-from .domain.repos import InvitationRepository, UserRepository
+from .domain.repos import InvitationRepository, TokenBlacklist, UserRepository
 from .domain.vo import UserRole
+from .infra.blacklist import RedisTokenBlacklist
 from .infra.repos import SqlInvitationRepository, SqlUserRepository
 from .schemas import CurrentUser
 from .security import validate_token
@@ -25,6 +27,10 @@ def get_user_repo(session: SessionDep) -> UserRepository:
     return SqlUserRepository(session)
 
 
+def get_token_blacklist() -> TokenBlacklist:
+    return RedisTokenBlacklist(redis_client)
+
+
 def get_invitation_repo(session: SessionDep) -> InvitationRepository:
     return SqlInvitationRepository(session)
 
@@ -33,8 +39,11 @@ def get_auth_service(
         session: SessionDep,
         user_repo: Annotated[UserRepository, Depends(get_user_repo)],
         invitation_repo: Annotated[InvitationRepository, Depends(get_invitation_repo)],
+        blacklist: Annotated[TokenBlacklist, Depends(get_token_blacklist)],
 ) -> AuthService:
-    return AuthService(session, user_repo=user_repo, invitation_repo=invitation_repo)
+    return AuthService(
+        session, user_repo=user_repo, invitation_repo=invitation_repo, blacklist=blacklist
+    )
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
@@ -59,11 +68,16 @@ def get_invitation_service(
 InvitationServiceDep = Annotated[InvitationService, Depends(get_invitation_service)]
 
 
-def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> CurrentUser:
+async def get_current_user(
+        token: Annotated[str, Depends(oauth2_scheme)],
+        blacklist: Annotated[TokenBlacklist, Depends(get_token_blacklist)],
+) -> CurrentUser:
     """Получение текущего пользователя"""
 
     payload = validate_token(token)
-    user_id = payload.get("sub")
+    jti, user_id = payload.get("jti"), payload.get("sub")
+    if jti is None or await blacklist.is_revoked(jti):
+        raise UnauthorizedError("Token has been revoked or missing jti")
     if user_id is None:
         raise UnauthorizedError("Invalid token: missing sub claim")
 

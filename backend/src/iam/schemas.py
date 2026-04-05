@@ -64,6 +64,10 @@ class TokensRefresh(BaseModel):
     refresh_token: str = Field(..., description="Refresh токен")
 
 
+class LogoutRequest(BaseModel):
+    refresh_token: str | None = Field(None, description="refresh токен пользователя (опционален)")
+
+
 class CurrentUser(BaseModel):
     """Пользователь, который делает запрос к текущему endpoint"""
 

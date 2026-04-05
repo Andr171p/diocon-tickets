@@ -7,7 +7,7 @@ import uvicorn
 from fastapi import APIRouter, FastAPI, Request, status
 from fastapi.responses import JSONResponse
 
-from src.core.database import create_tables
+from src.core.redis import redis_client
 from src.core.settings import settings
 from src.crm.router import router as counterparty_router
 from src.iam.routers import router as iam_router
@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    await create_tables()
+    await redis_client.ping()
+    await run_cli_command(sys.executable, "-m", "alembic", "upgrade", "head")
     await run_cli_command(sys.executable, "-m", "cli", "create-first-admin")
     await run_cli_command(sys.executable, "-m", "cli", "init-s3-storage")
     yield

@@ -3,8 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from ..dependencies import AuthServiceDep
-from ..schemas import Tokens, TokensRefresh, UserCreateForm
+from ..dependencies import AuthServiceDep, oauth2_scheme
+from ..schemas import LogoutRequest, Tokens, TokensRefresh, UserCreateForm
 
 router = APIRouter(prefix="/auth", tags=["Авторизация"])
 
@@ -44,3 +44,16 @@ async def login(
 )
 async def refresh(data: TokensRefresh, service: AuthServiceDep) -> Tokens:
     return await service.refresh_tokens(data.refresh_token)
+
+
+@router.post(
+    path="/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Выход из аккаунта"
+)
+async def logout(
+        access_token: Annotated[str, Depends(oauth2_scheme)],
+        data: LogoutRequest,
+        service: AuthServiceDep
+) -> None:
+    return await service.logout(access_token, data.refresh_token)

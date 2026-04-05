@@ -17,7 +17,7 @@ from src.iam.domain.services import (
 from src.iam.domain.vo import UserRole
 from src.iam.schemas import Tokens, UserCreateForm
 from src.iam.security import hash_password, validate_token
-from src.iam.services import AuthService, InvitationService
+from src.iam.services import AuthService, InvitationService, create_tokens_for_user
 from src.shared.domain.exceptions import AlreadyExistsError, NotFoundError
 from src.shared.utils.time import current_datetime
 
@@ -30,9 +30,12 @@ def mock_session():
 
 
 @pytest.fixture
-def mock_auth_service(mock_session, mock_user_repo, mock_invitation_repo):
+def mock_auth_service(mock_session, mock_user_repo, mock_invitation_repo, mock_token_blacklist):
     return AuthService(
-        session=mock_session, user_repo=mock_user_repo, invitation_repo=mock_invitation_repo,
+        session=mock_session,
+        user_repo=mock_user_repo,
+        invitation_repo=mock_invitation_repo,
+        blacklist=mock_token_blacklist,
     )
 
 
@@ -113,27 +116,21 @@ def make_admin():
     return create_admin(email=fake.email(), password_hash=generate_password_hash())
 
 
-class TestAuthServiceCreateTokensForUser:
+class TestCreateTokensForUser:
     """Тесты для метода create_tokens_for_user"""
 
-    @pytest.mark.asyncio
     @pytest.mark.parametrize("user", [make_support(), make_admin(), make_customer()])
-    async def test_create_tokens_for_user(
-            self, user, mock_auth_service, mock_user_repo
-    ):
-        # 1. Добавление пользователя в БД
-        await mock_user_repo.create(user)
-
-        # 2. Получение пары токенов
-        tokens = await mock_auth_service.create_tokens_for_user(user)
+    def test_create_tokens_for_user(self, user):
+        # 1. Получение пары токенов
+        tokens = create_tokens_for_user(user)
 
         assert isinstance(tokens, Tokens)
 
-        # 3. Валидация токенов для проверки claims
+        # 2. Валидация токенов для проверки claims
         access_payload = validate_token(tokens.access_token)
         refresh_payload = validate_token(tokens.refresh_token)
 
-        # 4. Проверка access токена
+        # 3. Проверка access токена
         assert access_payload["sub"] == f"{user.id}"
         assert access_payload["type"] == "access"
         assert access_payload["email"] == user.email
@@ -146,12 +143,6 @@ class TestAuthServiceCreateTokensForUser:
         # 4. Проверка refresh токена
         assert refresh_payload["sub"] == f"{user.id}"
         assert refresh_payload["type"] == "refresh"
-
-        # 5. Проверка сохранённой информации о токене
-        token_data = await mock_user_repo.get_token_data(tokens.refresh_token)
-
-        assert token_data is not None
-        assert token_data.token == tokens.refresh_token
 
 
 class TestAuthServiceRegister:
@@ -170,20 +161,13 @@ class TestAuthServiceRegister:
         invitation = await mock_invitation_repo.create(mock_invitation_for_customer)
 
         # 2. Регистрация по созданному приглашению
-        tokens = await mock_auth_service.register(invitation.token, sample_form_data)
+        await mock_auth_service.register(invitation.token, sample_form_data)
 
         # 3. Поиск зарегистрированного пользователя по email
         existing_user = await mock_user_repo.get_by_email(invitation.email)
 
-        # 4. Поиск сохранённого токена
-        token_data = await mock_user_repo.get_token_data(tokens.refresh_token)
-
-        assert isinstance(tokens, Tokens)
-
         assert existing_user is not None
         assert existing_user.email == invitation.email
-        assert token_data is not None
-        assert token_data.token == tokens.refresh_token
 
     @pytest.mark.asyncio
     async def test_register_raises_invitation_not_found(self, mock_auth_service, sample_form_data):

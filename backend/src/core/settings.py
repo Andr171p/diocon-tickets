@@ -36,6 +36,19 @@ class PostgresSettings(BaseSettings):
         return f"postgresql+{self.driver}://{self.user}:{self.password}@{self.host}:{self.port}/{self.db}"
 
 
+class RedisSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="REDIS_")
+
+    host: str = "localhost"
+    port: int = 6379
+    db: int = 0
+    password: str = "<PASSWORD>"
+
+    @property
+    def url(self) -> str:
+        return f"redis://{self.host}:{self.port}/{self.db}"
+
+
 class MinIOSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="MINIO_")
 
@@ -140,6 +153,7 @@ class Settings(BaseSettings):
 
     app: AppSettings = AppSettings()
     postgres: PostgresSettings = PostgresSettings()
+    redis: RedisSettings = RedisSettings()
     minio: MinIOSettings = MinIOSettings()
     imgproxy: ImgProxySettings = ImgProxySettings()
     jwt: JWTSettings = JWTSettings()

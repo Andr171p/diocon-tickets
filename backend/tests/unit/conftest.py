@@ -1,4 +1,3 @@
-from datetime import datetime
 from uuid import UUID
 
 import pytest
@@ -7,9 +6,8 @@ from src.crm.domain.entities import Counterparty
 from src.crm.domain.repo import CounterpartyRepository
 from src.crm.domain.vo import Inn
 from src.iam.domain.entities import Invitation, User
-from src.iam.domain.repos import InvitationRepository, UserRepository
+from src.iam.domain.repos import InvitationRepository, TokenBlacklist, UserRepository
 from src.iam.domain.vo import UserRole
-from src.iam.schemas import TokenData
 from src.shared.infra.repos import InMemoryRepository
 from src.shared.utils.time import current_datetime
 
@@ -32,9 +30,6 @@ class InMemoryCounterpartyRepository(InMemoryRepository[Counterparty]):
 
 
 class InMemoryUserRepository(InMemoryRepository[User]):
-    def __init__(self):
-        super().__init__()
-        self.tokens: dict[str, TokenData] = {}
 
     async def get_by_email(self, email: str) -> User | None:
         for user in self.data.values():
@@ -42,24 +37,23 @@ class InMemoryUserRepository(InMemoryRepository[User]):
                 return user
         return None
 
-    async def store_token(self, user_id: UUID, token: str, expires_at: datetime) -> None:
-        self.tokens[token] = TokenData(
-            user_id=user_id,
-            token=token,
-            expires_at=expires_at,
-            revoked=False,
-            revoked_at=None,
-        )
 
-    async def get_token_data(self, token: str) -> TokenData | None:
-        return self.tokens.get(token)
+class InMemoryTokenBlacklist:
+    def __init__(self) -> None:
+        self.data = {}
 
-    async def revoke_token(self, token: str) -> None:
-        if token in self.tokens:
-            token_data = self.tokens[token]
-            token_data.revoked = True
-            token_data.revoked_at = current_datetime()
-            self.tokens[token] = token_data
+    async def revoke(self, jti: UUID, user_id: UUID, exp: int, reason: str) -> bool:
+        now = int(current_datetime().timestamp())
+        ttl = now - exp
+        if ttl <= 0:
+            return False
+
+        self.data[jti] = {"revoked_at": current_datetime(), "user_id": user_id, "reason": reason}
+        return True
+
+    async def is_revoked(self, jti: UUID) -> bool:
+        is_exists = self.data.get(jti)
+        return bool(is_exists)
 
 
 class InMemoryInvitationRepository(InMemoryRepository[Invitation]):
@@ -95,3 +89,8 @@ def mock_user_repo() -> UserRepository:
 @pytest.fixture
 def mock_invitation_repo() -> InvitationRepository:
     return InMemoryInvitationRepository()
+
+
+@pytest.fixture
+def mock_token_blacklist() -> TokenBlacklist:
+    return InMemoryTokenBlacklist()

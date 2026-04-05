@@ -7,17 +7,47 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..core.settings import settings
 from ..shared.domain.exceptions import AlreadyExistsError, NotFoundError
 from ..shared.infra.mail import SmtpMailSender
-from ..shared.utils.time import current_datetime, get_expiration_time, get_expiration_timestamp
+from ..shared.utils.time import get_expiration_timestamp
 from .constants import INVITATION_EXPIRE_IN_DAYS, INVITATION_SUBJECT, INVITATION_TEXT
 from .domain.entities import Invitation, User
 from .domain.exceptions import InvitationExpiredError, UnauthorizedError
-from .domain.repos import InvitationRepository, UserRepository
+from .domain.repos import InvitationRepository, TokenBlacklist, UserRepository
 from .domain.services import create_customer, create_support, invite_customer, invite_support
 from .domain.vo import UserRole
 from .schemas import Tokens, UserCreateForm
-from .security import create_access_token, create_refresh_token, hash_password, verify_password
+from .security import (
+    create_access_token,
+    create_refresh_token,
+    hash_password,
+    validate_token,
+    verify_password,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def create_tokens_for_user(user: User) -> Tokens:
+    """Выпуск пары токенов access и refresh"""
+
+    # 1. Выпуск токенов
+    access_token = create_access_token(
+        user_id=user.id,
+        user_role=user.role,
+        email=user.email,
+        counterparty_id=user.counterparty_id,
+    )
+    refresh_token = create_refresh_token(user_id=user.id)
+
+    # 2. Расчёт времени истечения токенов
+    access_token_expires_at = get_expiration_timestamp(
+        expires_in=timedelta(minutes=settings.jwt.access_token_expires_in_minutes)
+    )
+
+    return Tokens(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_at=access_token_expires_at,
+    )
 
 
 class AuthService:
@@ -26,10 +56,12 @@ class AuthService:
             session: AsyncSession,
             user_repo: UserRepository,
             invitation_repo: InvitationRepository,
+            blacklist: TokenBlacklist,
     ) -> None:
         self.session = session
         self.user_repo = user_repo
         self.invitation_repo = invitation_repo
+        self.blacklist = blacklist
 
     async def register(self, token: str, form_data: UserCreateForm) -> Tokens:
         """Регистрация нового пользователя по приглашению"""
@@ -75,7 +107,7 @@ class AuthService:
         await self.invitation_repo.upsert(invitation)
 
         # 5. Выпуск пары токенов
-        tokens = await self.create_tokens_for_user(user)
+        tokens = create_tokens_for_user(user)
         await self.session.commit()
         return tokens
 
@@ -91,62 +123,59 @@ class AuthService:
             raise UnauthorizedError("Invalid password or user is not active")
 
         # 2. Выпуск пары токенов
-        tokens = await self.create_tokens_for_user(user)
+        tokens = create_tokens_for_user(user)
         await self.session.commit()
         return tokens
 
     async def refresh_tokens(self, refresh_token: str) -> Tokens:
         """Обновление пары токенов с ротацией"""
 
-        # 1. Проверка правил существования созданного токена
-        stored_token = await self.user_repo.get_token_data(refresh_token)
-        if stored_token is None:
-            raise UnauthorizedError("Refresh token not found")
-        if stored_token.revoked or stored_token.expires_at < current_datetime():
-            raise UnauthorizedError("Refresh token is already revoked or expired")
+        # 1. декодирование refresh токена, чтобы получить jti и exp
+        payload = validate_token(refresh_token)
+        user_id, jti, exp = payload.get("sub"), payload.get("jti"), payload.get("exp", 0)
+
+        if jti is None and user_id is None:
+            raise UnauthorizedError("Refresh token is invalid or expired")
 
         # 2. Получение и валидация пользователя
-        user = await self.user_repo.read(stored_token.user_id)
+        user = await self.user_repo.read(user_id)
         if user is None or not user.is_active:
-            await self.user_repo.revoke_token(stored_token.token)
+            await self.blacklist.revoke(jti, user_id=user_id, exp=exp, reason="user_inactive")
             raise UnauthorizedError("User is not active")
 
         # 3. Ротация и выпуск новых токенов
-        await self.user_repo.revoke_token(stored_token.token)
-        new_tokens = await self.create_tokens_for_user(user)
+        await self.blacklist.revoke(jti, user_id=user_id, exp=exp, reason="refresh_tokens")
+        new_tokens = create_tokens_for_user(user)
         await self.session.commit()
         return new_tokens
 
-    async def create_tokens_for_user(self, user: User) -> Tokens:
-        """Выпуск пары токенов и сохранение для возможности ротации"""
+    async def logout(self, access_token: str, refresh_token: str | None = None) -> None:
+        """Выход с текущего аккаунта"""
 
-        # 1. Выпуск токенов
-        access_token = create_access_token(
-            user_id=user.id,
-            user_role=user.role,
-            email=user.email,
-            counterparty_id=user.counterparty_id,
-        )
-        refresh_token = create_refresh_token(user_id=user.id)
+        # 1. Отзыв access токена
+        try:
+            payload = validate_token(access_token)
+            jti, exp, user_id = payload.get("jti"), payload.get("exp", 0), payload.get("user_id")
+            if jti is not None and exp:
+                await self.blacklist.revoke(jti, user_id=user_id, exp=exp, reason="user_logout")
+        except UnauthorizedError:
+            logger.warning("Access token might invalid or expired")
 
-        # 2. Расчёт времени истечения токенов
-        access_token_expires_at = get_expiration_timestamp(
-            expires_in=timedelta(minutes=settings.jwt.access_token_expires_in_minutes)
-        )
-        refresh_token_expires_at = get_expiration_time(
-            expires_in=timedelta(days=settings.jwt.refresh_token_expires_in_days)
-        )
-
-        # 3. Сохранение refresh токена
-        await self.user_repo.store_token(
-            user_id=user.id, token=refresh_token, expires_at=refresh_token_expires_at,
-        )
-
-        return Tokens(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            expires_at=access_token_expires_at,
-        )
+        # 2. Отзыв refresh токена
+        if refresh_token is not None:
+            try:
+                payload = validate_token(refresh_token)
+                jti, exp, user_id = (
+                    payload.get("jti"),
+                    payload.get("exp", 0),
+                    payload.get("user_id"),
+                )
+                if jti is not None and exp:
+                    await self.blacklist.revoke(
+                        jti, user_id=user_id, exp=exp, reason="user_logout"
+                    )
+            except UnauthorizedError:
+                logger.warning("Refresh token might invalid or expired")
 
 
 class InvitationService:
