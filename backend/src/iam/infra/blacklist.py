@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -18,6 +19,7 @@ class RedisTokenBlacklist:
             return False  # Токен уже истёк
 
         # 2. Сохранение токена
+        ttl = timedelta(seconds=ttl)
         key = f"blacklist:jti:{jti}"
         value = json.dumps({"revoked_at": now, "user_id": f"{user_id}", "reason": reason})
         await self.redis.setex(key, ttl, value)

@@ -123,9 +123,7 @@ class AuthService:
             raise UnauthorizedError("Invalid password or user is not active")
 
         # 2. Выпуск пары токенов
-        tokens = create_tokens_for_user(user)
-        await self.session.commit()
-        return tokens
+        return create_tokens_for_user(user)
 
     async def refresh_tokens(self, refresh_token: str) -> Tokens:
         """Обновление пары токенов с ротацией"""
@@ -145,9 +143,8 @@ class AuthService:
 
         # 3. Ротация и выпуск новых токенов
         await self.blacklist.revoke(jti, user_id=user_id, exp=exp, reason="refresh_tokens")
-        new_tokens = create_tokens_for_user(user)
-        await self.session.commit()
-        return new_tokens
+
+        return create_tokens_for_user(user)
 
     async def logout(self, access_token: str, refresh_token: str | None = None) -> None:
         """Выход с текущего аккаунта"""
