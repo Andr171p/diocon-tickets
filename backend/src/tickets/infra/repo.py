@@ -3,7 +3,7 @@ from typing import override
 from uuid import UUID
 
 from sqlalchemy import Select, func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import attributes, selectinload
 
 from ...media.infra.repo import AttachmentMapper
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
@@ -183,11 +183,13 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
             .where(CommentOrm.ticket_id == ticket_id)
             .order_by(CommentOrm.created_at.desc())
             .limit(comments_limit)
+            .options(selectinload(CommentOrm.attachments))
         )
         results = await self.session.execute(comments_stmt)
         comments = results.scalars().all()
 
-        ticket.comments = comments
+        # 3. Установка загруженных комментариев в объект
+        attributes.set_committed_value(ticket, "comments", comments)
 
         return self.model_mapper.to_entity(ticket)
 

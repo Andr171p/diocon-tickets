@@ -1,6 +1,7 @@
 from typing import ClassVar, Self
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -155,3 +156,35 @@ class TicketNumber(ValueObject):
         """Является ли тикет внутренним"""
 
         return self.prefix == self.INTERNAL_PREFIX
+
+
+class ProjectStatus(StrEnum):
+    """Статус проекта"""
+
+    ACTIVE = "active"
+    ON_HOLD = "on_hold"  # На удержании
+    ARCHIVED = "archived"
+    COMPLETED = "completed"
+
+
+class ProjectRole(StrEnum):
+    """Роли внутри конкретного проекта"""
+
+    OWNER = "owner"  # Полный контроль над проектом
+    MANAGER = "manager"  # Может управлять участниками, настройками
+    MEMBER = "member"  # Обычный участник (агент, разработчик)
+    VIEWER = "viewer"  # Только просмотр
+    CUSTOMER = "customer"  # Обычный клиент
+    CUSTOMER_ADMIN = "customer_admin"  # Администратор со стороны клиента
+
+
+@dataclass(frozen=True, kw_only=True)
+class ProjectParticipant(ValueObject):
+    """
+    Участник проекта
+    """
+
+    user_id: UUID
+    project_role: ProjectRole
+    added_at: datetime = field(default_factory=current_datetime)
+    added_by: UUID

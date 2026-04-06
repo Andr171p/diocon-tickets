@@ -11,7 +11,7 @@ from ...shared.domain.entities import AggregateRoot, Entity
 from ...shared.domain.exceptions import InvariantViolationError
 from ...shared.utils.time import current_datetime
 from .events import TicketCreated
-from .vo import CommentType, Tag, TicketNumber, TicketPriority, TicketStatus
+from .vo import CommentType, ProjectStatus, Tag, TicketNumber, TicketPriority, TicketStatus
 
 COMMENT_TYPE_DISPLAY_NAMES: dict[CommentType, str] = {
     CommentType.INTERNAL: "внутренний",
@@ -227,3 +227,21 @@ class Ticket(AggregateRoot):
                 description=f"Добавлен {COMMENT_TYPE_DISPLAY_NAMES[comment_type]} комментарий"
             )
         )
+
+
+class Project(Entity):
+    """
+    Проект - контейнер для тикетов
+    """
+
+    name: str
+    key: str  # Короткий уникальный ключ
+    description: str | None = None
+    counterparty_id: UUID | None = None
+    status: ProjectStatus
+    # Владелец проекта, руководитель или ответственный
+    owner_id: UUID
+    # Участники проекта (члены команды)
+    participants: list[...]
+    # Метаданные
+    created_by: UUID
