@@ -70,6 +70,7 @@ class TicketResponse(BaseModel):
     counterparty_id: UUID | None = Field(None, description="Контрагент к которому относится тикет")
     created_by_role: UserRole = Field(..., description="Роль пользователя, который создал тикет")
     created_by: UUID = Field(..., description="ID пользователя, который создал тикет")
+    number: str = Field(..., description="Номер тикета", examples=["РОМ-26-00012456"])
     title: str = Field(..., description="Заголовок")
     description: str = Field(..., description="Детальное описание")
     status: TicketStatus = Field(..., description="Текущий статус")

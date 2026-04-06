@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import APIRouter, FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.core.redis import redis_client
@@ -43,6 +44,14 @@ router.include_router(media_router)
 router.include_router(tickets_router)
 
 app.include_router(router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.exception_handler(ValueError)
