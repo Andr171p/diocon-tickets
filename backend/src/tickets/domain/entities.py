@@ -10,14 +10,18 @@ from ...media.domain.entities import Attachment
 from ...shared.domain.entities import AggregateRoot, Entity
 from ...shared.domain.exceptions import InvariantViolationError
 from ...shared.utils.time import current_datetime
+from .constants import ALLOWED_ASSIGN_STATUSES, ALLOWED_TRANSITIONS, COMMENT_TYPE_DISPLAY_NAMES
 from .events import TicketCreated
-from .vo import CommentType, ProjectStatus, Tag, TicketNumber, TicketPriority, TicketStatus
-
-COMMENT_TYPE_DISPLAY_NAMES: dict[CommentType, str] = {
-    CommentType.INTERNAL: "внутренний",
-    CommentType.PUBLIC: "публичный",
-    CommentType.NOTE: "личный (заметка)"
-}
+from .vo import (
+    CommentType,
+    ProjectKey,
+    ProjectRole,
+    ProjectStatus,
+    Tag,
+    TicketNumber,
+    TicketPriority,
+    TicketStatus,
+)
 
 
 @dataclass(kw_only=True)
@@ -64,9 +68,14 @@ class Ticket(AggregateRoot):
     Агрегат Тикет — центральная сущность системы
     """
 
+    project_id: UUID | None = None
     counterparty_id: UUID | None = None
+
+    # Ключевые поля
+    created_by: UUID  # Технический создатель
     created_by_role: UserRole
-    created_by: UUID
+    reporter_id: UUID  # Инициатор/автор проблемы (тот кто пожаловался)
+
     number: TicketNumber
     title: str
     description: str
@@ -99,6 +108,7 @@ class Ticket(AggregateRoot):
             cls,
             created_by_role: UserRole,
             created_by: UUID,
+            reporter_id: UUID,
             title: str,
             description: str,
             priority: TicketPriority,
@@ -108,15 +118,23 @@ class Ticket(AggregateRoot):
     ) -> Self:
         """Создание тикета"""
 
-        # 1. Генерация уникального ID и создание номера
+        # 1. Проверка заполнения полей для контрагента
+        if (counterparty_id is None) != (counterparty_name is None):
+            raise ValueError(
+                "Both counterparty_id and counterparty_name must be either provided "
+                "or both omitted"
+            )
+
+        # 2. Генерация уникального ID и создание номера
         ticket_id = uuid4()
         ticket_number = TicketNumber.create(ticket_id, counterparty_name)
 
-        # 2. Создание доменной сущности
+        # 3. Создание доменной сущности
         ticket = cls(
             id=ticket_id,
             created_by_role=created_by_role,
             created_by=created_by,
+            reporter_id=reporter_id,
             number=ticket_number,
             title=title,
             description=description,
@@ -134,12 +152,13 @@ class Ticket(AggregateRoot):
             ]
         )
 
-        # 3. Регистрация доменного события
+        # 4. Регистрация доменного события
         ticket.register_event(
             TicketCreated(
                 ticket_id=ticket_id,
                 title=title,
                 created_by=created_by,
+                reporter_id=reporter_id,
                 priority=priority,
                 counterparty_id=counterparty_id,
             )
@@ -149,11 +168,20 @@ class Ticket(AggregateRoot):
     def assign_to(self, assignee_id: UUID, assigned_by: UUID, assigned_by_role: UserRole) -> None:
         """Назначает тикет на исполнителя"""
 
+        # 1. Назначить тикет могут только внутренние сотрудники
         if assigned_by_role not in {
             UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER, UserRole.ADMIN
         }:
             raise PermissionDeniedError("Only support staff can assign tickets")
 
+        # 2. Для назначения тикета должен быть определённый статус
+        if self.status not in ALLOWED_ASSIGN_STATUSES:
+            raise PermissionDeniedError(
+                f"Cannot assign ticket in status '{self.status.value}'. "
+                f"Allowed statuses: {', '.join(status for status in ALLOWED_ASSIGN_STATUSES)}"
+            )
+
+        # 3. Назначение исполнителя
         old_assignee = self.assigned_to
         self.assigned_to = assignee_id
 
@@ -173,14 +201,23 @@ class Ticket(AggregateRoot):
     ) -> None:
         """Изменение статуса"""
 
+        # 1. Проверка возможности перехода к новому статусу
+        if new_status in ALLOWED_TRANSITIONS.get(self.status, []):
+            raise PermissionDeniedError(
+                f"Not allowed status transition from '{self.status}' to '{new_status}'"
+            )
+
+        # 2. Есть ли права на изменение статуса
         if changed_by_role not in {
             UserRole.EXECUTOR, UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER, UserRole.ADMIN
         }:
             raise PermissionDeniedError("You don't have permission to change status")
 
+        # 3. Установка нового статуса
         old_status = self.status
         self.status = new_status
 
+        # 4. Если тикет закрыт, то устанавливается время закрытия
         if new_status == TicketStatus.CLOSED:
             self.closed_at = current_datetime()
 
@@ -229,19 +266,75 @@ class Ticket(AggregateRoot):
         )
 
 
-class Project(Entity):
+@dataclass(kw_only=True)
+class Participant(Entity):
+    """
+    Участник проекта
+    """
+
+    project_id: UUID
+    user_id: UUID
+    project_role: ProjectRole
+    added_at: datetime = field(default_factory=current_datetime)
+    added_by: UUID
+
+
+class Project(AggregateRoot):
     """
     Проект - контейнер для тикетов
     """
 
     name: str
-    key: str  # Короткий уникальный ключ
+    key: ProjectKey  # Короткий уникальный ключ
     description: str | None = None
     counterparty_id: UUID | None = None
     status: ProjectStatus
     # Владелец проекта, руководитель или ответственный
     owner_id: UUID
     # Участники проекта (члены команды)
-    participants: list[...]
+    participants: list[Participant] = field(default_factory=list)
     # Метаданные
     created_by: UUID
+
+    def __post_init__(self) -> None:
+        # 1. Наименование проекта не может быть пустым
+        if not self.name.strip():
+            raise ValueError("Project name cannot be empty")
+
+        # 2. Владелец проекта должен быть среди его участников
+        if not any(participant.user_id == self.owner_id for participant in self.participants):
+            raise InvariantViolationError("Owner must be a participant of the project")
+
+    @classmethod
+    def create(
+            cls,
+            name: str,
+            key: str,
+            owner_id: UUID,
+            created_by: UUID,
+            description: str | None = None,
+            counterparty_id: UUID | None = None,
+    ) -> Self:
+        """Создание проекта"""
+
+        project_id = uuid4()
+        owner = Participant(
+            id=uuid4(),
+            project_id=project_id,
+            user_id=owner_id,
+            role=ProjectRole.OWNER,
+            added_by=created_by,
+        )
+        project = cls(
+            id=project_id,
+            name=name,
+            key=ProjectKey(key),
+            description=description,
+            counterparty_id=counterparty_id,
+            owner_id=owner_id,
+            status=ProjectStatus.ACTIVE,
+            participants=[owner],
+            created_by=created_by,
+        )
+        project.register_event(...)
+        return project

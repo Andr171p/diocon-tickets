@@ -8,9 +8,9 @@ from sqlalchemy.orm import attributes, selectinload
 from ...media.infra.repo import AttachmentMapper
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
 from ...shared.schemas import Page, PageParams
-from ..domain.entities import Comment, Ticket, TicketHistoryEntry
-from ..domain.vo import Tag, TicketNumber, TicketPriority, TicketStatus
-from .models import CommentOrm, TicketHistoryEntryOrm, TicketOrm
+from ..domain.entities import Comment, Participant, Project, Ticket, TicketHistoryEntry
+from ..domain.vo import ProjectKey, Tag, TicketNumber, TicketPriority, TicketStatus
+from .models import CommentOrm, ParticipantOrm, ProjectOrm, TicketHistoryEntryOrm, TicketOrm
 
 
 class CommentMapper(ModelMapper[Comment, CommentOrm]):
@@ -89,9 +89,11 @@ class TicketMapper(ModelMapper[Ticket, TicketOrm]):
             id=model.id,
             created_at=model.created_at,
             updated_at=model.updated_at,
+            project_id=model.project_id,
             counterparty_id=model.counterparty_id,
             created_by_role=model.created_by_role,
             created_by=model.created_by,
+            reporter_id=model.reporter_id,
             number=TicketNumber(model.number),
             title=model.title,
             description=model.description,
@@ -113,9 +115,11 @@ class TicketMapper(ModelMapper[Ticket, TicketOrm]):
             id=model.id,
             created_at=model.created_at,
             updated_at=model.updated_at,
+            project_id=model.project_id,
             counterparty_id=model.counterparty_id,
             created_by_role=model.created_by_role,
             created_by=model.created_by,
+            reporter_id=model.reporter_id,
             number=TicketNumber(model.number),
             title=model.title,
             description=model.description,
@@ -138,9 +142,11 @@ class TicketMapper(ModelMapper[Ticket, TicketOrm]):
             id=entity.id,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
+            project_id=entity.project_id,
             counterparty_id=entity.counterparty_id,
             created_by_role=entity.created_by_role,
             created_by=entity.created_by,
+            reporter_id=entity.reporter_id,
             number=entity.number.value,
             title=entity.title,
             description=entity.description,
@@ -260,3 +266,70 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
             has_prev=params.page > 1,
             items=[self.model_mapper.to_preview_entity(model) for model in models],
         )
+
+
+class ProjectMapper(ModelMapper[Project, ProjectOrm]):
+    @staticmethod
+    def to_entity(model: ProjectOrm) -> Project:
+        return Project(
+            id=model.id,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            name=model.name,
+            description=model.description,
+            key=ProjectKey(model.key),
+            counterparty_id=model.counterparty_id,
+            owner_id=model.owner_id,
+            status=model.status,
+            participants=[
+                Participant(
+                    id=participant.id,
+                    created_at=participant.created_at,
+                    updated_at=participant.updated_at,
+                    project_id=participant.project_id,
+                    user_id=participant.user_id,
+                    project_role=participant.project_role,
+                    added_at=participant.added_at,
+                    added_by=participant.added_by,
+                )
+                for participant in model.participants
+            ]
+        )
+
+    @staticmethod
+    def from_entity(entity: Project) -> ProjectOrm:
+        return ProjectOrm(
+            id=entity.id,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+            name=entity.name,
+            key=entity.key.value,
+            description=entity.description,
+            counterparty_id=entity.counterparty_id,
+            owner_id=entity.owner_id,
+            status=entity.status,
+            participants=[
+                ParticipantOrm(
+                    id=participant.id,
+                    created_at=participant.created_at,
+                    updated_at=participant.updated_at,
+                    user_id=participant.user_id,
+                    project_id=participant.project_id,
+                    project_role=participant.project_role,
+                    added_at=participant.added_at,
+                    added_by=participant.added_by,
+                )
+                for participant in entity.participants
+            ]
+        )
+
+
+class SqlProjectRepository(SqlAlchemyRepository[Project, ProjectOrm]):
+    model = ProjectOrm
+    model_mapper = ProjectMapper
+
+    async def get_by_key(self, project_key: ProjectKey) -> Project | None:
+        stmt = select(self.model).where(self.model.key == project_key)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return None if model is None else self.model_mapper.to_entity(model)

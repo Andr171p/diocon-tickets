@@ -12,6 +12,7 @@ class TicketCreated(Event):
     ticket_id: UUID
     title: str
     created_by: UUID
+    reporter_id: UUID
     priority: TicketPriority
     counterparty_id: UUID | None = None
 

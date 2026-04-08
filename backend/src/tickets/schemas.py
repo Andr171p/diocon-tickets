@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, NonNegativeFloat
 
 from ..iam.domain.vo import UserRole
 from ..media.schemas import AttachmentResponse
-from .domain.vo import CommentType, TicketPriority, TicketStatus
+from .domain.vo import CommentType, ProjectRole, ProjectStatus, TicketPriority, TicketStatus
 
 
 class TicketPreview(BaseModel):
@@ -17,6 +17,8 @@ class TicketPreview(BaseModel):
     created_at: datetime = Field(..., description="Дата создания")
     updated_at: datetime = Field(..., description="Дата обновления")
     created_by: UUID = Field(..., description="ID пользователя, который создал тикет")
+    reporter_id: UUID = Field(..., description="ID пользователя - инициатора")
+    number: str = Field(..., description="Номер тикета", examples=["РОМ-26-00012456"])
     title: str = Field(..., description="Заголовок тикета")
     status: TicketStatus = Field(..., description="Текущий статус")
     priority: TicketPriority = Field(..., description="Приоритет")
@@ -61,26 +63,39 @@ class Tag(BaseModel):
     color: str = Field(..., description="Hex код цвета (для UI)", examples=["#0345fc", "#fc0303"])
 
 
-class TicketResponse(BaseModel):
+class TicketBase(BaseModel):
+    """Базовые поля для API схем тикета"""
+
+    project_id: UUID | None = Field(
+        None, description="ID проекта, к которому нужно привязать тикет"
+    )
+    reporter_id: UUID = Field(..., description="ID пользователя - инициатора")
+    title: str = Field(..., description="Заголовок")
+    description: str = Field(..., description="Описание проблемы")
+    priority: TicketPriority = Field(
+        ..., description="Приоритет выполнения (чем выше приоритет, тем быстрее время реакции)",
+    )
+    counterparty_id: UUID | None = Field(None, description="Контрагент к которому привязан тикет")
+    counterparty_name: str | None = Field(
+        None, description="Наименование контрагента, нужно для генерации уникального номера"
+    )
+    tags: list[Tag] = Field(
+        default_factory=list, description="Теги для упрощения поиск аи фильтрации"
+    )
+
+
+class TicketResponse(TicketBase):
     """API схема ответа тикета"""
 
     id: UUID = Field(..., description="Уникальный ID тикета")
     created_at: datetime = Field(..., description="Дата создания")
     updated_at: datetime = Field(..., description="Дата обновления")
-    counterparty_id: UUID | None = Field(None, description="Контрагент к которому относится тикет")
     created_by_role: UserRole = Field(..., description="Роль пользователя, который создал тикет")
     created_by: UUID = Field(..., description="ID пользователя, который создал тикет")
     number: str = Field(..., description="Номер тикета", examples=["РОМ-26-00012456"])
-    title: str = Field(..., description="Заголовок")
-    description: str = Field(..., description="Детальное описание")
     status: TicketStatus = Field(..., description="Текущий статус")
-    priority: TicketPriority = Field(..., description="Приоритет выполнения")
     assigned_to: UUID | None = Field(None, description="Кому назначен тикет")
     closed_at: datetime | None = Field(None, description="Дата закрытия тикета")
-
-    tags: list[Tag] = Field(
-        default_factory=list, description="Теги для упрощения поиск аи фильтрации"
-    )
 
     attachments: list[AttachmentResponse] = Field(
         default_factory=list, description="Прикреплённые файлы"
@@ -93,21 +108,12 @@ class TicketResponse(BaseModel):
     )
 
 
-class TicketCreate(BaseModel):
+class TicketCreate(TicketBase):
     """Создание тикета"""
 
-    title: str = Field(..., description="Заголовок")
-    description: str = Field(..., description="Описание проблемы")
     priority: TicketPriority = Field(
         TicketPriority.MEDIUM,
         description="Приоритет выполнения (чем выше приоритет, тем быстрее время реакции)"
-    )
-    counterparty_id: UUID | None = Field(None, description="Контрагент к которому привязан тикет")
-    counterparty_name: str | None = Field(
-        None, description="Наименование контрагента, нужно для генерации уникального номера"
-    )
-    tags: list[Tag] = Field(
-        default_factory=list, description="Теги для упрощения поиск аи фильтрации"
     )
 
 
@@ -142,3 +148,60 @@ class PredictionResponse(BaseModel):
         default_factory=list, min_length=1, max_length=10, description="Предложенные теги"
     )
     confidence: PredictionConfidence = Field(..., description="Уверенность в генерации")
+
+
+class ProjectBase(BaseModel):
+    """Базовая схема проекта"""
+
+    name: str = Field(
+        ..., description="Наименование проекта", examples=["Корпоративный сайт компании"]
+    )
+    key: str = Field(
+        ...,
+        min_length=2,
+        max_length=10,
+        description="Уникальный ключ проекта",
+        examples=["PROJ", "MOB1"],
+    )
+    description: str | None = Field(
+        None, description="Описание проекта (рекомендуется к заполнению)"
+    )
+    counterparty_id: UUID | None = Field(
+        None, description="Контрагент для которого реализуется проект"
+    )
+    owner_id: UUID = Field(..., description="Владелец проекта (обычно support и выше)")
+
+
+class ProjectCreate(ProjectBase):
+    """Схема для создания проекта"""
+
+
+class ParticipantResponse(BaseModel):
+    """Участник проекта"""
+
+    user_id: UUID = Field(..., description="ID пользователя в системе")
+    project_role: ProjectRole = Field(..., description="Роль в проекте")
+    added_at: datetime = Field(..., description="Дата добавления в проект")
+    added_by: UUID = Field(..., description="ID пользователя, который добавил участника")
+
+
+class ProjectResponse(ProjectBase):
+    """API схема ответа для проекта"""
+
+    id: UUID = Field(..., description="Уникальный ID проекта")
+    created_at: datetime = Field(..., description="Дата создания проекта")
+    updated_at: datetime = Field(..., description="Дата обновления проекта")
+    created_by: UUID = Field(..., description="ID пользователя создавшего проект")
+    status: ProjectStatus = Field(..., description="Статус проекта")
+    participants: list[ParticipantResponse] = Field(
+        default_factory=list, description="Участники проекта"
+    )
+
+
+class KeyCheckResponse(BaseModel):
+    """Результат проверки уникальности ключа"""
+
+    available: bool = Field(..., description="Доступен ли ключ")
+    suggestions: list[str] = Field(
+        default_factory=list, description="Варианты, которые можно попробовать "
+    )

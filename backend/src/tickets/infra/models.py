@@ -12,15 +12,17 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ...core.database import Base
 from ...iam.domain.vo import UserRole
-from ..domain.vo import CommentType, TicketPriority, TicketStatus
+from ..domain.vo import CommentType, ProjectRole, ProjectStatus, TicketPriority, TicketStatus
 
 
 class TicketOrm(Base):
     __tablename__ = "tickets"
 
+    project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
     counterparty_id: Mapped[UUID | None] = mapped_column(nullable=True)
     created_by_role: Mapped[UserRole] = mapped_column(Enum(UserRole))
     created_by: Mapped[UUID]
+    reporter_id: Mapped[UUID]
     number: Mapped[str] = mapped_column(String(20), unique=True)
     title: Mapped[str]
     description: Mapped[str] = mapped_column(TEXT)
@@ -71,3 +73,30 @@ class TicketHistoryEntryOrm(Base):
     description: Mapped[str] = mapped_column(TEXT)
 
     ticket: Mapped["TicketOrm"] = relationship(back_populates="history")
+
+
+class ParticipantOrm(Base):
+    __tablename__ = "project_participants"
+
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), unique=False)
+    user_id: Mapped[UUID]
+    project_role: Mapped[ProjectRole] = mapped_column(Enum(ProjectRole))
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    added_by: Mapped[UUID]
+
+    project: Mapped["ProjectOrm"] = relationship(back_populates="participants")
+
+
+class ProjectOrm(Base):
+    __tablename__ = "projects"
+
+    name: Mapped[str]
+    key: Mapped[str] = mapped_column(unique=True)
+    description: Mapped[str | None] = mapped_column(nullable=True)
+    counterparty_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("counterparties.id"), nullable=True
+    )
+    status: Mapped[ProjectStatus] = mapped_column(Enum(ProjectStatus))
+    owner_id: Mapped[UUID]
+    participants: Mapped[list["ParticipantOrm"]] = relationship(back_populates="project")
+    created_by: Mapped[UUID]

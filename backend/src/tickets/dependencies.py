@@ -3,28 +3,38 @@ from typing import Annotated
 from fastapi import Depends, Query
 
 from ..shared.dependencies import EventPublisherDep, SessionDep
-from .domain.repo import TicketRepository
+from .domain.repos import ProjectRepository, TicketRepository
 from .domain.vo import TicketPriority, TicketStatus
-from .infra.repo import SqlTicketRepository
+from .infra.repos import SqlProjectRepository, SqlTicketRepository
 from .schemas import FilterParams
-from .services import TicketService
+from .services import ProjectService, TicketService
 
 
 def get_ticket_repo(session: SessionDep) -> TicketRepository:
     return SqlTicketRepository(session)
 
 
+def get_project_repo(session: SessionDep) -> ProjectRepository:
+    return SqlProjectRepository(session)
+
+
+ProjectRepoDep = Annotated[ProjectRepository, Depends(get_project_repo)]
 TicketRepoDep = Annotated[TicketRepository, Depends(get_ticket_repo)]
+
+
+def get_project_service(session: SessionDep, repository: ProjectRepoDep) -> ProjectService:
+    return ProjectService(session, repository)
 
 
 def get_ticket_service(
         session: SessionDep,
-        repository: Annotated[TicketRepository, Depends(get_ticket_repo)],
+        repository: TicketRepoDep,
         event_publisher: EventPublisherDep
 ) -> TicketService:
     return TicketService(session, repository=repository, event_publisher=event_publisher)
 
 
+ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 TicketServiceDep = Annotated[TicketService, Depends(get_ticket_service)]
 
 

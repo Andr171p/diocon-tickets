@@ -4,8 +4,8 @@ from uuid import UUID
 
 from ...shared.domain.repo import Repository
 from ...shared.schemas import Page, PageParams
-from .entities import Comment, Ticket
-from .vo import TicketPriority, TicketStatus
+from .entities import Comment, Project, Ticket
+from .vo import ProjectKey, TicketPriority, TicketStatus
 
 
 class TicketRepository(Repository[Ticket]):
@@ -28,3 +28,9 @@ class TicketRepository(Repository[Ticket]):
 
     async def get_comments(self, ticket_id: UUID, params: PageParams) -> Page[Comment]:
         """Получение комментариев для тикета"""
+
+
+class ProjectRepository(Repository[Project]):
+
+    async def get_by_key(self, project_key: ProjectKey) -> Project | None:
+        """Получение проекта по его уникальному ключу"""

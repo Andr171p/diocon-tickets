@@ -10,7 +10,6 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=off \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
-    # HF_HOME=/app/hf_cache
 
 WORKDIR /app
 
@@ -23,12 +22,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev
 
 ENV PATH="/app/.venv/bin:$PATH"
-
-# ------------------- ЗАГРУЗКА МОДЕЛИ -------------------
-# Теперь, когда зависимости установлены, скачиваем модель эмбеддингов
-# (эта команда сохранит файлы в $HF_HOME)
-# RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('deepvk/USER-bge-m3')"
-# -------------------------------------------------------
 
 # ────────────────────────────────────────────────
 # Стадия 2 — финальный образ (runtime)

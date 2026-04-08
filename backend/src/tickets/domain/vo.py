@@ -1,7 +1,7 @@
 from typing import ClassVar, Self
 
+import re
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -12,13 +12,23 @@ from ...shared.utils.time import current_datetime
 class TicketStatus(StrEnum):
     """Возможные статусы тикета"""
 
+    # Начальные статусы
     NEW = "Новый"
+    PENDING_APPROVAL = "На согласовании"
+
+    # Рабочие статусы
     OPEN = "Открыт"
     IN_PROGRESS = "В работе"
     WAITING = "Ожидает ответа"
+
+    # Завершающие статусы
     RESOLVED = "Решён"
     CLOSED = "Закрыт"
     REOPENED = "Переоткрыт"
+
+    # Дополнительные
+    REJECTED = "Отклонён"
+    CANCELED = "Отменён"
 
 
 class TicketPriority(StrEnum):
@@ -178,13 +188,45 @@ class ProjectRole(StrEnum):
     CUSTOMER_ADMIN = "customer_admin"  # Администратор со стороны клиента
 
 
-@dataclass(frozen=True, kw_only=True)
-class ProjectParticipant(ValueObject):
+@dataclass(frozen=True)
+class ProjectKey(ValueObject):
     """
-    Участник проекта
+    Уникальный ключ проекта.
+
+    Формат:
+     - Длина от 2 до 10 символов
+     - Первый символ - буква (A-Z, А-Я, латиница или кириллица).
+     - Остальные символы — буквы, цифры или подчёркивание.
+    - Регистр всегда верхний.
+
+    Примеры: "PRJ", "MOB_APP", "BACKEND1", "ПРОЕКТ"
     """
 
-    user_id: UUID
-    project_role: ProjectRole
-    added_at: datetime = field(default_factory=current_datetime)
-    added_by: UUID
+    PATTERN: ClassVar[re.Pattern] = re.compile(
+        r"^[A-ZА-Я][A-ZА-Я0-9_]{1,9}$",  # первая буква, затем до 9 букв/цифр/_
+        re.UNICODE,
+    )
+
+    value: str
+
+    def __post_init__(self) -> None:
+        # 1. Ключ не может быть пустым
+        if not self.value:
+            raise ValueError("Project key cannot be empty")
+
+        # 2. Нормализация строки
+        normalized = self.value.upper().strip()
+        if not self.PATTERN.match(normalized):
+            raise ValueError(
+                f"Invalid project key format: '{self.value}'. "
+                "Key must be 2-10 characters long, start with a letter, "
+                "and contain only letters, digits or underscores."
+            )
+
+        object.__setattr__(self, "value", normalized)
+
+    def __str__(self) -> str:
+        return self.value
+
+    def __repr__(self) -> str:
+        return f"ProjectKey('{self.value}')"

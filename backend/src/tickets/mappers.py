@@ -1,6 +1,14 @@
 from ..media.mappers import map_attachment_to_response
-from .domain.entities import Comment, Ticket, TicketHistoryEntry
-from .schemas import CommentResponse, HistoryEntryResponse, Tag, TicketPreview, TicketResponse
+from .domain.entities import Comment, Project, Ticket, TicketHistoryEntry
+from .schemas import (
+    CommentResponse,
+    HistoryEntryResponse,
+    ParticipantResponse,
+    ProjectResponse,
+    Tag,
+    TicketPreview,
+    TicketResponse,
+)
 
 
 def map_ticket_to_preview(ticket: Ticket) -> TicketPreview:
@@ -9,6 +17,8 @@ def map_ticket_to_preview(ticket: Ticket) -> TicketPreview:
         created_at=ticket.created_at,
         updated_at=ticket.updated_at,
         created_by=ticket.created_by,
+        reporter_id=ticket.reporter_id,
+        number=f"{ticket.number}",
         title=ticket.title,
         status=ticket.status,
         priority=ticket.priority,
@@ -47,6 +57,7 @@ def map_ticket_to_response(ticket: Ticket) -> TicketResponse:
         counterparty_id=ticket.counterparty_id,
         created_by_role=ticket.created_by_role,
         created_by=ticket.created_by,
+        reporter_id=ticket.reporter_id,
         number=f"{ticket.number}",
         title=ticket.title,
         description=ticket.description,
@@ -58,4 +69,28 @@ def map_ticket_to_response(ticket: Ticket) -> TicketResponse:
         attachments=[map_attachment_to_response(attachment) for attachment in ticket.attachments],
         comments=[map_comment_to_response(comment) for comment in ticket.comments],
         history=[map_history_entry_to_response(history_entry) for history_entry in ticket.history],
+    )
+
+
+def map_project_to_response(project: Project) -> ProjectResponse:
+    return ProjectResponse(
+        id=project.id,
+        created_at=project.created_at,
+        updated_at=project.updated_at,
+        name=project.name,
+        key=f"{project.key}",
+        description=project.description,
+        owner_id=project.owner_id,
+        counterparty_id=project.counterparty_id,
+        created_by=project.created_by,
+        status=project.status,
+        participants=[
+            ParticipantResponse(
+                user_id=participant.user_id,
+                project_role=participant.project_role,
+                added_by=participant.added_by,
+                added_at=participant.added_at,
+            )
+            for participant in project.participants
+        ]
     )
