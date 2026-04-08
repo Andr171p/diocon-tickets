@@ -1,9 +1,11 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
+from ...iam.domain.entities import User
 from ...iam.domain.vo import FullName
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
+from ...shared.schemas import Page, PageParams
 from ..domain.entities import Counterparty
 from ..domain.vo import ContactPerson, Inn, Kpp, Okpo, Phone
 from .models import CounterpartyOrm
@@ -117,3 +119,34 @@ class SqlCounterpartyRepository(SqlAlchemyRepository[Counterparty, CounterpartyO
         results = await self.session.execute(stmt)
         models = results.scalars().all()
         return [self.model_mapper.to_entity(model) for model in models]
+
+    async def get_customers(self, counterparty_id: UUID, params: PageParams) -> Page[User]:
+        from ...iam.infra.models import UserOrm
+        from ...iam.infra.repos import UserMapper
+
+        # 1. Основной запрос
+        stmt = select(UserOrm).where(UserOrm.counterparty_id == counterparty_id)
+
+        # 2. Получение количества клиентов
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = await self.session.scalar(count_stmt)
+        if total == 0:
+            return Page.create_empty(params.page, params.size)
+
+        # 3. Получение списка клиентов
+        stmt = stmt.offset(params.offset).limit(params.size)
+        results = await self.session.execute(stmt)
+        models = results.scalars().all()
+
+        # 4. Расчёт результата
+        total_pages = (total + params.size - 1) // params.size
+        items = [UserMapper.to_entity(model) for model in models]
+        return Page(
+            page=params.page,
+            size=params.size,
+            total_items=total,
+            total_pages=total_pages,
+            has_next=params.page < total_pages,
+            has_prev=params.page > 1,
+            items=items,
+        )

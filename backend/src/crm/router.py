@@ -5,6 +5,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Path, status
 
 from ..iam.dependencies import get_current_support_user, get_current_user
+from ..iam.mappers import map_user_to_response
+from ..iam.schemas import UserResponse
 from ..shared.dependencies import PageParamsDep
 from ..shared.domain.exceptions import NotFoundError
 from ..shared.schemas import Page
@@ -85,3 +87,17 @@ async def get_counterparties(
 )
 async def delete_counterparty(counterparty_id: UUID, repository: CounterpartyRepoDep) -> None:
     await repository.update(counterparty_id, is_active=False)
+
+
+@router.get(
+    path="/{counterparty_id}/customers",
+    status_code=status.HTTP_200_OK,
+    response_model=Page[UserResponse],
+    dependencies=[Depends(get_current_support_user)],
+    summary="Получение клиентов контрагента",
+)
+async def get_counterparty_customers(
+        counterparty_id: UUID, params: PageParamsDep, repository: CounterpartyRepoDep
+) -> Page[dict[str, Any]]:
+    page = await repository.get_customers(counterparty_id, params)
+    return page.to_response(map_user_to_response)

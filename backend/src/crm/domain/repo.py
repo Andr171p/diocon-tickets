@@ -1,6 +1,8 @@
 from uuid import UUID
 
+from ...iam.domain.entities import User
 from ...shared.domain.repo import Repository
+from ...shared.schemas import Page, PageParams
 from .entities import Counterparty
 from .vo import Inn
 
@@ -21,3 +23,6 @@ class CounterpartyRepository(Repository[Counterparty]):
         Нахождение контрагента и всех его суб-компании (филиалов, дочерних отделов).
         Принимает ID головного контрагента и возвращает плоский список.
         """
+
+    async def get_customers(self, counterparty_id: UUID, params: PageParams) -> Page[User]:
+        """Получение клиентов контрагента"""
