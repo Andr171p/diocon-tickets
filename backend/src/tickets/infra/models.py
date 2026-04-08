@@ -98,5 +98,7 @@ class ProjectOrm(Base):
     )
     status: Mapped[ProjectStatus] = mapped_column(Enum(ProjectStatus))
     owner_id: Mapped[UUID]
-    participants: Mapped[list["ParticipantOrm"]] = relationship(back_populates="project")
+    participants: Mapped[list["ParticipantOrm"]] = relationship(
+        back_populates="project", lazy="selectin"
+    )
     created_by: Mapped[UUID]
