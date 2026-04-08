@@ -1,3 +1,5 @@
+import random
+import string
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -11,6 +13,9 @@ from .domain.repos import ProjectRepository, TicketRepository
 from .domain.vo import ProjectKey, Tag
 from .mappers import map_project_to_response, map_ticket_to_response
 from .schemas import KeyCheckResponse, ProjectCreate, ProjectResponse, TicketCreate, TicketResponse
+
+# Длина короткого ключа проекта
+SHORT_PROJECT_KEY_LENGTH = 3
 
 
 class TicketService:
@@ -77,7 +82,48 @@ class ProjectService:
     async def _generate_key_suggestions(
             self, original_key: str, max_attempts: int = 5
     ) -> list[str]:
-        ...
+        """
+        Генерация списка альтернативных ключей проекта в стиле Jira.
+
+        Примеры:
+         - original_key = "WEB"   →  ["WEB1", "WEB2", "WEB3", "WEB-1", "WEB-2", ...]
+         - original_key = "CRM"   →  ["CRM1", "CRM2", "CRM3", ...]
+        """
+
+        base_key = original_key.strip().upper()
+
+        if not base_key:
+            base_key = "PROJ"  # fallback
+
+        # 1. Добавление простых числовых суффиксов
+        suggestions = [f"{base_key}{i}" for i in range(1, max_attempts + 1)]
+
+        # 2. Добавление суффиксов с дефисом
+        suggestions.extend(f"{base_key}-{i}" for i in range(1, max_attempts + 1))
+
+        # 3. Если ключ короткий, то добавление вариантов с буквами
+        if len(base_key) <= SHORT_PROJECT_KEY_LENGTH:
+            alphabet = string.ascii_uppercase
+            suggestions.extend(
+                f"{base_key}{letter}" for letter in random.sample(alphabet, len(alphabet))
+            )
+
+        # 4. Удаление дубликатов и сохранение порядка
+        seen = set()
+        unique_suggestions = []
+        for suggestion in suggestions:
+            if suggestion not in seen:
+                seen.add(suggestion)
+                unique_suggestions.append(suggestion)
+
+        unique_suggestions = unique_suggestions[:max_attempts * 2]
+
+        existing_keys = await self.repository.get_existing_keys(unique_suggestions)
+
+        # Возвращаем только свободные
+        available = [key for key in unique_suggestions if key not in existing_keys]
+
+        return available[:max_attempts]
 
     async def create(
             self, data: ProjectCreate, created_by: UUID, max_attempts: int = 5

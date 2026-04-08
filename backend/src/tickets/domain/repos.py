@@ -32,5 +32,11 @@ class TicketRepository(Repository[Ticket]):
 
 class ProjectRepository(Repository[Project]):
 
-    async def get_by_key(self, project_key: ProjectKey) -> Project | None:
+    async def get_by_key(self, key: ProjectKey) -> Project | None:
         """Получение проекта по его уникальному ключу"""
+
+    async def get_existing_keys(self, keys: list[str]) -> set[str]:
+        """
+        Возвращает множество ключей, которые уже существуют.
+        Оптимизировано для пакетной проверки.
+        """

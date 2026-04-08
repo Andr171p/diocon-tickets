@@ -330,8 +330,17 @@ class SqlProjectRepository(SqlAlchemyRepository[Project, ProjectOrm]):
     model = ProjectOrm
     model_mapper = ProjectMapper
 
-    async def get_by_key(self, project_key: ProjectKey) -> Project | None:
-        stmt = select(self.model).where(self.model.key == project_key)
+    async def get_by_key(self, key: ProjectKey) -> Project | None:
+        stmt = select(self.model).where(self.model.key == key)
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
         return None if model is None else self.model_mapper.to_entity(model)
+
+    async def get_existing_keys(self, keys: list[str]) -> set[str]:
+        if not keys:
+            return set()
+
+        stmt = select(self.model.key).where(self.model.key.in_(keys))
+        result = await self.session.execute(stmt)
+
+        return {row[0] for row in result.all()}
