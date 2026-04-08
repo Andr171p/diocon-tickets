@@ -279,6 +279,7 @@ class Participant(Entity):
     added_by: UUID
 
 
+@dataclass(kw_only=True)
 class Project(AggregateRoot):
     """
     Проект - контейнер для тикетов
