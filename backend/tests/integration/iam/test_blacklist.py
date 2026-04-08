@@ -15,8 +15,8 @@ def redis_client(redis_url):
 
 
 @pytest.fixture
-def redis_token_blacklist(redis_url):
-    return RedisTokenBlacklist(redis_url)
+def redis_token_blacklist(redis_client):
+    return RedisTokenBlacklist(redis_client)
 
 
 class TestRedisTokenBlacklist:
