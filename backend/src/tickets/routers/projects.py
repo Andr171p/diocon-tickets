@@ -2,6 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query, status
 
+from ...iam.dependencies import CurrentSupportUserDep
 from ...shared.domain.exceptions import NotFoundError
 from ..dependencies import ProjectRepoDep, ProjectServiceDep
 from ..mappers import map_project_to_response
@@ -40,9 +41,12 @@ async def check_project_key(key: str, service: ProjectServiceDep) -> KeyCheckRes
         409: {"description": "Ключ уже занят (не получилось разрешить конфликт уникальности)"},
     },
     summary="Создание проекта",
+    description="Проекты могут создавать только пользователи с ролью `support` и выше",
 )
-async def create_project(data: ProjectCreate, service: ProjectServiceDep) -> ProjectResponse:
-    return await service.create(data)
+async def create_project(
+        current_user: CurrentSupportUserDep, data: ProjectCreate, service: ProjectServiceDep
+) -> ProjectResponse:
+    return await service.create(data, created_by=current_user.user_id)
 
 
 @router.get(

@@ -26,10 +26,11 @@ def counterparty_id():
 
 # ====================== Успешное создание ======================
 
-def test_create_ticket_by_customer_success(customer_id, counterparty_id):
+def test_create_ticket_by_customer_success(customer_id, support_agent_id, counterparty_id):
     ticket = Ticket.create(
         created_by_role=UserRole.CUSTOMER,
-        created_by=customer_id,
+        created_by=support_agent_id,
+        reporter_id=customer_id,
         title="Проблема с оплатой",
         description="Не проходит платеж",
         priority=TicketPriority.HIGH,
@@ -37,9 +38,9 @@ def test_create_ticket_by_customer_success(customer_id, counterparty_id):
         counterparty_name="Ромашка"
     )
 
-    assert ticket.number
+    assert ticket.number.value.startswith("РОМ")
     assert ticket.status == TicketStatus.NEW
-    assert ticket.created_by == customer_id
+    assert ticket.created_by == support_agent_id
     assert ticket.counterparty_id == counterparty_id
     assert len(ticket.history) == 1
     assert ticket.history[0].action == "ticket_created"
@@ -51,10 +52,11 @@ def test_create_ticket_by_customer_success(customer_id, counterparty_id):
         assert event.priority == ticket.priority
 
 
-def test_create_internal_ticket_success(support_agent_id):
+def test_create_internal_ticket_success(support_agent_id, customer_id):
     ticket = Ticket.create(
         created_by_role=UserRole.SUPPORT_AGENT,
         created_by=support_agent_id,
+        reporter_id=customer_id,
         title="Внутренняя задача по инфраструктуре",
         description="Обновить сервер",
         priority=TicketPriority.MEDIUM,
@@ -79,6 +81,7 @@ def test_customer_ticket_without_counterparty_raises_error(customer_id):
         Ticket.create(
             created_by_role=UserRole.CUSTOMER,
             created_by=customer_id,
+            reporter_id=customer_id,
             title="Проблема",
             description="Описание",
             priority=TicketPriority.LOW,
@@ -93,8 +96,24 @@ def test_ticket_without_title_raises_error(customer_id, counterparty_id):
         Ticket.create(
             created_by_role=UserRole.CUSTOMER,
             created_by=customer_id,
+            reporter_id=customer_id,
             title="   ",
             description="Описание",
             priority=TicketPriority.LOW,
             counterparty_id=counterparty_id,
+            counterparty_name="Ромашка"
+        )
+
+
+def test_ticket_incorrect_counterparty_params(customer_id, counterparty_id):
+    with pytest.raises(ValueError, match="Title cannot be empty"):
+        Ticket.create(
+            created_by_role=UserRole.CUSTOMER,
+            created_by=customer_id,
+            reporter_id=customer_id,
+            title="   ",
+            description="Описание",
+            priority=TicketPriority.LOW,
+            counterparty_id=counterparty_id,
+            counterparty_name="Ромашка"
         )
