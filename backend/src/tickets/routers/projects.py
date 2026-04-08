@@ -1,4 +1,4 @@
-from typing import Any, Annotated
+from typing import Any
 
 from uuid import UUID
 
@@ -9,6 +9,7 @@ from ...shared.dependencies import PageParamsDep
 from ...shared.domain.exceptions import NotFoundError
 from ...shared.schemas import Page
 from ..dependencies import ProjectRepoDep, ProjectServiceDep
+from ..domain.services import generate_project_key
 from ..mappers import map_project_to_response
 from ..schemas import KeyCheckResponse, ProjectCreate, ProjectResponse
 
@@ -18,15 +19,14 @@ router = APIRouter(prefix="/projects", tags=["Проекты"])
 @router.get(
     path="/key-suggestion",
     status_code=status.HTTP_200_OK,
-    response_model=list[str],
+    response_model=dict[str, str],
     summary="Предлагает ключ для проекта",
     description="Генерирует читабельный ключ для проекта, например - 'CP'"
 )
-async def get_key_suggestion(
-        name: Annotated[str, Query(..., description="Наименование проекта")],
-        service: ProjectServiceDep
-) -> list[str]:
-    return await service.generate_key_suggestions(name)
+def get_key_suggestion(
+        name: str = Query(..., description="Наименование проекта"),
+) -> dict[str, str]:
+    return {"key": generate_project_key(name)}
 
 
 @router.get(
