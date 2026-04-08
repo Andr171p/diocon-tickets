@@ -104,7 +104,7 @@ def get_current_support_user(current_user: CurrentUserDep) -> CurrentUser:
 def get_current_customer_admin(current_user: CurrentUserDep) -> CurrentUser:
     """Зависимость для эндпоинтов, доступных только админов клиента и выше"""
 
-    if current_user.role in {
+    if current_user.role not in {
         UserRole.CUSTOMER_ADMIN, UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER, UserRole.ADMIN
     }:
         raise PermissionDeniedError("Access restricted to customer admin or higher")
