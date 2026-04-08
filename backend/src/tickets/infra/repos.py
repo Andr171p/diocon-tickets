@@ -331,7 +331,7 @@ class SqlProjectRepository(SqlAlchemyRepository[Project, ProjectOrm]):
     model_mapper = ProjectMapper
 
     async def get_by_key(self, key: ProjectKey) -> Project | None:
-        stmt = select(self.model).where(self.model.key == key)
+        stmt = select(self.model).where(self.model.key == key.value)
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
         return None if model is None else self.model_mapper.to_entity(model)

@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Annotated
 
 from uuid import UUID
 
@@ -22,8 +22,11 @@ router = APIRouter(prefix="/projects", tags=["Проекты"])
     summary="Предлагает ключ для проекта",
     description="Генерирует читабельный ключ для проекта, например - 'CP'"
 )
-def get_key_suggestion(name: str = Query(..., description="Наименование проекта")) -> list[str]:
-    ...
+async def get_key_suggestion(
+        name: Annotated[str, Query(..., description="Наименование проекта")],
+        service: ProjectServiceDep
+) -> list[str]:
+    return await service.generate_key_suggestions(name)
 
 
 @router.get(

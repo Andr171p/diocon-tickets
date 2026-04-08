@@ -76,10 +76,10 @@ class ProjectService:
             return KeyCheckResponse(available=True)
 
         # 2. Генерация альтернатив
-        suggestions = await self._generate_key_suggestions(project_key.value)
+        suggestions = await self.generate_key_suggestions(project_key.value)
         return KeyCheckResponse(available=False, suggestions=suggestions)
 
-    async def _generate_key_suggestions(
+    async def generate_key_suggestions(
             self, original_key: str, max_attempts: int = 5
     ) -> list[str]:
         """
