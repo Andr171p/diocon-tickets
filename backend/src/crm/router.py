@@ -4,7 +4,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, status
 
-from ..iam.dependencies import get_current_support_user, get_current_user
+from ..iam.dependencies import (
+    get_current_customer_admin,
+    get_current_support_user,
+    get_current_user,
+)
 from ..iam.mappers import map_user_to_response
 from ..iam.schemas import UserResponse
 from ..shared.dependencies import PageParamsDep
@@ -93,7 +97,7 @@ async def delete_counterparty(counterparty_id: UUID, repository: CounterpartyRep
     path="/{counterparty_id}/customers",
     status_code=status.HTTP_200_OK,
     response_model=Page[UserResponse],
-    dependencies=[Depends(get_current_support_user)],
+    dependencies=[Depends(get_current_customer_admin)],
     summary="Получение клиентов контрагента",
 )
 async def get_counterparty_customers(

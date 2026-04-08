@@ -101,7 +101,19 @@ def get_current_support_user(current_user: CurrentUserDep) -> CurrentUser:
     return current_user
 
 
-CurrentSupportUserDep = Annotated[CurrentUserDep, Depends(get_current_support_user)]
+def get_current_customer_admin(current_user: CurrentUserDep) -> CurrentUser:
+    """Зависимость для эндпоинтов, доступных только админов клиента и выше"""
+
+    if current_user.role in {
+        UserRole.CUSTOMER_ADMIN, UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER, UserRole.ADMIN
+    }:
+        raise PermissionDeniedError("Access restricted to customer admin or higher")
+
+    return current_user
+
+
+CurrentSupportUserDep = Annotated[CurrentUser, Depends(get_current_support_user)]
+CurrentCustomerAdminDep = Annotated[CurrentUser, Depends(get_current_customer_admin)]
 
 
 async def get_current_user_ws(
