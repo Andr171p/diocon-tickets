@@ -319,10 +319,9 @@ class Project(AggregateRoot):
 
         project_id = uuid4()
         owner = Participant(
-            id=uuid4(),
             project_id=project_id,
             user_id=owner_id,
-            role=ProjectRole.OWNER,
+            project_role=ProjectRole.OWNER,
             added_by=created_by,
         )
         project = cls(
