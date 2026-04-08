@@ -132,8 +132,8 @@ class ProjectService:
         Создание проекта с уникальным ключом
         """
 
-        key_candidate = data.key
-        for attempt in range(max_attempts):
+        original_key, key_candidate = data.key, data.key
+        for attempt in range(1, max_attempts + 1):
             try:
                 project = Project.create(
                     name=data.name,
@@ -147,7 +147,7 @@ class ProjectService:
                 await self.session.flush()
             except IntegrityError:
                 await self.session.rollback()
-                key_candidate = f"{key_candidate}{attempt}"
+                key_candidate = f"{original_key}{attempt}"
             else:
                 await self.session.commit()
                 return map_project_to_response(project)

@@ -10,6 +10,9 @@ from src.iam.domain.repos import InvitationRepository, TokenBlacklist, UserRepos
 from src.iam.domain.vo import UserRole
 from src.shared.infra.repos import InMemoryRepository
 from src.shared.utils.time import current_datetime
+from src.tickets.domain.entities import Project
+from src.tickets.domain.repos import ProjectRepository
+from src.tickets.domain.vo import ProjectKey
 
 
 class InMemoryCounterpartyRepository(InMemoryRepository[Counterparty]):
@@ -76,6 +79,23 @@ class InMemoryInvitationRepository(InMemoryRepository[Invitation]):
         return None
 
 
+class InMemoryProjectRepository(InMemoryRepository[Project]):
+
+    async def get_by_key(self, key: ProjectKey) -> Project | None:
+        for project in self.data.values():
+            if project.key == key:
+                return project
+        return None
+
+    async def get_existing_keys(self, keys: list[str]) -> set[str]:
+        existing = set()
+        existing_keys = {str(project.key) for project in self.data.values()}
+        for key in keys:
+            if key in existing_keys:
+                existing.add(key)
+        return existing
+
+
 @pytest.fixture
 def mock_counterparty_repo() -> CounterpartyRepository:
     return InMemoryCounterpartyRepository()
@@ -94,3 +114,8 @@ def mock_invitation_repo() -> InvitationRepository:
 @pytest.fixture
 def mock_token_blacklist() -> TokenBlacklist:
     return InMemoryTokenBlacklist()
+
+
+@pytest.fixture
+def mock_project_repo() -> ProjectRepository:
+    return InMemoryProjectRepository()

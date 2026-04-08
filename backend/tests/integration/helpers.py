@@ -8,20 +8,20 @@ from src.shared.infra.repos import ModelMapper
 
 
 @dataclass(kw_only=True)
-class TestEntity(Entity):
+class ExampleEntity(Entity):
     value: str
 
 
-class TestOrm(Base):
+class ExampleOrm(Base):
     __tablename__ = "tests"
 
     value: Mapped[str]
 
 
-class TestMapper(ModelMapper[TestEntity, TestOrm]):
+class ExampleMapper(ModelMapper[ExampleEntity, ExampleOrm]):
     @staticmethod
-    def to_entity(model: TestOrm) -> TestEntity:
-        return TestEntity(
+    def to_entity(model: ExampleOrm) -> ExampleEntity:
+        return ExampleEntity(
             id=model.id,
             created_at=model.created_at,
             updated_at=model.updated_at,
@@ -29,8 +29,8 @@ class TestMapper(ModelMapper[TestEntity, TestOrm]):
         )
 
     @staticmethod
-    def from_entity(entity: TestEntity) -> TestOrm:
-        return TestOrm(
+    def from_entity(entity: ExampleEntity) -> ExampleOrm:
+        return ExampleOrm(
             id=entity.id,
             created_at=entity.created_at,
             updated_at=entity.updated_at,

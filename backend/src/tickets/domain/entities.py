@@ -11,7 +11,7 @@ from ...shared.domain.entities import AggregateRoot, Entity
 from ...shared.domain.exceptions import InvariantViolationError
 from ...shared.utils.time import current_datetime
 from .constants import ALLOWED_ASSIGN_STATUSES, ALLOWED_TRANSITIONS, COMMENT_TYPE_DISPLAY_NAMES
-from .events import TicketCreated
+from .events import ProjectCreated, TicketCreated
 from .vo import (
     CommentType,
     ProjectKey,
@@ -336,5 +336,40 @@ class Project(AggregateRoot):
             participants=[owner],
             created_by=created_by,
         )
-        project.register_event(...)
+        project.register_event(
+            ProjectCreated(
+                project_id=project_id,
+                name=name,
+                created_by=created_by,
+                counterparty_id=counterparty_id,
+            )
+        )
         return project
+
+    def add_participant(
+            self,
+            user_id: UUID,
+            project_role: ProjectRole,
+            added_by: UUID,
+            added_by_role: UserRole,
+    ) -> None:
+        """Добавление участника"""
+
+        # 1. Проверка прав на добавление
+        if added_by != self.owner_id and added_by_role not in {
+            UserRole.SUPPORT_MANAGER, UserRole.SUPPORT_AGENT, UserRole.ADMIN,
+        }:
+            raise PermissionDeniedError("Only owner or support stuff can add participants")
+
+        # 2. Проверка того, что участник уже есть
+        if user_id in [participant.user_id for participant in self.participants]:
+            raise InvariantViolationError(f"User with ID {user_id} is already a participant")
+
+        self.participants.append(
+            Participant(
+                project_id=self.id,
+                user_id=user_id,
+                project_role=project_role,
+                added_by=added_by,
+            )
+        )
