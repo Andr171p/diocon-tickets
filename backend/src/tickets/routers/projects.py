@@ -1,9 +1,13 @@
+from typing import Any
+
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
 
 from ...iam.dependencies import CurrentSupportUserDep
+from ...shared.dependencies import PageParamsDep
 from ...shared.domain.exceptions import NotFoundError
+from ...shared.schemas import Page
 from ..dependencies import ProjectRepoDep, ProjectServiceDep
 from ..mappers import map_project_to_response
 from ..schemas import KeyCheckResponse, ProjectCreate, ProjectResponse
@@ -60,3 +64,14 @@ async def get_project(project_id: UUID, repository: ProjectRepoDep) -> ProjectRe
     if project is None:
         raise NotFoundError(f"Project with ID {project_id} not found")
     return map_project_to_response(project)
+
+
+@router.get(
+    path="",
+    status_code=status.HTTP_200_OK,
+    response_model=Page[ProjectResponse],
+    summary="Получение проектов"
+)
+async def get_projects(params: PageParamsDep, repository: ProjectRepoDep) -> Page[dict[str, Any]]:
+    page = await repository.paginate(params)
+    return page.to_response(map_project_to_response)
