@@ -99,6 +99,7 @@ async def delete_counterparty(counterparty_id: UUID, repository: CounterpartyRep
     response_model=Page[UserResponse],
     dependencies=[Depends(get_current_customer_admin)],
     summary="Получение клиентов контрагента",
+    description="Доступно с ролью `customer_admin` и выше",
 )
 async def get_counterparty_customers(
         counterparty_id: UUID, params: PageParamsDep, repository: CounterpartyRepoDep
