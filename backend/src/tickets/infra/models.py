@@ -23,7 +23,7 @@ class TicketOrm(Base):
     created_by_role: Mapped[UserRole] = mapped_column(Enum(UserRole))
     created_by: Mapped[UUID]
     reporter_id: Mapped[UUID]
-    number: Mapped[str] = mapped_column(String(20), unique=True)
+    number: Mapped[str] = mapped_column(String(25), unique=True)
     title: Mapped[str]
     description: Mapped[str] = mapped_column(TEXT)
     status: Mapped[TicketStatus] = mapped_column(Enum(TicketStatus))
@@ -75,16 +75,17 @@ class TicketHistoryEntryOrm(Base):
     ticket: Mapped["TicketOrm"] = relationship(back_populates="history")
 
 
-class ParticipantOrm(Base):
-    __tablename__ = "project_participants"
+class MembershipOrm(Base):
+    __tablename__ = "project_memberships"
 
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), unique=False)
     user_id: Mapped[UUID]
     project_role: Mapped[ProjectRole] = mapped_column(Enum(ProjectRole))
     added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     added_by: Mapped[UUID]
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    project: Mapped["ProjectOrm"] = relationship(back_populates="participants")
+    project: Mapped["ProjectOrm"] = relationship(back_populates="memberships")
 
 
 class ProjectOrm(Base):
@@ -98,7 +99,7 @@ class ProjectOrm(Base):
     )
     status: Mapped[ProjectStatus] = mapped_column(Enum(ProjectStatus))
     owner_id: Mapped[UUID]
-    participants: Mapped[list["ParticipantOrm"]] = relationship(
+    memberships: Mapped[list["MembershipOrm"]] = relationship(
         back_populates="project", lazy="selectin"
     )
     created_by: Mapped[UUID]

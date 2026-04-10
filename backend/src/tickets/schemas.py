@@ -66,19 +66,16 @@ class Tag(BaseModel):
 class TicketBase(BaseModel):
     """Базовые поля для API схем тикета"""
 
-    project_id: UUID | None = Field(
-        None, description="ID проекта, к которому нужно привязать тикет"
-    )
     reporter_id: UUID = Field(..., description="ID пользователя - инициатора")
     title: str = Field(..., description="Заголовок")
     description: str = Field(..., description="Описание проблемы")
     priority: TicketPriority = Field(
         ..., description="Приоритет выполнения (чем выше приоритет, тем быстрее время реакции)",
     )
-    counterparty_id: UUID | None = Field(None, description="Контрагент к которому привязан тикет")
-    counterparty_name: str | None = Field(
-        None, description="Наименование контрагента, нужно для генерации уникального номера"
+    project_id: UUID | None = Field(
+        None, description="ID проекта, к которому нужно привязать тикет"
     )
+    counterparty_id: UUID | None = Field(None, description="Контрагент к которому привязан тикет")
     tags: list[Tag] = Field(
         default_factory=list, description="Теги для упрощения поиск аи фильтрации"
     )
@@ -92,7 +89,7 @@ class TicketResponse(TicketBase):
     updated_at: datetime = Field(..., description="Дата обновления")
     created_by_role: UserRole = Field(..., description="Роль пользователя, который создал тикет")
     created_by: UUID = Field(..., description="ID пользователя, который создал тикет")
-    number: str = Field(..., description="Номер тикета", examples=["РОМ-26-00012456"])
+    number: str = Field(..., description="Номер тикета", examples=["ROMASHKA-26-00012456"])
     status: TicketStatus = Field(..., description="Текущий статус")
     assigned_to: UUID | None = Field(None, description="Кому назначен тикет")
     closed_at: datetime | None = Field(None, description="Дата закрытия тикета")
@@ -109,7 +106,25 @@ class TicketResponse(TicketBase):
 
 
 class TicketCreate(TicketBase):
-    """Создание тикета"""
+    """
+    Схема поддерживает 3 сценария создания тикета.
+    В зависимости от переданных полей система определяет тип создаваемого тикета.
+
+    ### 1. Внутренний тикет
+
+    Создаётся, если **не переданы** ни поля проекта, ни поля контрагента.
+    Используется для задач внутри команды поддержки.
+
+    ### 2. Тикет записывается контрагенту
+
+    Создаётся, если переданы оба поля: counterparty_id и counterparty_name.
+    Используется при обращении внешнего клиента.
+
+    ### 3. Тикет в рамках проекта
+
+    Создаётся, если переданы оба поля: project_id и project_key.
+    Используется для задач, связанных с конкретным проектом разработки.
+    """
 
     priority: TicketPriority = Field(
         TicketPriority.MEDIUM,
@@ -176,13 +191,14 @@ class ProjectCreate(ProjectBase):
     """Схема для создания проекта"""
 
 
-class ParticipantResponse(BaseModel):
+class MembershipResponse(BaseModel):
     """Участник проекта"""
 
     user_id: UUID = Field(..., description="ID пользователя в системе")
     project_role: ProjectRole = Field(..., description="Роль в проекте")
     added_at: datetime = Field(..., description="Дата добавления в проект")
     added_by: UUID = Field(..., description="ID пользователя, который добавил участника")
+    is_active: bool = Field(..., description="Активен ли участник п проекте")
 
 
 class ProjectResponse(ProjectBase):
@@ -193,7 +209,7 @@ class ProjectResponse(ProjectBase):
     updated_at: datetime = Field(..., description="Дата обновления проекта")
     created_by: UUID = Field(..., description="ID пользователя создавшего проект")
     status: ProjectStatus = Field(..., description="Статус проекта")
-    participants: list[ParticipantResponse] = Field(
+    memberships: list[MembershipResponse] = Field(
         default_factory=list, description="Участники проекта"
     )
 

@@ -34,15 +34,15 @@ class Page[T: Entity](BaseModel):
     items: list[T] = Field(default_factory=list, description="Полученные элементы")
 
     @classmethod
-    def create_empty(cls, page: int, size: int) -> Self:
+    def create(cls, items: list[T], total_items: int, page: int, size: int) -> Self:
         return Page(
             page=page,
             size=size,
-            total_items=0,
-            total_pages=0,
-            has_next=False,
-            has_prev=False,
-            items=[],
+            total_items=total_items,
+            total_pages=(total_items + size - 1) // size,
+            has_next=page * size < total_items,
+            has_prev=page > 1,
+            items=items,
         )
 
     def to_response(self, mapper: Callable[[T], BaseModel]) -> dict[str, Any]:

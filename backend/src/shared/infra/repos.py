@@ -1,5 +1,4 @@
 import abc
-import math
 from uuid import UUID
 
 from sqlalchemy import delete, func, select, update
@@ -57,28 +56,17 @@ class SqlAlchemyRepository[EntityT: Entity, ModelT: Base]:
         count_result = await self.session.execute(count_stmt)
         total = count_result.scalar_one()
         if total == 0:
-            return Page(
-                page=params.page,
-                size=params.size,
-                total_pages=0,
-                total_items=0,
-                has_next=False,
-                has_prev=False,
-            )
+            return Page.create([], total, params.page, params.size)
+
         results = await self.session.execute(paginate_stmt)
         models = results.scalars().all()
 
         # 5. Маппинг моделей БД в доменные сущности и формирование результата
-        entities = [self.model_mapper.to_entity(model) for model in models]
-        total_pages = math.ceil(total / params.size)
-        return Page(
+        return Page.create(
+            items=[self.model_mapper.to_entity(model) for model in models],
+            total_items=total,
             page=params.page,
             size=params.size,
-            items=entities,
-            total_pages=total_pages,
-            total_items=total,
-            has_next=params.page != total_pages,
-            has_prev=params.page != 1,
         )
 
     async def update(self, uid: UUID, **kwargs) -> EntityT | None:

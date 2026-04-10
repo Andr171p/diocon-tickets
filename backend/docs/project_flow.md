@@ -31,3 +31,32 @@ flowchart TD
 | Назначать исполнителя      | Нет              | Нет                                | Да                 | Да              |
 | Менять статус тикета       | Нет              | Нет                                | Да                 | Да              |
 | Добавлять других клиентов  | Нет              | Нет                                | Нет                | Да              |
+
+## Создание тикета в проекте
+
+```mermaid
+sequenceDiagram
+    participant Client as Клиент / Агент
+    participant API as Ticket API
+    participant Service as TicketService
+    participant Domain as Ticket (Aggregate)
+    participant Repo as TicketRepository
+    participant ProjectRepo as ProjectRepository
+
+    Client->>API: POST /projects/{project_id}/tickets
+    API->>Service: create_ticket(data, project_id, current_user)
+
+    Service->>ProjectRepo: get_by_id(project_id)
+    ProjectRepo-->>Service: Project
+
+    Service->>Service: Проверить права пользователя в проекте
+
+    Service->>Domain: Ticket.create(...)
+    Domain-->>Service: Ticket (с project_id)
+
+    Service->>Repo: create(ticket)
+    Repo-->>Service: OK
+
+    Service->>Service: Опубликовать события (TicketCreated)
+    Service-->>API: TicketResponse
+```

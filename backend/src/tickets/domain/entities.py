@@ -105,31 +105,22 @@ class Ticket(AggregateRoot):
 
     @classmethod
     def create(
-            cls,
-            created_by_role: UserRole,
-            created_by: UUID,
-            reporter_id: UUID,
-            title: str,
-            description: str,
-            priority: TicketPriority,
-            counterparty_name: str | None = None,
-            counterparty_id: UUID | None = None,
-            tags: list[Tag] | None = None,
+        cls,
+        ticket_number: TicketNumber,
+        reporter_id: UUID,
+        created_by: UUID,
+        created_by_role: UserRole,
+        title: str,
+        description: str | None = None,
+        priority: TicketPriority = TicketPriority.MEDIUM,
+        project_id: UUID | None = None,
+        counterparty_id: UUID | None = None,
+        tags: list[Tag] | None = None,
     ) -> Self:
         """Создание тикета"""
 
-        # 1. Проверка заполнения полей для контрагента
-        if (counterparty_id is None) != (counterparty_name is None):
-            raise ValueError(
-                "Both counterparty_id and counterparty_name must be either provided "
-                "or both omitted"
-            )
-
-        # 2. Генерация уникального ID и создание номера
+        # 1. Создание доменной сущности
         ticket_id = uuid4()
-        ticket_number = TicketNumber.create(ticket_id, counterparty_name)
-
-        # 3. Создание доменной сущности
         ticket = cls(
             id=ticket_id,
             created_by_role=created_by_role,
@@ -140,6 +131,7 @@ class Ticket(AggregateRoot):
             description=description,
             priority=priority,
             status=TicketStatus.NEW,
+            project_id=project_id,
             counterparty_id=counterparty_id,
             tags=tags if tags is not None else [],
             history=[
@@ -147,12 +139,12 @@ class Ticket(AggregateRoot):
                     ticket_id=ticket_id,
                     actor_id=created_by,
                     action="ticket_created",
-                    description=f"Создан тикет с номером - {ticket_number}"
+                    description=f"Создан тикет с номером - {ticket_number}",
                 )
-            ]
+            ],
         )
 
-        # 4. Регистрация доменного события
+        # 2. Регистрация доменного события
         ticket.register_event(
             TicketCreated(
                 ticket_id=ticket_id,
@@ -163,6 +155,7 @@ class Ticket(AggregateRoot):
                 counterparty_id=counterparty_id,
             )
         )
+
         return ticket
 
     def assign_to(self, assignee_id: UUID, assigned_by: UUID, assigned_by_role: UserRole) -> None:
@@ -267,7 +260,7 @@ class Ticket(AggregateRoot):
 
 
 @dataclass(kw_only=True)
-class Participant(Entity):
+class Membership(Entity):
     """
     Участник проекта
     """
@@ -277,6 +270,11 @@ class Participant(Entity):
     project_role: ProjectRole
     added_at: datetime = field(default_factory=current_datetime)
     added_by: UUID
+    removed_at: datetime | None = None
+
+    @property
+    def is_active(self) -> bool:
+        return self.removed_at is None
 
 
 @dataclass(kw_only=True)
@@ -293,7 +291,7 @@ class Project(AggregateRoot):
     # Владелец проекта, руководитель или ответственный
     owner_id: UUID
     # Участники проекта (члены команды)
-    participants: list[Participant] = field(default_factory=list)
+    memberships: list[Membership] = field(default_factory=list)
     # Метаданные
     created_by: UUID
 
@@ -303,7 +301,7 @@ class Project(AggregateRoot):
             raise ValueError("Project name cannot be empty")
 
         # 2. Владелец проекта должен быть среди его участников
-        if not any(participant.user_id == self.owner_id for participant in self.participants):
+        if not any(membership.user_id == self.owner_id for membership in self.memberships):
             raise InvariantViolationError("Owner must be a participant of the project")
 
     @classmethod
@@ -319,7 +317,7 @@ class Project(AggregateRoot):
         """Создание проекта"""
 
         project_id = uuid4()
-        owner = Participant(
+        owner = Membership(
             project_id=project_id,
             user_id=owner_id,
             project_role=ProjectRole.OWNER,
@@ -333,7 +331,7 @@ class Project(AggregateRoot):
             counterparty_id=counterparty_id,
             owner_id=owner_id,
             status=ProjectStatus.ACTIVE,
-            participants=[owner],
+            memberships=[owner],
             created_by=created_by,
         )
         project.register_event(
@@ -346,7 +344,7 @@ class Project(AggregateRoot):
         )
         return project
 
-    def add_participant(
+    def add_member(
             self,
             user_id: UUID,
             project_role: ProjectRole,
@@ -362,11 +360,11 @@ class Project(AggregateRoot):
             raise PermissionDeniedError("Only owner or support stuff can add participants")
 
         # 2. Проверка того, что участник уже есть
-        if user_id in [participant.user_id for participant in self.participants]:
+        if user_id in [membership.user_id for membership in self.memberships]:
             raise InvariantViolationError(f"User with ID {user_id} is already a participant")
 
-        self.participants.append(
-            Participant(
+        self.memberships.append(
+            Membership(
                 project_id=self.id,
                 user_id=user_id,
                 project_role=project_role,

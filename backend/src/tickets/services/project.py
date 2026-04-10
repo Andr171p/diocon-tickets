@@ -5,61 +5,15 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..iam.domain.vo import UserRole
-from ..shared.domain.events import EventPublisher
-from ..shared.domain.exceptions import AlreadyExistsError
-from .domain.entities import Project, Ticket
-from .domain.repos import ProjectRepository, TicketRepository
-from .domain.vo import ProjectKey, Tag
-from .mappers import map_project_to_response, map_ticket_to_response
-from .schemas import KeyCheckResponse, ProjectCreate, ProjectResponse, TicketCreate, TicketResponse
+from ...shared.domain.exceptions import AlreadyExistsError
+from ..domain.entities import Project
+from ..domain.repos import ProjectRepository
+from ..domain.vo import ProjectKey
+from ..mappers import map_project_to_response
+from ..schemas import KeyCheckResponse, ProjectCreate, ProjectResponse
 
 # Длина короткого ключа проекта
 SHORT_PROJECT_KEY_LENGTH = 3
-
-
-class TicketService:
-    def __init__(
-            self,
-            session: AsyncSession,
-            repository: TicketRepository,
-            event_publisher: EventPublisher,
-    ) -> None:
-        self.session = session
-        self.repository = repository
-        self.event_publisher = event_publisher
-
-    async def create(
-            self, data: TicketCreate, created_by: UUID, created_by_role: UserRole
-    ) -> TicketResponse:
-        """Создание тикета"""
-
-        # 1. Создание и сохранения доменной модели
-        ticket = Ticket.create(
-            created_by=created_by,
-            created_by_role=created_by_role,
-            reporter_id=data.reporter_id,
-            title=data.title,
-            description=data.description,
-            priority=data.priority,
-            counterparty_id=data.counterparty_id,
-            counterparty_name=data.counterparty_name,
-            tags=[Tag(name=tag.name, color=tag.color) for tag in data.tags],
-        )
-        await self.repository.create(ticket)
-        await self.session.commit()
-
-        # 2. Публикация событий
-        for event in ticket.collect_events():
-            await self.event_publisher.publish(event)
-
-        return map_ticket_to_response(ticket)
-
-    async def assign_to(self): ...
-
-    async def change_status(self): ...
-
-    async def close(self): ...
 
 
 class ProjectService:
@@ -98,17 +52,14 @@ class ProjectService:
         # 1. Добавление простых числовых суффиксов
         suggestions = [f"{base_key}{i}" for i in range(1, max_attempts + 1)]
 
-        # 2. Добавление суффиксов с дефисом
-        suggestions.extend(f"{base_key}-{i}" for i in range(1, max_attempts + 1))
-
-        # 3. Если ключ короткий, то добавление вариантов с буквами
+        # 2. Если ключ короткий, то добавление вариантов с буквами
         if len(base_key) <= SHORT_PROJECT_KEY_LENGTH:
             alphabet = string.ascii_uppercase
             suggestions.extend(
                 f"{base_key}{letter}" for letter in random.sample(alphabet, len(alphabet))
             )
 
-        # 4. Удаление дубликатов и сохранение порядка
+        # 3. Удаление дубликатов и сохранение порядка
         seen = set()
         unique_suggestions = []
         for suggestion in suggestions:
@@ -120,7 +71,7 @@ class ProjectService:
 
         existing_keys = await self.repository.get_existing_keys(unique_suggestions)
 
-        # Возвращаем только свободные
+        # Получение только свободных
         available = [key for key in unique_suggestions if key not in existing_keys]
 
         return available[:max_attempts]

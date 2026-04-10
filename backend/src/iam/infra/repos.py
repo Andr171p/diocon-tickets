@@ -1,15 +1,10 @@
-from datetime import datetime
-from uuid import UUID
-
 from pydantic import SecretStr
-from sqlalchemy import insert, select, update
+from sqlalchemy import select
 
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
-from ...shared.utils.time import current_datetime
 from ..domain.entities import Invitation, User
 from ..domain.vo import FullName, Username, UserRole
-from ..schemas import TokenData
-from .models import InvitationOrm, RefreshTokenOrm, UserOrm
+from .models import InvitationOrm, UserOrm
 
 
 class UserMapper(ModelMapper[User, UserOrm]):
@@ -55,39 +50,6 @@ class SqlUserRepository(SqlAlchemyRepository[User, UserOrm]):
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
         return None if model is None else self.model_mapper.to_entity(model)
-
-    async def store_token(self, user_id: UUID, token: str, expires_at: datetime) -> None:
-        """Сохранение refresh токена для возможности ротации"""
-
-        stmt = (
-            insert(RefreshTokenOrm)
-            .values(
-                user_id=user_id,
-                token=token,
-                expires_at=expires_at,
-                revoked=False,
-                revoked_at=None,
-            )
-        )
-        await self.session.execute(stmt)
-
-    async def get_token_data(self, token: str) -> TokenData | None:
-        """Получение данных о refresh токене"""
-
-        stmt = select(RefreshTokenOrm).where(RefreshTokenOrm.token == token)
-        result = await self.session.execute(stmt)
-        model = result.scalar_one_or_none()
-        return None if model is None else TokenData.model_validate(model)
-
-    async def revoke_token(self, token: str) -> None:
-        """Отзыв refresh токена"""
-
-        stmt = (
-            update(RefreshTokenOrm)
-            .where(RefreshTokenOrm.token == token)
-            .values(revoked=True, revoked_at=current_datetime())
-        )
-        await self.session.execute(stmt)
 
 
 class InvitationMapper(ModelMapper[Invitation, InvitationOrm]):

@@ -1,194 +1,109 @@
-from uuid import UUID, uuid4
+import uuid
 
 import pytest
 
-from src.iam.domain.exceptions import PermissionDeniedError
+from src.iam.domain.vo import UserRole
 from src.shared.domain.exceptions import InvariantViolationError
-from src.tickets.domain.entities import Tag, Ticket, UserRole
-from src.tickets.domain.vo import TicketPriority, TicketStatus
+from src.tickets.domain.entities import Ticket
+from src.tickets.domain.vo import TicketNumber, TicketStatus
+
+# ====================== Fixtures ======================
 
 
 @pytest.fixture
-def any_uuid() -> UUID:
-    return uuid4()
+def ticket_id():
+    return uuid.uuid4()
 
 
 @pytest.fixture
-def internal_user_id(any_uuid) -> UUID:
-    return any_uuid
+def reporter_id():
+    return uuid.uuid4()
 
 
 @pytest.fixture
-def customer_id(any_uuid) -> UUID:
-    return any_uuid
+def created_by_id():
+    return uuid.uuid4()
 
 
 @pytest.fixture
-def support_agent_id(any_uuid) -> UUID:
-    return any_uuid
+def project_id():
+    return uuid.uuid4()
 
 
 @pytest.fixture
-def counterparty_id(any_uuid) -> UUID:
-    return any_uuid
+def counterparty_id():
+    return uuid.uuid4()
 
 
 @pytest.fixture
-def counterparty_name() -> str:
-    return "РОМАШКА"
+def sample_ticket_number():
+    return TicketNumber(value="WEB-26-00000145")
 
 
-@pytest.fixture
-def ticket_data(internal_user_id, counterparty_id, counterparty_name):
-    return {
-        "created_by_role": UserRole.ADMIN,
-        "created_by": internal_user_id,
-        "reporter_id": internal_user_id,
-        "title": "Тестовый тикет",
-        "description": "Описание",
-        "priority": TicketPriority.MEDIUM,
-        "counterparty_name": counterparty_name,
-        "counterparty_id": counterparty_id,
-        "tags": [Tag(name="Инцидент")],
-    }
+# ====================== Тест кейсы ======================
 
 
-@pytest.fixture
-def created_ticket(ticket_data) -> Ticket:
-    return Ticket.create(**ticket_data)
-
-
-class TestTicketCreate:
-    """
-    Тестирование создание тикета
-    """
-
-    def test_create_should_succeed_with_valid_internal_data(self, internal_user_id):
-        ticket = Ticket.create(
-            created_by_role=UserRole.ADMIN,
-            created_by=internal_user_id,
-            reporter_id=internal_user_id,
-            title="Внутренний тикет",
-            description="Детальное описание",
-            priority=TicketPriority.HIGH,
+def test_empty_title_raises_error(reporter_id, created_by_id, sample_ticket_number):
+    with pytest.raises(ValueError, match="Title cannot be empty"):
+        Ticket.create(
+            ticket_number=sample_ticket_number,
+            reporter_id=reporter_id,
+            created_by=created_by_id,
+            created_by_role=UserRole.SUPPORT_AGENT,
+            title="   ",
         )
-        assert ticket.id is not None
+
+
+class TestCreate:
+    """
+    Тесты для создания тикета
+    """
+
+    def test_create_ticket_minimal_success(self, reporter_id, created_by_id, sample_ticket_number):
+        ticket = Ticket.create(
+            ticket_number=sample_ticket_number,
+            reporter_id=reporter_id,
+            created_by=created_by_id,
+            created_by_role=UserRole.SUPPORT_AGENT,
+            title="Проблема с авторизацией",
+        )
+
+        assert ticket.reporter_id == reporter_id
+        assert ticket.created_by == created_by_id
+        assert ticket.created_by_role == UserRole.SUPPORT_AGENT
+        assert ticket.title == "Проблема с авторизацией"
         assert ticket.status == TicketStatus.NEW
-        assert ticket.counterparty_id is None
-        assert ticket.number.prefix == "INT"
+        assert ticket.number == sample_ticket_number
         assert len(ticket.history) == 1
         assert ticket.history[0].action == "ticket_created"
 
-    def test_create_should_succeed_with_counterparty(
-            self, internal_user_id, counterparty_id, counterparty_name
+    def test_create_customer_ticket_requires_counterparty(
+        self, reporter_id, created_by_id, sample_ticket_number
     ):
-        ticket = Ticket.create(
-            created_by_role=UserRole.CUSTOMER,
-            created_by=internal_user_id,
-            reporter_id=internal_user_id,
-            title="Клиентский тикет",
-            description="Описание проблемы",
-            priority=TicketPriority.LOW,
-            counterparty_name=counterparty_name,
-            counterparty_id=counterparty_id,
-        )
-        assert ticket.counterparty_id == counterparty_id
-        assert ticket.number.prefix == counterparty_name[:3].upper()
-
-    def test_create_should_raise_error_when_title_empty(self, internal_user_id):
-        with pytest.raises(ValueError, match="Title cannot be empty"):
+        with pytest.raises(InvariantViolationError) as exc:
             Ticket.create(
-                created_by_role=UserRole.ADMIN,
-                created_by=internal_user_id,
-                reporter_id=internal_user_id,
-                title="   ",
-                description="Описание",
-                priority=TicketPriority.MEDIUM,
-            )
-
-    def test_create_should_raise_error_when_customer_without_counterparty(self, internal_user_id):
-        with pytest.raises(
-                InvariantViolationError,
-                match="Customer-created ticket must be linked to a counterparty"
-        ):
-            Ticket.create(
+                ticket_number=sample_ticket_number,
+                reporter_id=reporter_id,
+                created_by=created_by_id,
                 created_by_role=UserRole.CUSTOMER,
-                created_by=internal_user_id,
-                reporter_id=internal_user_id,
-                title="No counterparty",
-                description="desc",
-                priority=TicketPriority.MEDIUM,
-                counterparty_name=None,
+                title="Не работает оплата",
                 counterparty_id=None,
             )
 
-    def test_create_should_raise_error_when_mismatched_counterparty_params(
-            self, internal_user_id
+        assert "must be linked to a counterparty" in str(exc.value).lower()
+
+    def test_create_ticket_with_project_and_counterparty(
+        reporter_id, created_by_id, sample_ticket_number, project_id, counterparty_id
     ):
-        with pytest.raises(
-                ValueError, match="Both counterparty_id and counterparty_name must be"
-        ):
-            Ticket.create(
-                created_by_role=UserRole.ADMIN,
-                created_by=internal_user_id,
-                reporter_id=internal_user_id,
-                title="Mismatch",
-                description="desc",
-                priority=TicketPriority.MEDIUM,
-                counterparty_name="NAME",
-                counterparty_id=None,  # missing
-            )
-
-
-class TestTicketAssign:
-    """
-    Тестирование назначение тикета
-    """
-
-    def test_assign_to_should_succeed_when_status_allowed(self, created_ticket, support_agent_id):
-        created_ticket.status = TicketStatus.OPEN
-        created_ticket.assign_to(
-            assignee_id=support_agent_id,
-            assigned_by=support_agent_id,
-            assigned_by_role=UserRole.SUPPORT_AGENT
+        ticket = Ticket.create(
+            ticket_number=sample_ticket_number,
+            reporter_id=reporter_id,
+            created_by=created_by_id,
+            created_by_role=UserRole.SUPPORT_AGENT,
+            title="Задача",
+            project_id=project_id,
+            counterparty_id=counterparty_id,
         )
-        assert created_ticket.assigned_to == support_agent_id
-        assert created_ticket.history[-1].action == "assigned"
-        assert created_ticket.history[-1].new_value == str(support_agent_id)
 
-    def test_assign_to_should_raise_permission_error_when_wrong_role(self, created_ticket):
-        created_ticket.status = TicketStatus.OPEN
-        with pytest.raises(PermissionDeniedError, match="Only support staff can assign tickets"):
-            created_ticket.assign_to(
-                assignee_id=uuid4(),
-                assigned_by=uuid4(),
-                assigned_by_role=UserRole.CUSTOMER
-            )
-
-    def test_assign_to_should_raise_error_when_status_not_allowed(
-            self, created_ticket, support_agent_id
-    ):
-        assert created_ticket.status == TicketStatus.NEW
-        with pytest.raises(PermissionDeniedError):
-            created_ticket.assign_to(
-                assignee_id=support_agent_id,
-                assigned_by=support_agent_id,
-                assigned_by_role=UserRole.SUPPORT_AGENT
-            )
-
-    def test_assign_to_should_overwrite_previous_assignee(self, created_ticket, support_agent_id):
-        created_ticket.status = TicketStatus.OPEN
-        first_assignee = uuid4()
-        created_ticket.assign_to(first_assignee, support_agent_id, UserRole.SUPPORT_AGENT)
-        assert created_ticket.assigned_to == first_assignee
-
-        second_assignee = uuid4()
-        created_ticket.assign_to(second_assignee, support_agent_id, UserRole.SUPPORT_AGENT)
-        assert created_ticket.assigned_to == second_assignee
-
-        # Проверяем, что в истории сохранились оба назначения
-        excepted_history_entries = 2
-        assign_entries = [entry for entry in created_ticket.history if entry.action == "assigned"]
-        assert len(assign_entries) == excepted_history_entries
-        assert assign_entries[1].old_value == str(first_assignee)
-        assert assign_entries[1].new_value == str(second_assignee)
+        assert ticket.project_id == project_id
+        assert ticket.counterparty_id == counterparty_id

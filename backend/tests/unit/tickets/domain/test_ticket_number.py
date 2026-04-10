@@ -1,127 +1,188 @@
-import uuid
-
 import pytest
 
+from src.shared.utils.text import get_latin_slug
 from src.shared.utils.time import current_datetime
-from src.tickets.domain.vo import TicketNumber
+from src.tickets.domain.vo import ProjectKey, TicketNumber
 
 
-def test_create_internal_ticket_number():
-    ticket_id = uuid.uuid4()
-
-    ticket_number = TicketNumber.create(ticket_id=ticket_id, counterparty_name=None)
-    excepted_number_length = 15
-
-    assert isinstance(ticket_number, TicketNumber)
-    assert ticket_number.value.startswith("INT-")
-    assert len(ticket_number.value) == excepted_number_length
-    assert ticket_number.is_internal is True
-    assert ticket_number.prefix == "INT"
+@pytest.fixture
+def valid_project_key():
+    return ProjectKey("PRJ123")
 
 
-def test_create_ticket_number_with_counterparty():
-    ticket_id = uuid.uuid4()
+class TestCreateInternal:
+    """
+    Тесты генерации номера для внутреннего тикета
+    """
 
-    ticket_number = TicketNumber.create(ticket_id=ticket_id, counterparty_name="Ромашка")
+    def test_create_internal_ticket_number(self):
+        total_tickets = 0
+        number = TicketNumber.create(total_tickets)
 
-    assert ticket_number.value.startswith("РОМ-")
-    assert ticket_number.prefix == "РОМ"
-    assert ticket_number.is_internal is False
+        assert isinstance(number, TicketNumber)
+        assert number.value.startswith("INT-")
+        assert number.is_internal is True
+        assert number.prefix == "INT"
+        assert len(number.value) == 3 + 1 + 2 + 1 + 8
+        assert number.year_short == current_datetime().year % 100
+
+    def test_create_internal_ticket_with_different_counts(self):
+        number1 = TicketNumber.create(0)
+        number2 = TicketNumber.create(1)
+        number3 = TicketNumber.create(999)
+
+        assert number1.sequence == "00000001"
+        assert number2.sequence == "00000002"
+        assert number3.sequence == "00001000"
+
+    def test_create_internal_negative_total_raises_error(self):
+        with pytest.raises(ValueError, match="Total tickets cannot be negative"):
+            TicketNumber.create(-1)
 
 
-def test_create_ticket_number_with_short_counterparty_name():
-    ticket_id = uuid.uuid4()
+class TestCreateForCounterparty:
+    """
+    Тесты генерации номера для тикета созданного в рамках контрагента
+    """
 
-    ticket_number = TicketNumber.create(ticket_id=ticket_id, counterparty_name="Я")
-
-    assert ticket_number.prefix == "ЯXX"
-
-
-def test_create_ticket_number_with_long_counterparty_name():
-    ticket_id = uuid.uuid4()
-
-    ticket_number = TicketNumber.create(
-        ticket_id=ticket_id, counterparty_name="Общество с ограниченной ответственностью Ромашка"
+    @pytest.mark.parametrize(
+        ("russian_name", "excepted_number"),
+        [
+            ("Яндекс Такси", "IANDEKSTAK-26-00000006"),
+            ("Ромашка", "ROMASHKA-26-00000006")
+        ],
     )
+    def test_create_with_russian_name(self, russian_name, excepted_number):
+        total_tickets = 5
+        number = TicketNumber.create(total_tickets, counterparty_name=russian_name)
 
-    assert ticket_number.prefix == "ОБЩ"
+        assert f"{number}" == excepted_number
+        assert number.is_internal is False
+
+    def test_create_with_short_name(self):
+        total_tickets = 0
+        number = TicketNumber.create(total_tickets, counterparty_name="Я")
+
+        assert number.prefix == "IA"
+
+    def test_create_with_long_name(self):
+        total_tickets = 0
+        long_name = "Общество с ограниченной ответственностью Ромашка"
+        number = TicketNumber.create(total_tickets, counterparty_name=long_name)
+
+        excepted_prefix = get_latin_slug(long_name)
+        excepted_prefix = excepted_prefix[:10].upper()
+
+        assert number.prefix == excepted_prefix
+        assert number.prefix.isalnum()
+        assert all(char in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" for char in number.prefix)
+
+    def test_create_with_english_name(self):
+        total_tickets = 0
+        ticket_number = TicketNumber.create(total_tickets, counterparty_name="Acme Corp")
+
+        assert ticket_number.prefix == "ACMECORP"
+
+    def test_create_with_mixed_language_and_special_chars(self):
+        total_tickets = 0
+        number = TicketNumber.create(total_tickets, counterparty_name="ООО Яндекс.Такси")
+
+        assert number.prefix.isalnum()
+        assert number.prefix.startswith("OOO")
+
+    def test_create_with_umlauts(self):
+        total_tickets = 0
+        number = TicketNumber.create(
+            total_tickets, counterparty_name="Müller & Söhne"
+        )
+
+        assert number.prefix.isalnum()
+        assert "MULLER" in number.prefix or "MULLERS" in number.prefix
+
+    def test_create_with_empty_name(self):
+        with pytest.raises(ValueError, match="Invalid ticket number format"):
+            TicketNumber.create(0, counterparty_name="")
 
 
-@pytest.mark.parametrize("counterparty_name", ["", None, "   "])
-def test_create_internal_ticket_when_no_counterparty_name(counterparty_name):
-    ticket_id = uuid.uuid4()
+class TestCreateForProject:
+    """
+    Тесты генерации номера для тикета в рамках проекта
+    """
 
-    ticket_number = TicketNumber.create(ticket_id=ticket_id, counterparty_name=counterparty_name)
+    def test_create_with_valid_key(self, valid_project_key):
+        total_tickets = 10
+        number = TicketNumber.create(total_tickets, project_key=valid_project_key)
 
-    assert ticket_number.is_internal is True
-    assert ticket_number.prefix == "INT"
-
-
-def test_ticket_number_properties():
-    ticket_id = uuid.uuid4()
-    ticket_number = TicketNumber.create(
-        ticket_id=ticket_id,
-        counterparty_name="Яндекс"
-    )
-
-    max_year_short = 99
-    number_sequence = 8
-
-    assert ticket_number.prefix == "ЯНД"
-    assert isinstance(ticket_number.year_short, int)
-    assert 0 <= ticket_number.year_short <= max_year_short
-    assert len(ticket_number.sequence) == number_sequence
-    assert ticket_number.sequence.isdigit()
+        assert number.prefix == "PRJ123"
+        assert number.value.startswith("PRJ123-")
+        assert number.sequence == "00000011"
+        assert number.is_internal is False
+        assert f"{number}" == "PRJ123-26-00000011"
 
 
-def test_invalid_ticket_number_raises_error():
+class TestFormatValidation:
+    """
+    Тесты для валидации формата
+    """
+
+    def test_invalid_number_format_raises_error(self):
+
+        # Отсутсвует 8-разрядный номер
+        with pytest.raises(ValueError, match="Invalid ticket number format"):
+            TicketNumber(value="ROMASHKA-26")
+
+        # Неверная длина последовательности (7 цифр)
+        with pytest.raises(ValueError, match="Invalid ticket number format"):
+            TicketNumber(value="ROMASHKA-26-1234567")
+
+        # Год из 4 цифр
+        with pytest.raises(ValueError, match="Invalid ticket number format"):
+            TicketNumber(value="ROMASHKA-2026-12345678")
+
+        # Префикс с недопустимыми символами (кириллица)
+        with pytest.raises(ValueError, match="Invalid ticket number format"):
+            TicketNumber(value="РОМ-26-12345678")
+
+        # Префикс пустой
+        with pytest.raises(ValueError, match="Invalid ticket number format"):
+            TicketNumber(value="-26-12345678")
+
+        # Пустая строка
+        with pytest.raises(ValueError, match="Ticket number cannot be empty"):
+            TicketNumber(value="")
+
+
+def test_create_with_project_and_counterparty_raises_error(valid_project_key):
+    with pytest.raises(
+            ValueError,
+            match="Only one of the project key or counterparty name must be specified"
+    ):
+        TicketNumber.create(123, project_key=valid_project_key, counterparty_name="Ромашка")
+
+
+def test_sequence_overflow_protection():
+    max_tickets = 99_999_999
+    number = TicketNumber.create(max_tickets - 1)
+    assert number.sequence == "99999999"
+
     with pytest.raises(ValueError, match="Invalid ticket number format"):
-        TicketNumber(value="РОМ-26-1234567")
-
-    with pytest.raises(ValueError, match="Invalid ticket number format"):
-        TicketNumber(value="ROM-2026-12345678")
-
-    with pytest.raises(ValueError, match="Ticket number cannot be empty"):
-        TicketNumber(value="")
+        TicketNumber.create(max_tickets)
 
 
-def test_str_and_repr():
-    ticket_id = uuid.uuid4()
-    ticket_number = TicketNumber.create(ticket_id=ticket_id, counterparty_name="Сбер")
-
-    assert str(ticket_number) == ticket_number.value
-    assert repr(ticket_number).startswith("TicketNumber(")
-    assert ticket_number.value in repr(ticket_number)
-
-
-def test_equality():
-    ticket_id = uuid.uuid4()
-    number1 = TicketNumber.create(ticket_id=ticket_id, counterparty_name="Ромашка")
-    number2 = TicketNumber(value=number1.value)
-
-    assert number1 == number2
-    assert number1 != "РОМ-26-99999999"
-
-
-def test_year_changes_correctly():
-    ticket_id = uuid.uuid4()
-    current_year_short = current_datetime().year % 100
-
-    ticket_number = TicketNumber.create(ticket_id=ticket_id, counterparty_name="Тест")
-
-    assert ticket_number.year_short == current_year_short
+def test_cannot_be_empty():
+    with pytest.raises(ValueError, match="cannot be empty"):
+        TicketNumber("   ")
 
 
 @pytest.mark.parametrize(
-    "invalid_number",
+    "wrong_number",
     [
-        "РОМ-26-1234567",           # 7 цифр вместо 8
-        "РОМ-2026-000123",        # год 4 цифры
-        "РОМ26-000123",           # без дефиса
-        "РОМ-26-000123455",         # 9 цифр
-        "Р-26-000123",            # префикс короче 3
+        "WEB-25_12345678",  # Неправильный разделитель
+        "РОМАШКА-26-00000001",  # Русские символы
+        "ROMASHKAROMASHKA-26-12345678",  # Длинный префикс
+        "WEB-FG-123Gj678"  # Буквы в номере
     ]
 )
-def test_invalid_formats_raise_error(invalid_number):
+def test_invalid_number_format(wrong_number):
     with pytest.raises(ValueError, match="Invalid ticket number format"):
-        TicketNumber(value=invalid_number)
+        TicketNumber(wrong_number)

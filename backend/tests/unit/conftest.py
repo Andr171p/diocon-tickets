@@ -9,9 +9,10 @@ from src.iam.domain.entities import Invitation, User
 from src.iam.domain.repos import InvitationRepository, TokenBlacklist, UserRepository
 from src.iam.domain.vo import UserRole
 from src.shared.infra.repos import InMemoryRepository
+from src.shared.schemas import Page, PageParams
 from src.shared.utils.time import current_datetime
-from src.tickets.domain.entities import Project
-from src.tickets.domain.repos import ProjectRepository
+from src.tickets.domain.entities import Comment, Project, Ticket
+from src.tickets.domain.repos import ProjectRepository, TicketRepository
 from src.tickets.domain.vo import ProjectKey
 
 
@@ -96,6 +97,27 @@ class InMemoryProjectRepository(InMemoryRepository[Project]):
         return existing
 
 
+class ImMemoryTicketRepository(InMemoryRepository[Ticket]):
+
+    async def get_comments(self, ticket_id: UUID, params: PageParams) -> Page[Comment]: ...
+
+    async def get_total(
+            self, project_id: UUID | None = None, counterparty_id: UUID | None = None
+    ) -> int:
+        counter = 0
+        if project_id is not None:
+            for ticket in self.data.values():
+                if ticket.project_id == project_id:
+                    counter += 1
+
+        if counterparty_id is not None:
+            for ticket in self.data.values():
+                if ticket.counterparty_id == counterparty_id:
+                    counter += 1
+
+        return counter
+
+
 @pytest.fixture
 def mock_counterparty_repo() -> CounterpartyRepository:
     return InMemoryCounterpartyRepository()
@@ -119,3 +141,8 @@ def mock_token_blacklist() -> TokenBlacklist:
 @pytest.fixture
 def mock_project_repo() -> ProjectRepository:
     return InMemoryProjectRepository()
+
+
+@pytest.fixture
+def mock_ticket_repo() -> TicketRepository:
+    return ImMemoryTicketRepository()

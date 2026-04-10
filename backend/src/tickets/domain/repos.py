@@ -4,7 +4,7 @@ from uuid import UUID
 
 from ...shared.domain.repo import Repository
 from ...shared.schemas import Page, PageParams
-from .entities import Comment, Project, Ticket
+from .entities import Comment, Membership, Project, Ticket
 from .vo import ProjectKey, TicketPriority, TicketStatus
 
 
@@ -26,6 +26,17 @@ class TicketRepository(Repository[Ticket]):
     ) -> Page[Ticket]:
         """Фильтрация тикетов"""
 
+    async def get_total(
+            self, project_id: UUID | None = None, counterparty_id: UUID | None = None
+    ) -> int:
+        """
+        Получение общего числа тикетов.
+        Поддерживает 3 сценария получения количества:
+         - Внутренних тикетов (проект и контрагент не указаны)
+         - Тикеты в рамках проекта
+         - Принадлежащие контрагенту
+        """
+
     async def get_comments(self, ticket_id: UUID, params: PageParams) -> Page[Comment]:
         """Получение комментариев для тикета"""
 
@@ -39,4 +50,9 @@ class ProjectRepository(Repository[Project]):
         """
         Возвращает множество ключей, которые уже существуют.
         Оптимизировано для пакетной проверки.
+        """
+
+    async def get_membership(self, project_id: UUID, user_id: UUID) -> Membership | None:
+        """
+        Получение участника проекта
         """

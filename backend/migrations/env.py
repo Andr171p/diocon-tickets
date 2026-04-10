@@ -9,10 +9,17 @@ from alembic import context
 
 from src.core.settings import settings
 from src.core.database import Base
-from src.iam.infra.models import UserOrm, RefreshTokenOrm, InvitationOrm
+
 from src.crm.infra.models import CounterpartyOrm
+from src.iam.infra.models import InvitationOrm, UserOrm
 from src.media.infra.models import AttachmentOrm
-from src.tickets.infra.models import TicketOrm, TicketHistoryEntryOrm, CommentOrm
+from src.tickets.infra.models import (
+    CommentOrm,
+    TicketHistoryEntryOrm,
+    TicketOrm,
+    ProjectOrm,
+    MembershipOrm,
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

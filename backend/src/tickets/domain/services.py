@@ -1,4 +1,9 @@
 import re
+from uuid import UUID
+
+from ...iam.domain.vo import UserRole
+from .repos import ProjectRepository
+from .vo import ProjectRole
 
 WORDS_COUNT = 2
 MIN_KEY_LENGTH = 2
@@ -45,3 +50,77 @@ def generate_project_key(name: str, default: str = "PRJ") -> str:
         key = "P" + key[1:] if len(key) > 1 else "PR"
 
     return key
+
+
+class ProjectAccessService:
+    def __init__(self, repository: ProjectRepository) -> None:
+        self.repository = repository
+
+    async def can_create_ticket(
+            self, project_id: UUID, user_id: UUID, user_role: UserRole
+    ) -> bool:
+        """Может ли пользователь создать тикет"""
+
+        # 1. Администраторы и менеджеры могут создавать тикеты в любом проекте
+        if user_role in {UserRole.ADMIN, UserRole.SUPPORT_MANAGER}:
+            return True
+
+        # 2. Проверка состояние в проекте
+        membership = await self.repository.get_membership(project_id, user_id)
+        if membership is None or not membership.is_active:
+            return False
+
+        # 3. Разрешение на создание тикетов только для следующих ролей внутри проекта
+        return membership.project_role in {
+            ProjectRole.OWNER,
+            ProjectRole.MANAGER,
+            ProjectRole.MEMBER,
+            ProjectRole.CUSTOMER,
+            ProjectRole.CUSTOMER_ADMIN,
+        }
+
+    async def can_view_ticket(self, project_id: UUID, user_id: UUID, user_role: UserRole) -> bool:
+        """Может ли пользователь просматривать тикеты проекта"""
+
+        # 1. Администраторы и менеджеры могут просматривать тикеты любого проекта
+        if user_role in {UserRole.ADMIN, UserRole.SUPPORT_MANAGER}:
+            return True
+
+        # 2. Участник должен быть активен
+        membership = await self.repository.get_membership(project_id, user_id)
+        return not (membership is None or not membership.is_active)
+
+    async def can_assign_ticket(
+            self, project_id: UUID, user_id: UUID, user_role: UserRole
+    ) -> bool:
+        """Может ли пользователь назначать исполнителя тикета"""
+
+        if user_role in {UserRole.ADMIN, UserRole.SUPPORT_MANAGER}:
+            return True
+
+        membership = await self.repository.get_membership(project_id, user_id)
+        if not membership or not membership.is_active:
+            return False
+
+        # Назначать могут только Owner и Manager проекта
+        return membership.project_role in {ProjectRole.OWNER, ProjectRole.MANAGER}
+
+    async def can_change_status(
+        self, project_id: UUID, user_id: UUID, user_role: UserRole
+    ) -> bool:
+        """Может ли пользователь менять статус тикета"""
+
+        if user_role in {UserRole.ADMIN, UserRole.SUPPORT_MANAGER}:
+            return True
+
+        membership = await self.repository.get_membership(project_id, user_id)
+        if not membership or not membership.is_active:
+            return False
+
+        allowed_roles = {ProjectRole.OWNER, ProjectRole.MANAGER, ProjectRole.MEMBER}
+
+        # Клиенты могут менять статус только в ограниченных случаях (например, переоткрывать)
+        if membership.project_role in {ProjectRole.CUSTOMER, ProjectRole.CUSTOMER_ADMIN}:
+            return False  # или добавить свою логику
+
+        return membership.project_role in allowed_roles

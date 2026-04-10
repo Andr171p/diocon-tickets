@@ -3,7 +3,7 @@ from .domain.entities import Comment, Project, Ticket, TicketHistoryEntry
 from .schemas import (
     CommentResponse,
     HistoryEntryResponse,
-    ParticipantResponse,
+    MembershipResponse,
     ProjectResponse,
     Tag,
     TicketPreview,
@@ -84,13 +84,14 @@ def map_project_to_response(project: Project) -> ProjectResponse:
         counterparty_id=project.counterparty_id,
         created_by=project.created_by,
         status=project.status,
-        participants=[
-            ParticipantResponse(
-                user_id=participant.user_id,
-                project_role=participant.project_role,
-                added_by=participant.added_by,
-                added_at=participant.added_at,
+        memberships=[
+            MembershipResponse(
+                user_id=membership.user_id,
+                project_role=membership.project_role,
+                added_by=membership.added_by,
+                added_at=membership.added_at,
+                is_active=membership.is_active
             )
-            for participant in project.participants
+            for membership in project.memberships
         ]
     )
