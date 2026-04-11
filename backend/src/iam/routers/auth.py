@@ -3,8 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Path, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from ..dependencies import AuthServiceDep, oauth2_scheme
-from ..schemas import LogoutRequest, Tokens, TokensRefresh, UserCreateForm
+from ..dependencies import AuthServiceDep, CurrentUserDep, oauth2_scheme
+from ..schemas import CurrentUser, LogoutRequest, Tokens, TokensRefresh, UserCreateForm
 
 router = APIRouter(prefix="/auth", tags=["Авторизация"])
 
@@ -57,3 +57,14 @@ async def logout(
         service: AuthServiceDep
 ) -> None:
     return await service.logout(access_token, data.refresh_token)
+
+
+@router.get(
+    path="/userinfo",
+    response_model=CurrentUser,
+    status_code=status.HTTP_200_OK,
+    summary="Получение информации о пользователе",
+    description="Информация берётся только из токена (не требует запроса к БД)"
+)
+async def get_userinfo(current_user: CurrentUserDep) -> CurrentUser:
+    return current_user

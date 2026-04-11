@@ -1,14 +1,16 @@
-from typing import override
+from typing import Any, override
 
+from collections.abc import Callable
 from uuid import UUID
 
-from sqlalchemy import Select, and_, func, select
+from sqlalchemy import BinaryExpression, Select, and_, func, or_, select
 from sqlalchemy.orm import attributes, selectinload
 
 from ...shared.infra.repos import SqlAlchemyRepository
 from ...shared.schemas import Page, PageParams
 from ..domain.entities import Membership, Project, Ticket
-from ..domain.vo import ProjectKey, TicketPriority, TicketStatus
+from ..domain.vo import ProjectKey
+from ..schemas import TicketFilter
 from .mappers import MembershipMapper, ProjectMapper, TicketMapper
 from .models import CommentOrm, MembershipOrm, ProjectOrm, TicketOrm
 
@@ -49,62 +51,65 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
 
         return self.model_mapper.to_entity(ticket)
 
-    def _apply_filters(
-            self,
-            query: Select,
-            creator_id: UUID | None = None,
-            counterparty_id: UUID | None = None,
-            status: TicketStatus | None = None,
-            priority: TicketPriority | None = None
-    ) -> Select:
-        if creator_id is not None:
-            query = query.where(self.model.created_by == creator_id)
-        if counterparty_id is not None:
-            query = query.where(self.model.counterparty_id == counterparty_id)
-        if status is not None:
-            query = query.where(self.model.status == status)
-        if priority is not None:
-            query = query.where(self.model.priority == priority)
-        return query
+    def _apply_filters(self, stmt: Select, filters: TicketFilter) -> Select:
+        # Определение пары - фильтра и функции построения условия
+        filter_conditions: list[tuple[Any, Callable[[Any], BinaryExpression]]] = [
+            (filters.reporter_id, lambda value: self.model.reporter_id == value),
+            (filters.creator_id, lambda value: self.model.created_by == value),
+            (filters.project_id, lambda value: self.model.project_id == value),
+            (filters.counterparty_id, lambda value: self.model.counterparty_id == value),
+            (filters.status, lambda value: self.model.status == value),
+            (filters.priority, lambda value: self.model.priority == value),
+            (filters.assigned_to, lambda value: self.model.assigned_to == value),
+            (filters.created_after, lambda value: self.model.created_at >= value),
+            (filters.created_before, lambda value: self.model.created_at <= value),
+            (
+                filters.tags,
+                lambda tags: or_(*[self.model.tags.contains([{"name": tag}]) for tag in tags]),
+            ),
+            (filters.search, self.model.search_vector.match),
+        ]
 
-    @override
-    async def paginate(
-        self,
-        params: PageParams,
-        creator_id: UUID | None = None,
-        counterparty_id: UUID | None = None,
-        status: TicketStatus | None = None,
-        priority: TicketPriority | None = None,
-    ) -> Page[Ticket]:
-        # 1. Подсчёт общего количества тикетов для пагинации, учитывая фильтрацию
-        count_stmt = self._apply_filters(
-            select(func.count()), creator_id, counterparty_id, status, priority
-        )
+        for value, condition_func in filter_conditions:
+            if value is not None:
+                stmt = stmt.where(condition_func(value))
+        return stmt
 
+    async def _paginate(self, stmt: Select, params: PageParams) -> Page[Ticket]:
+        # 1. Получение общего количества
+        count_stmt = select(func.count()).select_from(stmt.subquery())
         total_items = await self.session.scalar(count_stmt)
         if total_items == 0:
             return Page.create([], total_items, params.page, params.size)
 
-        # 2. Запрос для получения тикетов, с учётом фильтрации
-        stmt = self._apply_filters(
-            select(self.model), creator_id, counterparty_id, status, priority
-        )
+        # 2. Получение страницы
         stmt = stmt.order_by(self.model.created_at.desc()).offset(params.offset).limit(params.size)
-
         results = await self.session.execute(stmt)
         models = results.scalars().all()
 
-        # 3. Для станицы не нашлось тикетов
+        # 3. На странице нет тикетов (пустая страница)
         if not models:
             return Page.create([], total_items, params.page, params.size)
 
-        # 4. Формирование страницы
         return Page.create(
-            items=[self.model_mapper.to_preview_entity(model) for model in models],
+            items=[self.model_mapper.to_preview(model) for model in models],
             total_items=total_items,
             page=params.page,
             size=params.size,
         )
+
+    @override
+    async def paginate(
+        self, params: PageParams, filters: TicketFilter | None = None
+    ) -> Page[Ticket]:
+        # 1. Базовый запрос
+        stmt = select(self.model)
+
+        # 2. Применение фильтров
+        if filters is not None:
+            stmt = self._apply_filters(stmt, filters)
+
+        return await self._paginate(stmt, params)
 
     async def get_total(
             self, project_id: UUID | None = None, counterparty_id: UUID | None = None
@@ -120,6 +125,12 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
         # 2. Запрос с применением фильтров
         stmt = select(func.count()).select_from(self.model).where(and_(*filters))
         return await self.session.scalar(stmt)
+
+    async def get_by_reporter(self, reporter_id: UUID, params: PageParams) -> Page[Ticket]:
+        # 1. Базовый запрос
+        stmt = select(self.model).where(self.model.reporter_id == reporter_id)
+
+        return await self._paginate(stmt, params)
 
 
 class SqlProjectRepository(SqlAlchemyRepository[Project, ProjectOrm]):

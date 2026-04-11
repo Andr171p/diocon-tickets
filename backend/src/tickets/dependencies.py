@@ -1,12 +1,14 @@
 from typing import Annotated
 
+from uuid import UUID
+
 from fastapi import Depends, Query
 
 from ..shared.dependencies import EventPublisherDep, SessionDep
 from .domain.repos import ProjectRepository, TicketRepository
 from .domain.vo import TicketPriority, TicketStatus
 from .infra.repos import SqlProjectRepository, SqlTicketRepository
-from .schemas import FilterParams
+from .schemas import TicketFilter
 from .services import ProjectService, TicketService
 
 
@@ -38,17 +40,41 @@ ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 TicketServiceDep = Annotated[TicketService, Depends(get_ticket_service)]
 
 
-def get_filter_params(
+def get_ticket_filters(
+        reporter_id: Annotated[
+            UUID | None, Query(..., description="По инициатору")
+        ] = None,
+        created_by: Annotated[
+            UUID | None, Query(..., description="По фактическому создателю")
+        ] = None,
+        project_id: Annotated[
+            UUID | None, Query(..., description="По проекту")
+        ] = None,
+        counterparty_id: Annotated[
+            UUID | None, Query(..., description="По контрагенту")
+        ] = None,
         status: Annotated[
             TicketStatus | None,
-            Query(..., description="Фильтр по статусу")
+            Query(..., description="По статусу")
         ] = None,
         priority: Annotated[
             TicketPriority | None,
-            Query(..., description="Фильтр по приоритету")
+            Query(..., description="По приоритету")
         ] = None,
-) -> FilterParams:
-    return FilterParams(status=status, priority=priority)
+        # Дополнительные фильтры
+        tags: Annotated[
+            list[str] | None, Query(..., description="По тегам")
+        ] = None,
+) -> TicketFilter:
+    return TicketFilter(
+        reporter_id=reporter_id,
+        created_by=created_by,
+        project_id=project_id,
+        counterparty_id=counterparty_id,
+        status=status,
+        priority=priority,
+        tags=tags,
+    )
 
 
-FilterParamsDep = Annotated[FilterParams, Depends(get_filter_params)]
+TicketFiltersDep = Annotated[TicketFilter, Depends(get_ticket_filters)]

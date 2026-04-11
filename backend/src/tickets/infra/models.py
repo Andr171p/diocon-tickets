@@ -6,8 +6,8 @@ if TYPE_CHECKING:
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import TEXT, DateTime, Enum, ForeignKey, String
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import TEXT, Computed, DateTime, Enum, ForeignKey, Index, String
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ...core.database import Base
@@ -40,6 +40,18 @@ class TicketOrm(Base):
             "foreign(AttachmentOrm.owner_id)==TicketOrm.id)"
         ),
         viewonly=True,
+    )
+
+    search_vector: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('russian', coalesce(title, '') || ' ' || coalesce(description, ''))",
+            persisted=True,
+        ),
+        nullable=True,
+    )
+    __table_args__ = (
+        Index("ix_tickets_search_vector", "search_vector", postgresql_using="gin"),
     )
 
 

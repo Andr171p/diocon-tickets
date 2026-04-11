@@ -4,11 +4,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from ...iam.dependencies import CurrentUserDep, get_current_support_user, get_current_user
+from ...iam.dependencies import CurrentUserDep, get_current_user
 from ...shared.dependencies import PageParamsDep
 from ...shared.domain.exceptions import NotFoundError
 from ...shared.schemas import Page
-from ..dependencies import FilterParamsDep, TicketRepoDep, TicketServiceDep
+from ..dependencies import TicketFiltersDep, TicketRepoDep, TicketServiceDep
 from ..infra.ai import predict_ticket_fields
 from ..mappers import map_ticket_to_preview, map_ticket_to_response
 from ..schemas import (
@@ -40,21 +40,15 @@ async def create_ticket(
     path="/me",
     status_code=status.HTTP_200_OK,
     response_model=Page[TicketPreview],
-    summary="Получение тикетов текущего пользователя"
+    summary="Получение моих тикетов",
+    description="Только те тикеты, где текущий пользователь записан как инициатор"
 )
 async def get_my_tickets(
         current_user: CurrentUserDep,
-        filter_params: FilterParamsDep,
-        page_params: PageParamsDep,
+        params: PageParamsDep,
         repository: TicketRepoDep,
 ) -> Page[dict[str, Any]]:
-    page = await repository.paginate(
-        page_params,
-        creator_id=current_user.user_id,
-        counterparty_id=current_user.counterparty_id,
-        status=filter_params.status,
-        priority=filter_params.priority,
-    )
+    page = await repository.get_by_reporter(current_user.user_id, params)
     return page.to_response(map_ticket_to_preview)
 
 
@@ -64,17 +58,14 @@ async def get_my_tickets(
     response_model=Page[TicketPreview],
     summary="Получение всех тикетов с пагинацией",
     description="Метод предназначен для роли `support` и выше",
-    dependencies=[Depends(get_current_support_user)]
+    dependencies=[Depends(get_current_user)]
 )
 async def get_tickets(
-        filter_params: FilterParamsDep,
-        page_params: PageParamsDep,
+        params: PageParamsDep,
+        filters: TicketFiltersDep,
         repository: TicketRepoDep,
 ) -> Page[dict[str, Any]]:
-    page = await repository.paginate(
-        page_params, status=filter_params.status, priority=filter_params.priority
-    )
-    return page.to_response(map_ticket_to_preview)
+    ...
 
 
 @router.get(

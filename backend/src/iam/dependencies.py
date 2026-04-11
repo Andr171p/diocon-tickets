@@ -74,8 +74,11 @@ async def get_current_user(
 ) -> CurrentUser:
     """Получение текущего пользователя"""
 
+    # 1. Валидация токена
     payload = validate_token(token)
     jti, user_id = payload.get("jti"), payload.get("sub")
+
+    # 2. Проверка на наличие в чёрных списках
     if jti is None or await blacklist.is_revoked(jti):
         raise UnauthorizedError("Token has been revoked or missing jti")
     if user_id is None:
@@ -87,6 +90,17 @@ async def get_current_user(
         role=payload.get("role"),
         counterparty_id=payload.get("counterparty_id"),
     )
+
+
+def require_role(*allowed_roles: UserRole):
+    """Зависимость для ограничения доступа по ролям"""
+
+    def checker(current_user: CurrentUser = Depends(get_current_user)):
+        if current_user.role not in allowed_roles:
+            raise PermissionDeniedError("Insufficient permissions")
+        return current_user
+
+    return checker
 
 
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]

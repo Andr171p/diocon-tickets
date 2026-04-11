@@ -4,8 +4,9 @@ from uuid import UUID
 
 from ...shared.domain.repo import Repository
 from ...shared.schemas import Page, PageParams
+from ..schemas import TicketFilter
 from .entities import Comment, Membership, Project, Ticket
-from .vo import ProjectKey, TicketPriority, TicketStatus
+from .vo import ProjectKey
 
 
 class TicketRepository(Repository[Ticket]):
@@ -17,12 +18,7 @@ class TicketRepository(Repository[Ticket]):
 
     @override
     async def paginate(
-            self,
-            params: PageParams,
-            creator_id: UUID | None = None,
-            counterparty_id: UUID | None = None,
-            status: TicketStatus | None = None,
-            priority: TicketPriority | None = None,
+            self, params: PageParams, filters: TicketFilter | None = None
     ) -> Page[Ticket]:
         """Фильтрация тикетов"""
 
@@ -36,6 +32,9 @@ class TicketRepository(Repository[Ticket]):
          - Тикеты в рамках проекта
          - Принадлежащие контрагенту
         """
+
+    async def get_by_reporter(self, reporter_id: UUID, params: PageParams) -> Page[Ticket]:
+        """Получение тикетов по его инициатору"""
 
     async def get_comments(self, ticket_id: UUID, params: PageParams) -> Page[Comment]:
         """Получение комментариев для тикета"""

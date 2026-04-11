@@ -8,22 +8,6 @@ from ..media.schemas import AttachmentResponse
 from .domain.vo import CommentType, ProjectRole, ProjectStatus, TicketPriority, TicketStatus
 
 
-class TicketPreview(BaseModel):
-    """
-    Схема превью тикета. Удобно для пагинации, списков, множественного просмотра.
-    """
-
-    id: UUID = Field(..., description="Уникальный ID тикета")
-    created_at: datetime = Field(..., description="Дата создания")
-    updated_at: datetime = Field(..., description="Дата обновления")
-    created_by: UUID = Field(..., description="ID пользователя, который создал тикет")
-    reporter_id: UUID = Field(..., description="ID пользователя - инициатора")
-    number: str = Field(..., description="Номер тикета", examples=["РОМ-26-00012456"])
-    title: str = Field(..., description="Заголовок тикета")
-    status: TicketStatus = Field(..., description="Текущий статус")
-    priority: TicketPriority = Field(..., description="Приоритет")
-
-
 class CommentResponse(BaseModel):
     """Схема API ответа для комментария"""
 
@@ -81,6 +65,22 @@ class TicketBase(BaseModel):
     )
 
 
+class TicketPreview(BaseModel):
+    """
+    Схема превью тикета. Удобно для пагинации, списков, множественного просмотра.
+    """
+
+    id: UUID = Field(..., description="Уникальный ID тикета")
+    created_at: datetime = Field(..., description="Дата создания")
+    updated_at: datetime = Field(..., description="Дата обновления")
+    created_by: UUID = Field(..., description="ID пользователя, который создал тикет")
+    reporter_id: UUID = Field(..., description="ID пользователя - инициатора")
+    number: str = Field(..., description="Номер тикета", examples=["РОМ-26-00012456"])
+    title: str = Field(..., description="Заголовок тикета")
+    status: TicketStatus = Field(..., description="Текущий статус")
+    priority: TicketPriority = Field(..., description="Приоритет")
+
+
 class TicketResponse(TicketBase):
     """API схема ответа тикета"""
 
@@ -132,11 +132,23 @@ class TicketCreate(TicketBase):
     )
 
 
-class FilterParams(BaseModel):
+class TicketFilter(BaseModel):
     """Параметры для фильтрации тикетов"""
 
-    status: TicketStatus | None = Field(None, description="Фильтрация по статусу")
-    priority: TicketPriority | None = Field(None, description="Фильтрация по приоритету")
+    # Базовые фильтры
+    reporter_id: UUID | None = Field(None, description="По инициатору")
+    creator_id: UUID | None = Field(None, description="По создателю")
+    project_id: UUID | None = Field(None, description="По проекту")
+    counterparty_id: UUID | None = Field(None, description="По контрагенту")
+    status: TicketStatus | None = Field(None, description="По статусу")
+    priority: TicketPriority | None = Field(None, description="По приоритету")
+
+    # Дополнительные фильтры
+    tags: list[str] | None = Field(None, description="По тегам")
+    search: str | None = Field(None, description="Полнотекстовый поиск")
+    assigned_to: UUID | None = Field(None, description="По исполнителю, которому назначили тикет")
+    created_after: datetime | None = Field(None, description="Создан после")
+    created_before: datetime | None = Field(None, description="Создан до")
 
 
 class TicketPredict(BaseModel):

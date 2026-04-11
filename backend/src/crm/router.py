@@ -4,11 +4,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, status
 
-from ..iam.dependencies import (
-    get_current_customer_admin,
-    get_current_support_user,
-    get_current_user,
-)
+from ..iam.dependencies import get_current_user, require_role
+from ..iam.domain.constants import SUPPORT_MANAGER_OR_ABOVE, SUPPORT_TEAM
 from ..iam.mappers import map_user_to_response
 from ..iam.schemas import UserResponse
 from ..shared.dependencies import PageParamsDep
@@ -25,7 +22,7 @@ router = APIRouter(prefix="/counterparties", tags=["Контрагенты"])
     path="",
     response_model=CounterpartyResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(get_current_support_user)],
+    dependencies=[Depends(require_role(*SUPPORT_TEAM))],
     summary="Создание контрагента",
 )
 async def create_counterparty(
@@ -54,7 +51,7 @@ async def get_counterparty(
     path="/{counterparty_id}",
     response_model=CounterpartyResponse,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(get_current_support_user)],
+    dependencies=[Depends(require_role(*SUPPORT_TEAM))],
     summary="Добавление обособленного подразделения",
 )
 async def add_branch(
@@ -70,9 +67,9 @@ async def add_branch(
 
 @router.get(
     path="",
-    response_model=Page[dict[str, Any]],
+    response_model=Page[CounterpartyResponse],
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(get_current_support_user)],
+    dependencies=[Depends(require_role(*SUPPORT_TEAM))],
     summary="Получение списка контрагентов",
 )
 async def get_counterparties(
@@ -85,9 +82,9 @@ async def get_counterparties(
 @router.delete(
     path="/{counterparty_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(get_current_support_user)],
+    dependencies=[Depends(require_role(*SUPPORT_MANAGER_OR_ABOVE))],
     summary="Удаление контрагента",
-    description="Soft-delete метод, делает контрагента не активным не удаляя физически"
+    description="Soft-delete метод, делает контрагента не активным не удаляя фактически"
 )
 async def delete_counterparty(counterparty_id: UUID, repository: CounterpartyRepoDep) -> None:
     await repository.update(counterparty_id, is_active=False)
@@ -97,7 +94,7 @@ async def delete_counterparty(counterparty_id: UUID, repository: CounterpartyRep
     path="/{counterparty_id}/customers",
     status_code=status.HTTP_200_OK,
     response_model=Page[UserResponse],
-    dependencies=[Depends(get_current_customer_admin)],
+    dependencies=[Depends(*SUPPORT_TEAM)],
     summary="Получение клиентов контрагента",
     description="Доступно с ролью `customer_admin` и выше",
 )
