@@ -139,7 +139,7 @@ class Ticket(AggregateRoot):
                     ticket_id=ticket_id,
                     actor_id=created_by,
                     action="ticket_created",
-                    description=f"Создан тикет с номером - {ticket_number}",
+                    description=f"Создан новый тикет - {ticket_number}",
                 )
             ],
         )
@@ -357,11 +357,11 @@ class Project(AggregateRoot):
         if added_by != self.owner_id and added_by_role not in {
             UserRole.SUPPORT_MANAGER, UserRole.SUPPORT_AGENT, UserRole.ADMIN,
         }:
-            raise PermissionDeniedError("Only owner or support stuff can add participants")
+            raise PermissionDeniedError("Only owner or support stuff can add memberships")
 
         # 2. Проверка того, что участник уже есть
         if user_id in [membership.user_id for membership in self.memberships]:
-            raise InvariantViolationError(f"User with ID {user_id} is already a participant")
+            raise InvariantViolationError(f"User with ID {user_id} is already a member")
 
         self.memberships.append(
             Membership(

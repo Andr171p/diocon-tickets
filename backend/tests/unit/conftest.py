@@ -8,10 +8,12 @@ from src.crm.domain.vo import Inn
 from src.iam.domain.entities import Invitation, User
 from src.iam.domain.repos import InvitationRepository, TokenBlacklist, UserRepository
 from src.iam.domain.vo import UserRole
+from src.shared.domain.events import EventPublisher
+from src.shared.infra.events import EventBus
 from src.shared.infra.repos import InMemoryRepository
 from src.shared.schemas import Page, PageParams
 from src.shared.utils.time import current_datetime
-from src.tickets.domain.entities import Comment, Project, Ticket
+from src.tickets.domain.entities import Comment, Membership, Project, Ticket
 from src.tickets.domain.repos import ProjectRepository, TicketRepository
 from src.tickets.domain.vo import ProjectKey
 
@@ -96,6 +98,18 @@ class InMemoryProjectRepository(InMemoryRepository[Project]):
                 existing.add(key)
         return existing
 
+    async def get_membership(self, project_id: UUID, user_id: UUID) -> Membership | None:
+        for project in self.data.values():
+            if project.id == project_id:
+                return next(
+                    (
+                        membership
+                        for membership in project.memberships
+                        if membership.user_id == user_id
+                    ), None
+                )
+        return None
+
 
 class ImMemoryTicketRepository(InMemoryRepository[Ticket]):
 
@@ -146,3 +160,8 @@ def mock_project_repo() -> ProjectRepository:
 @pytest.fixture
 def mock_ticket_repo() -> TicketRepository:
     return ImMemoryTicketRepository()
+
+
+@pytest.fixture
+def event_publisher() -> EventPublisher:
+    return EventBus(max_queue_size=10)

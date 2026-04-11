@@ -46,31 +46,48 @@ class TicketService:
         self.event_publisher = event_publisher
 
     async def _determine_creation_context(self, data: TicketCreate) -> TicketCreationContext:
-        """Определение контекста создания тикета и валидация входных данных"""
+        """
+        Определение контекста создания тикета и валидация входных данных
+
+        - Если указан project_id, то counterparty_id подтягивается из проекта.
+        - Если указан counterparty_id, то используется напрямую.
+        - Если не указан ни project_id, ни counterparty_id, то контекст зануляется.
+        """
 
         if data.project_id is not None and data.counterparty_id is not None:
             raise ValueError("Only one of the project or counterparty must be specified")
 
-        project_key = None
-        counterparty_name = None
-
-        if data.project_id:
+        # 1. Тикет создаётся в рамках проекта
+        if data.project_id is not None:
             project = await self.project_repo.read(data.project_id)
-            if not project:
+            if project is None:
                 raise NotFoundError(f"Project with ID {data.project_id} not found")
-            project_key = project.key
 
-        if data.counterparty_id:
+            return TicketCreationContext(
+                project_id=data.project_id,
+                project_key=project.key,
+                counterparty_id=project.counterparty_id,
+                counterparty_name=None,
+            )
+
+        # 2. Тикет привязан к контрагенту
+        if data.counterparty_id is not None:
             counterparty = await self.counterparty_repo.read(data.counterparty_id)
-            if not counterparty:
+            if counterparty is None:
                 raise NotFoundError(f"Counterparty with ID {data.counterparty_id} not found")
-            counterparty_name = counterparty.name
+
+            return TicketCreationContext(
+                project_id=None,
+                project_key=None,
+                counterparty_id=counterparty.id,
+                counterparty_name=counterparty.name,
+            )
 
         return TicketCreationContext(
-            project_id=data.project_id,
-            project_key=project_key,
-            counterparty_id=data.counterparty_id,
-            counterparty_name=counterparty_name,
+            project_id=None,
+            project_key=None,
+            counterparty_id=None,
+            counterparty_name=None,
         )
 
     async def create(

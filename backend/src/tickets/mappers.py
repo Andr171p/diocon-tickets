@@ -54,6 +54,7 @@ def map_ticket_to_response(ticket: Ticket) -> TicketResponse:
         id=ticket.id,
         created_at=ticket.created_at,
         updated_at=ticket.updated_at,
+        project_id=ticket.project_id,
         counterparty_id=ticket.counterparty_id,
         created_by_role=ticket.created_by_role,
         created_by=ticket.created_by,
