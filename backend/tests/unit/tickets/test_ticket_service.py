@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.crm.domain.entities import Counterparty
 from src.crm.domain.vo import CounterpartyType, Inn, Kpp, Phone
+from src.iam.domain.exceptions import PermissionDeniedError
 from src.iam.domain.vo import UserRole
+from src.shared.domain.exceptions import NotFoundError
 from src.tickets.domain.entities import Project
 from src.tickets.domain.vo import ProjectRole, TicketPriority
 from src.tickets.schemas import Tag, TicketCreate
@@ -177,3 +179,111 @@ class TestCreateTicket:
                 ValueError, match="Only one of the project or counterparty must be specified"
         ):
             await ticket_service.create(data, created_by, created_by_role)
+
+    @pytest.mark.asyncio
+    async def test_forbidden_create_in_project(self, ticket_service, sample_project):
+        created_by = uuid4()
+        created_by_role = UserRole.SUPPORT_AGENT
+        data = TicketCreate(
+            reporter_id=uuid4(),
+            title="Ошибка при авторизации",
+            description="Пользователи не могут авторизоваться под своей учёткой",
+            priority=TicketPriority.HIGH,
+            tags=[Tag(name="Инцидент", color="#f54242"), Tag(name="Баг", color="#42f554")],
+            project_id=sample_project.id,
+        )
+
+        with pytest.raises(PermissionDeniedError):
+            await ticket_service.create(data, created_by, created_by_role)
+
+    @pytest.mark.asyncio
+    async def test_create_raises_not_found(self, ticket_service):
+        created_by = uuid4()
+        created_by_role = UserRole.SUPPORT_AGENT
+        in_project_data = TicketCreate(
+            reporter_id=uuid4(),
+            title="Ошибка при авторизации",
+            description="Пользователи не могут авторизоваться под своей учёткой",
+            priority=TicketPriority.HIGH,
+            tags=[Tag(name="Инцидент", color="#f54242"), Tag(name="Баг", color="#42f554")],
+            project_id=uuid4(),
+        )
+
+        with pytest.raises(NotFoundError):
+            await ticket_service.create(in_project_data, created_by, created_by_role)
+
+        for_counterparty_data = TicketCreate(
+            reporter_id=uuid4(),
+            title="Ошибка при авторизации",
+            description="Пользователи не могут авторизоваться под своей учёткой",
+            priority=TicketPriority.HIGH,
+            tags=[Tag(name="Инцидент", color="#f54242"), Tag(name="Баг", color="#42f554")],
+            counterparty_id=uuid4(),
+        )
+
+        with pytest.raises(NotFoundError):
+            await ticket_service.create(for_counterparty_data, created_by, created_by_role)
+
+    @pytest.mark.asyncio
+    async def test_multiple_create_in_project_success(
+            self, ticket_service, sample_project, owner_id
+    ):
+        created_by_role = UserRole.CUSTOMER_ADMIN
+
+        data1 = TicketCreate(
+            reporter_id=uuid4(),
+            title="Ошибка при авторизации",
+            description="Пользователи не могут авторизоваться под своей учёткой",
+            priority=TicketPriority.HIGH,
+            tags=[Tag(name="Инцидент", color="#f54242"), Tag(name="Баг", color="#42f554")],
+            project_id=sample_project.id,
+        )
+        data2 = TicketCreate(
+            reporter_id=uuid4(),
+            title="Не работает форма обратной связи",
+            description="Не приходят сообщение на почту",
+            priority=TicketPriority.CRITICAL,
+            tags=[Tag(name="Инцидент", color="#f54242"), Tag(name="Баг", color="#42f554")],
+            project_id=sample_project.id,
+        )
+
+        response1 = await ticket_service.create(data1, owner_id, created_by_role)
+        response2 = await ticket_service.create(data2, owner_id, created_by_role)
+
+        assert (
+                response1.number.startswith(f"{sample_project.key}-")
+                == response2.number.startswith(f"{sample_project.key}-")
+        )
+        assert response1.number.endswith("01")
+        assert response2.number.endswith("02")
+
+    @pytest.mark.asyncio
+    async def test_multiple_create_for_counterparty_success(
+        self, ticket_service, sample_counterparty
+    ):
+        created_by = uuid4()
+        created_by_role = UserRole.CUSTOMER_ADMIN
+
+        data1 = TicketCreate(
+            reporter_id=uuid4(),
+            title="Ошибка при авторизации",
+            description="Пользователи не могут авторизоваться под своей учёткой",
+            priority=TicketPriority.HIGH,
+            tags=[Tag(name="Инцидент", color="#f54242"), Tag(name="Баг", color="#42f554")],
+            counterparty_id=sample_counterparty.id,
+        )
+        data2 = TicketCreate(
+            reporter_id=uuid4(),
+            title="Не работает форма обратной связи",
+            description="Не приходят сообщение на почту",
+            priority=TicketPriority.CRITICAL,
+            tags=[Tag(name="Инцидент", color="#f54242"), Tag(name="Баг", color="#42f554")],
+            counterparty_id=sample_counterparty.id,
+        )
+
+        response1 = await ticket_service.create(data1, created_by, created_by_role)
+        response2 = await ticket_service.create(data2, created_by, created_by_role)
+
+        assert response1.number[:5] == response2.number[:5]
+        assert response1.number.endswith("01")
+        assert response2.number.endswith("02")
