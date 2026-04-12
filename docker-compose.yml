@@ -57,6 +57,15 @@ services:
       - "9901:9001"              # Web Console (UI)
     restart: unless-stopped
 
+  # text-embeddings:
+  #   image: ghcr.io/huggingface/text-embeddings-inference:1.7.2
+  #   pull_policy: always
+  #   ports:
+  #     - "8080:80"
+  #   volumes:
+  #     - hf_cache:/data
+  #   command: --model-id Qwen/Qwen3-Embedding-0.6B
+
   # imgproxy:
   #   image: ghcr.io/imgproxy/imgproxy:latest
   #   restart: unless-stopped
@@ -120,3 +129,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  hf_cache:

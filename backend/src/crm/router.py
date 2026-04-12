@@ -94,7 +94,7 @@ async def delete_counterparty(counterparty_id: UUID, repository: CounterpartyRep
     path="/{counterparty_id}/customers",
     status_code=status.HTTP_200_OK,
     response_model=Page[UserResponse],
-    dependencies=[Depends(*SUPPORT_TEAM)],
+    dependencies=[Depends(require_role(*SUPPORT_TEAM))],
     summary="Получение клиентов контрагента",
     description="Доступно с ролью `customer_admin` и выше",
 )

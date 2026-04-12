@@ -9,8 +9,8 @@ from src.crm.domain.vo import CounterpartyType, Inn, Kpp, Phone
 from src.iam.domain.exceptions import PermissionDeniedError
 from src.iam.domain.vo import UserRole
 from src.shared.domain.exceptions import NotFoundError
-from src.tickets.domain.entities import Project
-from src.tickets.domain.vo import ProjectRole, TicketPriority
+from src.tickets.domain.entities import Project, Ticket
+from src.tickets.domain.vo import ProjectRole, TicketNumber, TicketPriority, TicketStatus
 from src.tickets.schemas import Tag, TicketCreate
 from src.tickets.services import TicketService
 
@@ -80,6 +80,42 @@ async def sample_project(mock_project_repo, sample_counterparty, owner_id, user_
     )
     await mock_project_repo.create(project)
     return project
+
+
+@pytest.fixture
+def reporter_id():
+    return uuid4()
+
+
+@pytest.fixture
+def support_agent_id():
+    return uuid4()
+
+
+@pytest.fixture
+def customer_admin_id():
+    return uuid4()
+
+
+@pytest.fixture
+def sample_ticket_number():
+    return TicketNumber(value="WEB-26-00000145")
+
+
+@pytest.fixture
+async def sample_ticket(reporter_id, support_agent_id, sample_ticket_number, mock_ticket_repo):
+    ticket = Ticket.create(
+        ticket_number=sample_ticket_number,
+        reporter_id=reporter_id,
+        created_by=support_agent_id,
+        created_by_role=UserRole.SUPPORT_AGENT,
+        title="Тестовый тикет",
+        description="Описание",
+        priority=TicketPriority.MEDIUM,
+        counterparty_id=uuid4(),
+    )
+    await mock_ticket_repo.create(ticket)
+    return ticket
 
 
 class TestCreateTicket:
@@ -287,3 +323,233 @@ class TestCreateTicket:
         assert response1.number[:5] == response2.number[:5]
         assert response1.number.endswith("01")
         assert response2.number.endswith("02")
+
+
+class TestChangeTicketStatus:
+    """
+    Тесты для изменения статуса тикета
+    """
+
+    @pytest.mark.asyncio
+    async def test_change_status_success(self, ticket_service, mock_ticket_repo, sample_ticket):
+        new_status = TicketStatus.OPEN
+
+        response = await ticket_service.change_status(
+            ticket_id=sample_ticket.id,
+            new_status=new_status,
+            changed_by=uuid4(),
+            changed_by_role=UserRole.SUPPORT_AGENT,
+        )
+
+        assert response.status == new_status
+
+        ticket = await mock_ticket_repo.read(sample_ticket.id)
+
+        assert ticket is not None
+        assert ticket.status == new_status
+
+    @pytest.mark.asyncio
+    async def test_change_status_ticket_not_found(self, ticket_service):
+
+        with pytest.raises(NotFoundError):
+            await ticket_service.change_status(
+                ticket_id=uuid4(),
+                new_status=TicketStatus.IN_PROGRESS,
+                changed_by=uuid4(),
+                changed_by_role=UserRole.SUPPORT_AGENT,
+            )
+
+    @pytest.mark.asyncio
+    async def test_change_status_in_project_permission_check(
+            self,
+            owner_id,
+            user_id,
+            ticket_service,
+            sample_ticket,
+            sample_project,
+    ):
+        created_by_role = UserRole.CUSTOMER_ADMIN
+        data = TicketCreate(
+            reporter_id=uuid4(),
+            title="Ошибка при авторизации",
+            description="Пользователи не могут авторизоваться под своей учёткой",
+            priority=TicketPriority.HIGH,
+            tags=[Tag(name="Инцидент", color="#f54242"), Tag(name="Баг", color="#42f554")],
+            project_id=sample_project.id,
+        )
+
+        await ticket_service.create(data, owner_id, created_by_role)
+
+        response = await ticket_service.change_status(
+            ticket_id=sample_ticket.id,
+            new_status=TicketStatus.OPEN,
+            changed_by=user_id,
+            changed_by_role=UserRole.SUPPORT_AGENT,
+        )
+
+        assert response.status == TicketStatus.OPEN
+
+    @pytest.mark.asyncio
+    async def test_change_status_in_project_no_permission(
+        self, user_id, ticket_service, sample_project, sample_ticket
+    ):
+        created_by_role = UserRole.CUSTOMER_ADMIN
+        data = TicketCreate(
+            reporter_id=uuid4(),
+            title="Ошибка при авторизации",
+            description="Пользователи не могут авторизоваться под своей учёткой",
+            priority=TicketPriority.HIGH,
+            tags=[Tag(name="Инцидент", color="#f54242"), Tag(name="Баг", color="#42f554")],
+            project_id=sample_project.id,
+        )
+
+        await ticket_service.create(data, user_id, created_by_role)
+
+        with pytest.raises(PermissionDeniedError):
+            await ticket_service.change_status(
+                ticket_id=sample_ticket.id,
+                new_status=TicketStatus.IN_PROGRESS,
+                changed_by=uuid4(),
+                changed_by_role=UserRole.SUPPORT_AGENT,
+            )
+
+    @pytest.mark.asyncio
+    async def test_customer_admin_can_approve_pending_approval(
+        self, sample_ticket_number, ticket_service, mock_ticket_repo
+    ):
+        ticket = Ticket.create(
+            ticket_number=sample_ticket_number,
+            reporter_id=uuid4(),
+            created_by=uuid4(),
+            created_by_role=UserRole.SUPPORT_AGENT,
+            title="Тестовый тикет",
+            description="Описание",
+            priority=TicketPriority.MEDIUM,
+            counterparty_id=uuid4(),
+        )
+        ticket.status = TicketStatus.PENDING_APPROVAL
+        await mock_ticket_repo.create(ticket)
+
+        response = await ticket_service.change_status(
+            ticket_id=ticket.id,
+            new_status=TicketStatus.OPEN,
+            changed_by=uuid4(),
+            changed_by_role=UserRole.CUSTOMER_ADMIN,
+        )
+
+        assert response.id == ticket.id
+
+    @pytest.mark.asyncio
+    async def test_customer_admin_cannot_move_to_in_progress_from_pending(
+        self, sample_ticket_number, ticket_service, mock_ticket_repo
+    ):
+        ticket = Ticket.create(
+            ticket_number=sample_ticket_number,
+            reporter_id=uuid4(),
+            created_by=uuid4(),
+            created_by_role=UserRole.SUPPORT_AGENT,
+            title="Тестовый тикет",
+            description="Описание",
+            priority=TicketPriority.MEDIUM,
+            counterparty_id=uuid4(),
+        )
+        ticket.status = TicketStatus.PENDING_APPROVAL
+        await mock_ticket_repo.create(ticket)
+
+        with pytest.raises(PermissionDeniedError):
+            await ticket_service.change_status(
+                ticket_id=ticket.id,
+                new_status=TicketStatus.IN_PROGRESS,
+                changed_by=uuid4(),
+                changed_by_role=UserRole.CUSTOMER_ADMIN,
+            )
+
+    @pytest.mark.asyncio
+    async def test_assignee_can_only_work_with_active_tickets(
+        self, sample_ticket_number, ticket_service, mock_ticket_repo
+    ):
+        ticket = Ticket.create(
+            ticket_number=sample_ticket_number,
+            reporter_id=uuid4(),
+            created_by=uuid4(),
+            created_by_role=UserRole.SUPPORT_AGENT,
+            title="Тестовый тикет",
+            description="Описание",
+            priority=TicketPriority.MEDIUM,
+            counterparty_id=uuid4(),
+        )
+        assignee_id = uuid4()
+        ticket.status = TicketStatus.IN_PROGRESS
+        ticket.assigned_to = assignee_id
+        await mock_ticket_repo.create(ticket)
+
+        response = await ticket_service.change_status(
+            ticket_id=ticket.id,
+            new_status=TicketStatus.RESOLVED,
+            changed_by=assignee_id,
+            changed_by_role=UserRole.ASSIGNEE,
+        )
+
+        assert response.id == ticket.id
+
+    @pytest.mark.asyncio
+    async def test_assignee_can_not_work_with_not_assigned_tickets(
+        self, sample_ticket_number, ticket_service, mock_ticket_repo
+    ):
+        ticket = Ticket.create(
+            ticket_number=sample_ticket_number,
+            reporter_id=uuid4(),
+            created_by=uuid4(),
+            created_by_role=UserRole.SUPPORT_AGENT,
+            title="Тестовый тикет",
+            description="Описание",
+            priority=TicketPriority.MEDIUM,
+            counterparty_id=uuid4(),
+        )
+        assignee_id = uuid4()
+        ticket.status = TicketStatus.IN_PROGRESS
+        ticket.assigned_to = assignee_id
+        await mock_ticket_repo.create(ticket)
+
+        with pytest.raises(PermissionDeniedError):
+            await ticket_service.change_status(
+                ticket_id=ticket.id,
+                new_status=TicketStatus.RESOLVED,
+                changed_by=uuid4(),
+                changed_by_role=UserRole.ASSIGNEE,
+            )
+
+    @pytest.mark.asyncio
+    async def test_customer_can_only_reopen_closed_ticket(
+            self, sample_ticket_number, ticket_service, mock_ticket_repo
+    ):
+        ticket = Ticket.create(
+            ticket_number=sample_ticket_number,
+            reporter_id=uuid4(),
+            created_by=uuid4(),
+            created_by_role=UserRole.SUPPORT_AGENT,
+            title="Тестовый тикет",
+            description="Описание",
+            priority=TicketPriority.MEDIUM,
+            counterparty_id=uuid4(),
+        )
+        ticket.status = TicketStatus.CLOSED
+        await mock_ticket_repo.create(ticket)
+
+        await ticket_service.change_status(
+            ticket_id=ticket.id,
+            new_status=TicketStatus.REOPENED,
+            changed_by=uuid4(),
+            changed_by_role=UserRole.CUSTOMER,
+        )
+
+        ticket.status = TicketStatus.OPEN
+        await mock_ticket_repo.upsert(ticket)
+
+        with pytest.raises(PermissionDeniedError):
+            await ticket_service.change_status(
+                ticket_id=ticket.id,
+                new_status=TicketStatus.IN_PROGRESS,
+                changed_by=uuid4(),
+                changed_by_role=UserRole.CUSTOMER,
+            )

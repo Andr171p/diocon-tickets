@@ -2,10 +2,11 @@ import uuid
 
 import pytest
 
+from src.iam.domain.exceptions import PermissionDeniedError
 from src.iam.domain.vo import UserRole
 from src.shared.domain.exceptions import InvariantViolationError
 from src.tickets.domain.entities import Ticket
-from src.tickets.domain.vo import TicketNumber, TicketStatus
+from src.tickets.domain.vo import TicketNumber, TicketPriority, TicketStatus
 
 # ====================== Fixtures ======================
 
@@ -17,6 +18,16 @@ def ticket_id():
 
 @pytest.fixture
 def reporter_id():
+    return uuid.uuid4()
+
+
+@pytest.fixture
+def support_agent_id():
+    return uuid.uuid4()
+
+
+@pytest.fixture
+def customer_admin_id():
     return uuid.uuid4()
 
 
@@ -38,6 +49,34 @@ def counterparty_id():
 @pytest.fixture
 def sample_ticket_number():
     return TicketNumber(value="WEB-26-00000145")
+
+
+@pytest.fixture
+def ticket_in_new(reporter_id, support_agent_id, sample_ticket_number):
+    return Ticket.create(
+        ticket_number=sample_ticket_number,
+        reporter_id=reporter_id,
+        created_by=support_agent_id,
+        created_by_role=UserRole.SUPPORT_AGENT,
+        title="Тестовый тикет",
+        description="Описание",
+        priority=TicketPriority.MEDIUM,
+        counterparty_id=uuid.uuid4(),
+    )
+
+
+@pytest.fixture
+def ticket_in_pending_approval(reporter_id, sample_ticket_number):
+    return Ticket.create(
+        ticket_number=sample_ticket_number,
+        reporter_id=reporter_id,
+        created_by=reporter_id,
+        created_by_role=UserRole.CUSTOMER,
+        title="Тестовый тикет от клиента",
+        description="Описание",
+        priority=TicketPriority.HIGH,
+        counterparty_id=uuid.uuid4(),
+    )
 
 
 # ====================== Тест кейсы ======================
@@ -107,3 +146,148 @@ class TestCreate:
 
         assert ticket.project_id == project_id
         assert ticket.counterparty_id == counterparty_id
+
+
+class TestChangeStatus:
+    """
+    Тестирование изменение статуса тикета
+    """
+
+    def test_support_manager_can_do_any_transition(self, ticket_in_new):
+        ticket = ticket_in_new
+
+        allowed_transitions = [
+            (TicketStatus.NEW, TicketStatus.PENDING_APPROVAL),
+            (TicketStatus.NEW, TicketStatus.OPEN),
+            (TicketStatus.PENDING_APPROVAL, TicketStatus.OPEN),
+            (TicketStatus.OPEN, TicketStatus.IN_PROGRESS),
+            (TicketStatus.IN_PROGRESS, TicketStatus.WAITING),
+            (TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED),
+            (TicketStatus.RESOLVED, TicketStatus.CLOSED),
+            (TicketStatus.CLOSED, TicketStatus.REOPENED),
+        ]
+
+        for from_status, to_status in allowed_transitions:
+            ticket.status = from_status
+
+            ticket.change_status(
+                new_status=to_status,
+                changed_by=uuid.uuid4(),
+                changed_by_role=UserRole.SUPPORT_MANAGER,
+            )
+            assert ticket.status == to_status
+
+    def test_customer_admin_can_approve_or_reject(self, ticket_in_pending_approval):
+        ticket = ticket_in_pending_approval
+
+        ticket.change_status(
+            new_status=TicketStatus.OPEN,
+            changed_by=uuid.uuid4(),
+            changed_by_role=UserRole.CUSTOMER_ADMIN,
+        )
+        assert ticket.status == TicketStatus.OPEN
+
+    def test_customer_admin_cannot_move_to_in_progress(self, ticket_in_pending_approval):
+        ticket = ticket_in_pending_approval
+
+        with pytest.raises(PermissionDeniedError):
+            ticket.change_status(
+                new_status=TicketStatus.IN_PROGRESS,
+                changed_by=uuid.uuid4(),
+                changed_by_role=UserRole.CUSTOMER_ADMIN,
+            )
+
+    def test_support_agent_cannot_approve(self, ticket_in_pending_approval):
+        ticket = ticket_in_pending_approval
+
+        with pytest.raises(PermissionDeniedError):
+            ticket.change_status(
+                new_status=TicketStatus.OPEN,
+                changed_by=uuid.uuid4(),
+                changed_by_role=UserRole.SUPPORT_AGENT,
+            )
+
+    def test_assignee_can_move_between_working_statuses(self, ticket_in_new):
+        ticket = ticket_in_new
+        ticket.status = TicketStatus.IN_PROGRESS
+        assignee_id = uuid.uuid4()
+        ticket.assigned_to = assignee_id
+
+        valid_statuses = [TicketStatus.WAITING, TicketStatus.RESOLVED]
+
+        for status in valid_statuses:
+            ticket.change_status(
+                new_status=status, changed_by=assignee_id, changed_by_role=UserRole.ASSIGNEE
+            )
+            assert ticket.status == status
+            ticket.status = TicketStatus.IN_PROGRESS
+
+    def test_invalid_transition_raises_error(self, ticket_in_new):
+        ticket = ticket_in_new
+
+        with pytest.raises(PermissionDeniedError, match="Not allowed status transition"):
+            ticket.change_status(
+                new_status=TicketStatus.RESOLVED,
+                changed_by=uuid.uuid4(),
+                changed_by_role=UserRole.SUPPORT_AGENT,
+            )
+
+    def test_close_ticket_sets_closed_at(self, ticket_in_new):
+        ticket = ticket_in_new
+        ticket.status = TicketStatus.RESOLVED
+
+        ticket.change_status(
+            new_status=TicketStatus.CLOSED,
+            changed_by=uuid.uuid4(),
+            changed_by_role=UserRole.SUPPORT_MANAGER,
+        )
+
+        assert ticket.status == TicketStatus.CLOSED
+        assert ticket.closed_at is not None
+
+    def test_customer_can_only_reopen_closed_ticket(self, ticket_in_new):
+        ticket = ticket_in_new
+        ticket.status = TicketStatus.CLOSED
+
+        ticket.change_status(
+            new_status=TicketStatus.REOPENED,
+            changed_by=uuid.uuid4(),
+            changed_by_role=UserRole.CUSTOMER,
+        )
+
+        assert ticket.status == TicketStatus.REOPENED
+
+        ticket.status = TicketStatus.CLOSED
+        with pytest.raises(PermissionDeniedError):
+            ticket.change_status(
+                new_status=TicketStatus.IN_PROGRESS,
+                changed_by=uuid.uuid4(),
+                changed_by_role=UserRole.CUSTOMER,
+            )
+
+    def test_support_manager_can_skip_pending_approval(self, ticket_in_new):
+        ticket = ticket_in_new
+
+        ticket.change_status(
+            new_status=TicketStatus.OPEN,
+            changed_by=uuid.uuid4(),
+            changed_by_role=UserRole.SUPPORT_MANAGER,
+        )
+        assert ticket.status == TicketStatus.OPEN
+
+    def test_customer_admin_can_only_approve_from_pending(self, ticket_in_pending_approval):
+        ticket = ticket_in_pending_approval
+
+        ticket.change_status(
+            new_status=TicketStatus.OPEN,
+            changed_by=uuid.uuid4(),
+            changed_by_role=UserRole.CUSTOMER_ADMIN,
+        )
+        assert ticket.status == TicketStatus.OPEN
+
+        with pytest.raises(PermissionDeniedError):
+            ticket.change_status(
+                new_status=TicketStatus.IN_PROGRESS,
+                changed_by=uuid.uuid4(),
+                changed_by_role=UserRole.CUSTOMER_ADMIN,
+            )

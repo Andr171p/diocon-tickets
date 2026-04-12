@@ -151,6 +151,12 @@ class TicketFilter(BaseModel):
     created_before: datetime | None = Field(None, description="Создан до")
 
 
+class TicketStatusChange(BaseModel):
+    """Изменение статуса тикета"""
+
+    status: TicketStatus = Field(..., description="Статус, который нужно установить")
+
+
 class TicketPredict(BaseModel):
     """Авто-определение приоритетов + генерация тегов"""
 

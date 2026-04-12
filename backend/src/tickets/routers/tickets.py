@@ -17,6 +17,7 @@ from ..schemas import (
     TicketPredict,
     TicketPreview,
     TicketResponse,
+    TicketStatusChange,
 )
 
 router = APIRouter(prefix="/tickets", tags=["Тикеты"])
@@ -56,16 +57,21 @@ async def get_my_tickets(
     path="",
     status_code=status.HTTP_200_OK,
     response_model=Page[TicketPreview],
-    summary="Получение всех тикетов с пагинацией",
-    description="Метод предназначен для роли `support` и выше",
-    dependencies=[Depends(get_current_user)]
+    dependencies=[Depends(get_current_user)],
+    summary="Фильтрация тикетов с пагинацией",
+    description="Фильтрует тикеты учитывая роль пользователя",
+    responses={
+        200: {"description": "Фильтры успешно применены и получен результат"},
+        403: {"description": "Недостаточно прав на указанную фильтрацию"}
+    }
 )
 async def get_tickets(
         params: PageParamsDep,
         filters: TicketFiltersDep,
         repository: TicketRepoDep,
 ) -> Page[dict[str, Any]]:
-    ...
+    page = await repository.paginate(params, filters)
+    return page.to_response(map_ticket_to_preview)
 
 
 @router.get(
@@ -80,6 +86,31 @@ async def get_ticket(ticket_id: UUID, repository: TicketRepoDep) -> TicketRespon
     if ticket is None:
         raise NotFoundError(f"Ticket with ID {ticket_id} not found")
     return map_ticket_to_response(ticket)
+
+
+@router.patch(
+    path="/{ticket_id}/status",
+    status_code=status.HTTP_200_OK,
+    response_model=TicketResponse,
+    summary="Изменение статуса тикета",
+    responses={
+        200: {"description": "Статус успешно изменён"},
+        403: {"description": "Недостаточно прав для изменения статуса"},
+        404: {"description": "Тикет не найден"},
+    }
+)
+async def change_ticket_status(
+        ticket_id: UUID,
+        data: TicketStatusChange,
+        current_user: CurrentUserDep,
+        service: TicketServiceDep,
+) -> TicketResponse:
+    return await service.change_status(
+        ticket_id=ticket_id,
+        new_status=data.status,
+        created_by=current_user.user_id,
+        created_by_role=current_user.role
+    )
 
 
 @router.post(

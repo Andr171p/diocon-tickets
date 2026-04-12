@@ -11,7 +11,7 @@ from ...shared.domain.exceptions import NotFoundError
 from ..domain.entities import Ticket
 from ..domain.repos import ProjectRepository, TicketRepository
 from ..domain.services import ProjectAccessService
-from ..domain.vo import ProjectKey, Tag, TicketNumber
+from ..domain.vo import ProjectKey, Tag, TicketNumber, TicketStatus
 from ..mappers import map_ticket_to_response
 from ..schemas import TicketCreate, TicketResponse
 
@@ -145,6 +145,39 @@ class TicketService:
 
     async def assign_to(self): ...
 
-    async def change_status(self): ...
+    async def change_status(
+            self,
+            ticket_id: UUID,
+            new_status: TicketStatus,
+            changed_by: UUID,
+            changed_by_role: UserRole
+    ) -> TicketResponse:
+        """Изменение статуса тикета"""
+
+        # 1. Получение тикета и проверка на существование
+        ticket = await self.ticket_repo.read(ticket_id)
+        if ticket is None:
+            raise NotFoundError(f"Ticket with ID {ticket_id} not found")
+
+        # 2. Если тикет принадлежит проекту, то проверка внутри-проектных прав
+        if ticket.project_id is not None:
+            can_change = await self.project_access_service.can_change_status(
+                project_id=ticket.project_id,
+                user_id=changed_by,
+                user_role=changed_by_role,
+            )
+            if not can_change:
+                raise PermissionDeniedError("No permission to change status in this project")
+
+        # 3. Изменение статуса и обновление доменной сущности
+        ticket.change_status(new_status, changed_by, changed_by_role)
+        await self.ticket_repo.upsert(ticket)
+        await self.session.commit()
+
+        # 4. Публикация доменных событий
+        for event in ticket.collect_events():
+            await self.event_publisher.publish(event)
+
+        return map_ticket_to_response(ticket)
 
     async def close(self): ...

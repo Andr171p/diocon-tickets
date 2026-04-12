@@ -79,4 +79,5 @@ secrets.env
 
 # Прочее
 .docker
+tei_cache
 *.mp3

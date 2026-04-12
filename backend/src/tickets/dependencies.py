@@ -4,6 +4,9 @@ from uuid import UUID
 
 from fastapi import Depends, Query
 
+from ..iam.dependencies import CurrentUserDep
+from ..iam.domain.exceptions import PermissionDeniedError
+from ..iam.domain.vo import UserRole
 from ..shared.dependencies import EventPublisherDep, SessionDep
 from .domain.repos import ProjectRepository, TicketRepository
 from .domain.vo import TicketPriority, TicketStatus
@@ -41,6 +44,8 @@ TicketServiceDep = Annotated[TicketService, Depends(get_ticket_service)]
 
 
 def get_ticket_filters(
+        current_user: CurrentUserDep,
+        # Базовые фильтры
         reporter_id: Annotated[
             UUID | None, Query(..., description="По инициатору")
         ] = None,
@@ -62,10 +67,44 @@ def get_ticket_filters(
             Query(..., description="По приоритету")
         ] = None,
         # Дополнительные фильтры
+        assigned_to: Annotated[
+            UUID | None, Query(..., description="По исполнителю")
+        ] = None,
         tags: Annotated[
             list[str] | None, Query(..., description="По тегам")
         ] = None,
+        search: Annotated[
+            str | None, Query(..., description="Запрос для полнотекстового поиска")
+        ] = None,
 ) -> TicketFilter:
+    """Зависимость для фильтрации тикетов в зависимости от роли пользователя"""
+
+    # 1. Клиент может видеть только свои тикеты
+    if current_user.role == UserRole.CUSTOMER:
+        if reporter_id is not None and reporter_id != current_user.user_id:
+            raise PermissionDeniedError("Customers can only see their tickets")
+
+        reporter_id = current_user.user_id
+        counterparty_id = None
+
+    # 2. Администратор заказчика может видеть все тикеты своего контрагента
+    elif current_user.role == UserRole.CUSTOMER_ADMIN:
+        if counterparty_id is not None and counterparty_id != current_user.counterparty_id:
+            raise PermissionDeniedError(
+                "Customer admin can only see tickets belonging to its counterparty"
+            )
+
+        counterparty_id = current_user.counterparty_id
+
+    # 3. Исполнитель может видеть только те тикеты, которые ему назначены
+    elif current_user.role == UserRole.ASSIGNEE:
+        if assigned_to is not None and assigned_to != current_user.user_id:
+            raise PermissionDeniedError(
+                "Assignee can see only those tickets that are assigned to it"
+            )
+
+        assigned_to = current_user.user_id
+
     return TicketFilter(
         reporter_id=reporter_id,
         created_by=created_by,
@@ -73,7 +112,9 @@ def get_ticket_filters(
         counterparty_id=counterparty_id,
         status=status,
         priority=priority,
+        assigned_to=assigned_to,
         tags=tags,
+        search=search,
     )
 
 
