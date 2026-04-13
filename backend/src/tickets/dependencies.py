@@ -96,15 +96,6 @@ def get_ticket_filters(
 
         counterparty_id = current_user.counterparty_id
 
-    # 3. Исполнитель может видеть только те тикеты, которые ему назначены
-    elif current_user.role == UserRole.ASSIGNEE:
-        if assigned_to is not None and assigned_to != current_user.user_id:
-            raise PermissionDeniedError(
-                "Assignee can see only those tickets that are assigned to it"
-            )
-
-        assigned_to = current_user.user_id
-
     return TicketFilter(
         reporter_id=reporter_id,
         created_by=created_by,
