@@ -29,7 +29,7 @@ async def get_me(
     path="/{user_id}",
     status_code=status.HTTP_200_OK,
     response_model=UserResponse,
-    dependencies=[Depends(require_role(SUPPORT_TEAM))],
+    dependencies=[Depends(require_role(*SUPPORT_TEAM))],
     summary="Получение информации об аккаунте",
     description="Доступно только для команды поддержки"
 )

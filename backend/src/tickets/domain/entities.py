@@ -11,7 +11,7 @@ from ...shared.domain.entities import AggregateRoot, Entity
 from ...shared.domain.exceptions import InvariantViolationError
 from ...shared.utils.time import current_datetime
 from .constants import ALLOWED_ASSIGN_STATUSES, ALLOWED_TRANSITIONS, COMMENT_TYPE_DISPLAY_NAMES
-from .events import ProjectCreated, TicketCreated
+from .events import ProjectCreated, TicketAssigned, TicketCreated
 from .vo import (
     CommentType,
     ProjectKey,
@@ -162,13 +162,13 @@ class Ticket(AggregateRoot):
         return ticket
 
     def assign_to(self, assignee_id: UUID, assigned_by: UUID, assigned_by_role: UserRole) -> None:
-        """Назначает тикет на исполнителя"""
+        """Назначает (или переназначает) тикет на исполнителя (агента поддержки)"""
 
         # 1. Назначить тикет могут только внутренние сотрудники
         if assigned_by_role not in {
             UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER, UserRole.ADMIN
         }:
-            raise PermissionDeniedError("Only support staff can assign tickets")
+            raise PermissionDeniedError("Only support team can assign tickets")
 
         # 2. Для назначения тикета должен быть определённый статус
         if self.status not in ALLOWED_ASSIGN_STATUSES:
@@ -177,7 +177,11 @@ class Ticket(AggregateRoot):
                 f"Allowed statuses: {', '.join(status for status in ALLOWED_ASSIGN_STATUSES)}"
             )
 
-        # 3. Назначение исполнителя
+        # 3. Если тикет переназначается на самого себя - то без записи в историю
+        if assignee_id == self.assigned_to:
+            return
+
+        # 4. Назначение исполнителя
         old_assignee = self.assigned_to
         self.assigned_to = assignee_id
 
@@ -189,6 +193,14 @@ class Ticket(AggregateRoot):
                 old_value=f"{old_assignee}" if old_assignee else None,
                 new_value=f"{assignee_id}",
                 description="Тикет назначен пользователю",
+            )
+        )
+        self.register_event(
+            TicketAssigned(
+                ticket_id=self.id,
+                assignee_id=assignee_id,
+                assigned_by=assigned_by,
+                old_assignee=old_assignee,
             )
         )
 
@@ -211,19 +223,13 @@ class Ticket(AggregateRoot):
                 TicketStatus.CLOSED,
             }
 
-        # 3. Исполнитель может менять ограниченный набор статусов
-        if role == UserRole.ASSIGNEE:
-            return new_status in {
-                TicketStatus.IN_PROGRESS, TicketStatus.WAITING, TicketStatus.RESOLVED,
-            }
-
-        # 4. Администратор клиента может согласовывать свои тикеты
+        # 3. Администратор клиента может согласовывать свои тикеты
         if role == UserRole.CUSTOMER_ADMIN:
             if self.status == TicketStatus.PENDING_APPROVAL:
                 return new_status in {TicketStatus.OPEN, TicketStatus.REJECTED}
             return new_status == TicketStatus.REOPENED
 
-        # 5. Клиенты могут только переоткрывать закрытые тикеты
+        # 4. Клиенты могут только переоткрывать закрытые тикеты
         if role == UserRole.CUSTOMER:
             return new_status == TicketStatus.REOPENED and self.status == TicketStatus.CLOSED
 
@@ -240,23 +246,17 @@ class Ticket(AggregateRoot):
                 f"Not allowed status transition: from '{self.status}' to '{new_status}'"
             )
 
-        # 2. Исполнитель может работать только с тикетом, который ему назначен
-        if changed_by_role == UserRole.ASSIGNEE and changed_by != self.assigned_to:
-            raise PermissionDeniedError(
-                "This ticket is not assigned to you. Only the assignee can change its status."
-            )
-
-        # 3. Проверка прав пользователя на данный переход
+        # 2. Проверка прав пользователя на данный переход
         if not self._can_change_to_status(new_status, changed_by_role):
             raise PermissionDeniedError(
                 f"Role '{changed_by_role}' is not allowed to change status to '{new_status}'"
             )
 
-        # 4. Установка нового статуса
+        # 3. Установка нового статуса
         old_status = self.status
         self.status = new_status
 
-        # 5. Если тикет закрыт, то устанавливается время закрытия
+        # 4. Если тикет закрыт, то устанавливается время закрытия
         if new_status == TicketStatus.CLOSED:
             self.closed_at = current_datetime()
 

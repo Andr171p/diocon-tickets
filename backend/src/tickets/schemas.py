@@ -151,6 +151,12 @@ class TicketFilter(BaseModel):
     created_before: datetime | None = Field(None, description="Создан до")
 
 
+class TicketAssign(BaseModel):
+    """Назначение тикета на пользователя"""
+
+    assignee_id: UUID = Field(..., description="ID пользователя, на которого назначается тикет")
+
+
 class TicketStatusChange(BaseModel):
     """Изменение статуса тикета"""
 

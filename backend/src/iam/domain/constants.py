@@ -7,7 +7,7 @@ CUSTOMER_ROLES = {UserRole.CUSTOMER, UserRole.CUSTOMER_ADMIN}
 
 # Все роли внутренней команды
 INTERNAL_ROLES = {
-    UserRole.ASSIGNEE, UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER, UserRole.ADMIN
+    UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER, UserRole.ADMIN
 }
 
 # Роли с правами администратора заказчика и выше

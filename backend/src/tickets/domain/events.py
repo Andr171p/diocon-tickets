@@ -4,7 +4,7 @@ from uuid import UUID
 from ...shared.domain.events import Event
 from .vo import TicketPriority
 
-# --- События для проектов ---
+# — События для проектов —
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -16,7 +16,7 @@ class ProjectCreated(Event):
     created_by: UUID
     counterparty_id: UUID | None = None
 
-# --- События для тикетов ---
+# — События для тикетов –
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -28,14 +28,20 @@ class TicketCreated(Event):
     created_by: UUID
     reporter_id: UUID
     priority: TicketPriority
+    project_id: UUID | None = None
     counterparty_id: UUID | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class TicketAssigned(Event):
+    """Тикет назначен"""
+
+    ticket_id: UUID
+    assignee_id: UUID
+    assigned_by: UUID
+    old_assignee: UUID
 
 
 @dataclass(frozen=True, kw_only=True)
 class TicketStatusChanged(Event):
     """Статус тикета был изменён"""
-
-
-@dataclass(frozen=True, kw_only=True)
-class TicketAssigned(Event):
-    """Тикет назначен исполнителю"""

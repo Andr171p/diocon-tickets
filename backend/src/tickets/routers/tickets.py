@@ -13,6 +13,7 @@ from ..infra.ai import predict_ticket_fields
 from ..mappers import map_ticket_to_preview, map_ticket_to_response
 from ..schemas import (
     PredictionResponse,
+    TicketAssign,
     TicketCreate,
     TicketPredict,
     TicketPreview,
@@ -86,6 +87,27 @@ async def get_ticket(ticket_id: UUID, repository: TicketRepoDep) -> TicketRespon
     if ticket is None:
         raise NotFoundError(f"Ticket with ID {ticket_id} not found")
     return map_ticket_to_response(ticket)
+
+
+@router.post(
+    path="/{ticket_id}/assign",
+    status_code=status.HTTP_200_OK,
+    response_model=TicketResponse,
+    summary="Назначить тикет на пользователя",
+    description="Назначает тикет на агента поддержки. Доступно только для сотрудников поддержки",
+)
+async def assign_ticket(
+        ticket_id: UUID,
+        data: TicketAssign,
+        current_user: CurrentUserDep,
+        service: TicketServiceDep,
+) -> TicketResponse:
+    return await service.assign_to(
+        ticket_id=ticket_id,
+        assignee_id=data.assignee_id,
+        assigned_by=current_user.user_id,
+        assigned_by_role=current_user.role,
+    )
 
 
 @router.patch(

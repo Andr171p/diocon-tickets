@@ -63,7 +63,13 @@ def owner_id():
 
 
 @pytest.fixture
-async def sample_project(mock_project_repo, sample_counterparty, owner_id, user_id):
+async def sample_project(
+        mock_project_repo,
+        sample_counterparty,
+        owner_id,
+        user_id,
+        support_agent_id,
+):
     project = Project.create(
         name="Test Project",
         key="TEST",
@@ -75,6 +81,12 @@ async def sample_project(mock_project_repo, sample_counterparty, owner_id, user_
     project.add_member(
         user_id=user_id,
         project_role=ProjectRole.MEMBER,
+        added_by=owner_id,
+        added_by_role=UserRole.CUSTOMER_ADMIN,
+    )
+    project.add_member(
+        user_id=support_agent_id,
+        project_role=ProjectRole.MANAGER,
         added_by=owner_id,
         added_by_role=UserRole.CUSTOMER_ADMIN,
     )
@@ -118,7 +130,39 @@ async def sample_ticket(reporter_id, support_agent_id, sample_ticket_number, moc
     return ticket
 
 
-class TestCreateTicket:
+@pytest.fixture
+def ticket_in_open(reporter_id, support_agent_id, sample_ticket_number):
+    ticket = Ticket.create(
+        ticket_number=sample_ticket_number,
+        reporter_id=reporter_id,
+        created_by=support_agent_id,
+        created_by_role=UserRole.SUPPORT_AGENT,
+        title="Тестовый тикет",
+        description="Описание",
+        priority=TicketPriority.MEDIUM,
+        counterparty_id=uuid4(),
+    )
+    ticket.status = TicketStatus.OPEN
+    return ticket
+
+
+@pytest.fixture
+def ticket_in_progress(reporter_id, support_agent_id, sample_ticket_number):
+    ticket = Ticket.create(
+        ticket_number=sample_ticket_number,
+        reporter_id=reporter_id,
+        created_by=support_agent_id,
+        created_by_role=UserRole.SUPPORT_AGENT,
+        title="Тестовый тикет",
+        description="Описание",
+        priority=TicketPriority.HIGH,
+        counterparty_id=uuid4(),
+    )
+    ticket.status = TicketStatus.IN_PROGRESS
+    return ticket
+
+
+class TestCreate:
     """
     Тестирование метода для создания тикета
     """
@@ -325,7 +369,7 @@ class TestCreateTicket:
         assert response2.number.endswith("02")
 
 
-class TestChangeTicketStatus:
+class TestChangeStatus:
     """
     Тесты для изменения статуса тикета
     """
@@ -465,61 +509,6 @@ class TestChangeTicketStatus:
             )
 
     @pytest.mark.asyncio
-    async def test_assignee_can_only_work_with_active_tickets(
-        self, sample_ticket_number, ticket_service, mock_ticket_repo
-    ):
-        ticket = Ticket.create(
-            ticket_number=sample_ticket_number,
-            reporter_id=uuid4(),
-            created_by=uuid4(),
-            created_by_role=UserRole.SUPPORT_AGENT,
-            title="Тестовый тикет",
-            description="Описание",
-            priority=TicketPriority.MEDIUM,
-            counterparty_id=uuid4(),
-        )
-        assignee_id = uuid4()
-        ticket.status = TicketStatus.IN_PROGRESS
-        ticket.assigned_to = assignee_id
-        await mock_ticket_repo.create(ticket)
-
-        response = await ticket_service.change_status(
-            ticket_id=ticket.id,
-            new_status=TicketStatus.RESOLVED,
-            changed_by=assignee_id,
-            changed_by_role=UserRole.ASSIGNEE,
-        )
-
-        assert response.id == ticket.id
-
-    @pytest.mark.asyncio
-    async def test_assignee_can_not_work_with_not_assigned_tickets(
-        self, sample_ticket_number, ticket_service, mock_ticket_repo
-    ):
-        ticket = Ticket.create(
-            ticket_number=sample_ticket_number,
-            reporter_id=uuid4(),
-            created_by=uuid4(),
-            created_by_role=UserRole.SUPPORT_AGENT,
-            title="Тестовый тикет",
-            description="Описание",
-            priority=TicketPriority.MEDIUM,
-            counterparty_id=uuid4(),
-        )
-        assignee_id = uuid4()
-        ticket.status = TicketStatus.IN_PROGRESS
-        ticket.assigned_to = assignee_id
-        await mock_ticket_repo.create(ticket)
-
-        with pytest.raises(PermissionDeniedError):
-            await ticket_service.change_status(
-                ticket_id=ticket.id,
-                new_status=TicketStatus.RESOLVED,
-                changed_by=uuid4(),
-                changed_by_role=UserRole.ASSIGNEE,
-            )
-
-    @pytest.mark.asyncio
     async def test_customer_can_only_reopen_closed_ticket(
             self, sample_ticket_number, ticket_service, mock_ticket_repo
     ):
@@ -552,4 +541,128 @@ class TestChangeTicketStatus:
                 new_status=TicketStatus.IN_PROGRESS,
                 changed_by=uuid4(),
                 changed_by_role=UserRole.CUSTOMER,
+            )
+
+
+class TestAssignTo:
+    """
+    Тест назначения тикета на исполнителя
+    """
+
+    @pytest.mark.asyncio
+    async def test_assign_to_success(
+            self, ticket_service, mock_ticket_repo, ticket_in_progress, support_agent_id
+    ):
+        """
+        Успешное назначение тикета агентом поддержки
+        """
+
+        await mock_ticket_repo.create(ticket_in_progress)
+        assignee_id = uuid4()
+
+        response = await ticket_service.assign_to(
+            ticket_id=ticket_in_progress.id,
+            assignee_id=assignee_id,
+            assigned_by=support_agent_id,
+            assigned_by_role=UserRole.SUPPORT_AGENT,
+        )
+
+        assert response.assigned_to == assignee_id
+
+        existing_ticket = await mock_ticket_repo.read(ticket_in_progress.id)
+
+        assert existing_ticket.assigned_to == assignee_id
+
+    @pytest.mark.asyncio
+    async def test_assign_to_ticket_not_found(self, ticket_service):
+        """
+        Тикет не найден
+        """
+
+        with pytest.raises(NotFoundError):
+            await ticket_service.assign_to(
+                ticket_id=uuid4(),
+                assignee_id=uuid4(),
+                assigned_by=uuid4(),
+                assigned_by_role=UserRole.SUPPORT_AGENT,
+            )
+
+    @pytest.mark.asyncio
+    async def test_assign_to_in_project_permission_check(
+        self,
+            ticket_service,
+            mock_ticket_repo,
+            ticket_in_progress,
+            sample_project,
+            support_agent_id,
+    ):
+        """
+        Если тикет в проекте — должна вызываться проверка прав
+        """
+
+        ticket_in_progress.project_id = sample_project.id
+        await mock_ticket_repo.create(ticket_in_progress)
+
+        response = await ticket_service.assign_to(
+            ticket_id=ticket_in_progress.id,
+            assignee_id=uuid4(),
+            assigned_by=support_agent_id,
+            assigned_by_role=UserRole.SUPPORT_AGENT,
+        )
+
+        assert response.id == ticket_in_progress.id
+
+    @pytest.mark.asyncio
+    async def test_assign_to_in_project_no_permission(
+            self,
+            ticket_service,
+            mock_ticket_repo,
+            ticket_in_open,
+            sample_project,
+    ):
+        """
+        Нет прав в проекте для назначения исполнителя
+        """
+
+        ticket_in_open.project_id = sample_project.id
+        await mock_ticket_repo.create(ticket_in_open)
+
+        with pytest.raises(PermissionDeniedError):
+            await ticket_service.assign_to(
+                ticket_id=ticket_in_open.id,
+                assignee_id=uuid4(),
+                assigned_by=uuid4(),
+                assigned_by_role=UserRole.SUPPORT_AGENT,
+            )
+
+    @pytest.mark.asyncio
+    async def test_customer_cannot_assign_ticket(
+        self, ticket_service, mock_ticket_repo, ticket_in_open
+    ):
+        """
+        Клиент не может назначать тикеты
+        """
+
+        await mock_ticket_repo.create(ticket_in_open)
+
+        with pytest.raises(PermissionDeniedError):
+            await ticket_service.assign_to(
+                ticket_id=ticket_in_open.id,
+                assignee_id=uuid4(),
+                assigned_by=uuid4(),
+                assigned_by_role=UserRole.CUSTOMER,
+            )
+
+    @pytest.mark.asyncio
+    async def test_assign_to_invalid_status(self, ticket_service, sample_ticket):
+        """
+        Нельзя назначать тикет в недопустимом статусе
+        """
+
+        with pytest.raises(PermissionDeniedError):
+            await ticket_service.assign_to(
+                ticket_id=sample_ticket.id,
+                assignee_id=uuid4(),
+                assigned_by=uuid4(),
+                assigned_by_role=UserRole.SUPPORT_AGENT,
             )

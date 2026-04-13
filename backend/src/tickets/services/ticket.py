@@ -143,7 +143,40 @@ class TicketService:
 
         return map_ticket_to_response(ticket)
 
-    async def assign_to(self): ...
+    async def assign_to(
+            self, ticket_id: UUID, assignee_id: UUID, assigned_by: UUID, assigned_by_role: UserRole
+    ) -> TicketResponse:
+        """Назначение тикета на исполнителя"""
+
+        # 1. Получение тикета
+        ticket = await self.ticket_repo.read(ticket_id)
+        if ticket is None:
+            raise NotFoundError(f"Ticket with ID {ticket_id} not found")
+
+        # 2. Проверка прав в проекте, если тикет принадлежит проекту
+        if ticket.project_id is not None:
+            can_assign = await self.project_access_service.can_assign_ticket(
+                project_id=ticket.project_id,
+                user_id=assigned_by,
+                user_role=assigned_by_role
+            )
+            if not can_assign:
+                raise PermissionDeniedError("No permission to assign tickets in this project")
+
+        # 3. Назначение исполнителя и обновление сущности
+        ticket.assign_to(
+            assignee_id=assignee_id,
+            assigned_by=assigned_by,
+            assigned_by_role=assigned_by_role,
+        )
+        await self.ticket_repo.upsert(ticket)
+        await self.session.commit()
+
+        # 4. Публикация доменных событий
+        for event in ticket.collect_events():
+            await self.event_publisher.publish(event)
+
+        return map_ticket_to_response(ticket)
 
     async def change_status(
             self,
