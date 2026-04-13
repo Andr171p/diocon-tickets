@@ -2,7 +2,7 @@ from typing import Annotated, Any, Literal
 
 from uuid import UUID
 
-from fastapi import APIRouter, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from ...iam.dependencies import CurrentSupportUserDep, CurrentUserDep, require_role
 from ...iam.domain.constants import SUPPORT_TEAM
@@ -74,7 +74,7 @@ async def get_project(project_id: UUID, repository: ProjectRepoDep) -> ProjectRe
     path="",
     status_code=status.HTTP_200_OK,
     response_model=Page[ProjectResponse],
-    dependencies=[require_role(*SUPPORT_TEAM)],
+    dependencies=[Depends(require_role(*SUPPORT_TEAM))],
     summary="Получение всех проектов"
 )
 async def get_projects(params: PageParamsDep, repository: ProjectRepoDep) -> Page[dict[str, Any]]:
