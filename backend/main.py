@@ -76,7 +76,8 @@ def app_exception_handler(request: Request, exc: AppError) -> JSONResponse:  # n
         content={
             "error": {
                 "code": exc.error_code,
-                "message": exc.public_message,
+                "message": exc.message,
+                "public_message": exc.public_message,
                 "status": exc.status_code,
                 "details": exc.details,
             }

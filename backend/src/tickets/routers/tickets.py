@@ -130,8 +130,8 @@ async def change_ticket_status(
     return await service.change_status(
         ticket_id=ticket_id,
         new_status=data.status,
-        created_by=current_user.user_id,
-        created_by_role=current_user.role
+        changed_by=current_user.user_id,
+        changed_by_role=current_user.role,
     )
 
 
