@@ -203,7 +203,7 @@ class SqlProjectRepository(SqlAlchemyRepository[Project, ProjectOrm]):
         stmt = (
             stmt
             .order_by(self.model.created_at.desc())
-            .offset(pagination.page)
+            .offset(pagination.offset)
             .limit(pagination.size)
         )
         results = await self.session.execute(stmt)

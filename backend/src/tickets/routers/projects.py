@@ -80,7 +80,7 @@ async def get_my_projects(
         ] = "all",
 ) -> Page[dict[str, Any]]:
     page = await repository.get_by_user_membership(
-        current_user.user_id, pagination, role
+        user_id=current_user.user_id, pagination=pagination, role=role
     )
     return page.to_response(map_project_to_response)
 
