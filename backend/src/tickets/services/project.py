@@ -5,12 +5,13 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...shared.domain.exceptions import AlreadyExistsError
+from ...iam.domain.vo import UserRole
+from ...shared.domain.exceptions import AlreadyExistsError, NotFoundError
 from ..domain.entities import Project
 from ..domain.repos import ProjectRepository
 from ..domain.vo import ProjectKey
 from ..mappers import map_project_to_response
-from ..schemas import KeyCheckResponse, ProjectCreate, ProjectResponse
+from ..schemas import KeyCheckResponse, MembersAdd, ProjectCreate, ProjectResponse
 
 # Длина короткого ключа проекта
 SHORT_PROJECT_KEY_LENGTH = 3
@@ -109,5 +110,12 @@ class ProjectService:
             details={"last_suggested_key": key_candidate}
         )
 
-    async def add_member(self) -> ProjectResponse:
-        ...
+    async def add_members(
+            self, project_id: UUID, data: MembersAdd, added_by: UUID, added_by_role: UserRole
+    ) -> ProjectResponse:
+        """Добавление участников в проект"""
+
+        # 1. Получение проекта
+        project = await self.repository.read(project_id)
+        if project is None:
+            raise NotFoundError(f"Project with ID {project_id} not found")

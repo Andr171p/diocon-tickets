@@ -108,36 +108,33 @@ class TicketService:
                     "You do not have permissions to create tickets in this project"
                 )
 
-        # 3. Атомарная операция для создания тикета
-        async with self.session.begin():
+        # 3. Генерация уникального номера
+        total_tickets = await self.ticket_repo.get_total(
+            project_id=data.project_id, counterparty_id=data.counterparty_id
+        )
+        ticket_number = TicketNumber.create(
+            total_tickets,
+            project_key=context.project_key,
+            counterparty_name=context.counterparty_name,
+        )
 
-            # 4. Генерация уникального номера
-            total_tickets = await self.ticket_repo.get_total(
-                project_id=data.project_id, counterparty_id=data.counterparty_id
-            )
-            ticket_number = TicketNumber.create(
-                total_tickets,
-                project_key=context.project_key,
-                counterparty_name=context.counterparty_name,
-            )
+        # 4. Создание и сохранение доменной сущности
+        ticket = Ticket.create(
+            ticket_number=ticket_number,
+            created_by=created_by,
+            created_by_role=created_by_role,
+            reporter_id=data.reporter_id,
+            title=data.title,
+            description=data.description,
+            priority=data.priority,
+            project_id=context.project_id,
+            counterparty_id=context.counterparty_id,
+            tags=[Tag(name=tag.name, color=tag.color) for tag in data.tags],
+        )
+        await self.ticket_repo.create(ticket)
+        await self.session.commit()
 
-            # 5. Создание и сохранение доменной сущности
-            ticket = Ticket.create(
-                ticket_number=ticket_number,
-                created_by=created_by,
-                created_by_role=created_by_role,
-                reporter_id=data.reporter_id,
-                title=data.title,
-                description=data.description,
-                priority=data.priority,
-                project_id=context.project_id,
-                counterparty_id=context.counterparty_id,
-                tags=[Tag(name=tag.name, color=tag.color) for tag in data.tags],
-            )
-            await self.ticket_repo.create(ticket)
-            await self.session.commit()
-
-        # 6. Публикация доменных событий
+        # 5. Публикация доменных событий
         for event in ticket.collect_events():
             await self.event_publisher.publish(event)
 

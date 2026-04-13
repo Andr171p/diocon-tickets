@@ -249,3 +249,14 @@ class KeyCheckResponse(BaseModel):
 
 class MemberAdd(BaseModel):
     """Добавление участника проекта"""
+
+    user_id: UUID = Field(..., description="ID пользователя, которого нужно добавить")
+    project_role: ProjectRole = Field(..., description="Назначенная роль в проекте")
+
+
+class MembersAdd(BaseModel):
+    """Добавление множества участников за один запрос"""
+
+    members: list[MemberAdd] = Field(
+        default_factory=list, description="Участники, которых нужно добавить в проект"
+    )
