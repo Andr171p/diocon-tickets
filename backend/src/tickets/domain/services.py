@@ -2,6 +2,7 @@ import re
 from uuid import UUID
 
 from ...iam.domain.vo import UserRole
+from ...shared.utils.text import get_latin_slug
 from .repos import ProjectRepository
 from .vo import ProjectRole
 
@@ -35,17 +36,20 @@ def generate_project_key(name: str, default: str = "PRJ") -> str:
     if not words:
         return default
 
-    # 3. Генерация ключа
+    # 3. Транслитерация слов
+    words = [get_latin_slug(word) for word in words]
+
+    # 4. Генерация ключа
     key = "".join(word[0] for word in words[:3]) if len(words) > WORDS_COUNT else words[0][:4]
 
-    # 4. Обеспечение минимальной длины (2 символа)
+    # 5. Обеспечение минимальной длины (2 символа)
     if len(key) < MIN_KEY_LENGTH:
         key = (key + key).ljust(2, "X")[:2]  # "А" -> "АА" или "АX"
 
-    # 5. Обрезание до максимальной длины (10 символов)
+    # 6. Обрезание до максимальной длины (10 символов)
     key = key[:10]
 
-    # 6. Дополнительная проверка, что первый символ является буквой
+    # 7. Дополнительная проверка, что первый символ является буквой
     if not key[0].isalpha():
         key = "P" + key[1:] if len(key) > 1 else "PR"
 

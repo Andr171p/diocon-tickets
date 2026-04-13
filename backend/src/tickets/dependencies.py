@@ -33,10 +33,16 @@ def get_project_service(session: SessionDep, repository: ProjectRepoDep) -> Proj
 
 def get_ticket_service(
         session: SessionDep,
-        repository: TicketRepoDep,
+        ticket_repo: TicketRepoDep,
+        project_repo: ProjectRepoDep,
         event_publisher: EventPublisherDep
 ) -> TicketService:
-    return TicketService(session, repository=repository, event_publisher=event_publisher)
+    return TicketService(
+        session,
+        ticket_repo=ticket_repo,
+        project_repo=project_repo,
+        event_publisher=event_publisher
+    )
 
 
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
