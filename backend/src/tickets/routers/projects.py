@@ -58,31 +58,6 @@ async def create_project(
 
 
 @router.get(
-    path="/{project_id}",
-    status_code=status.HTTP_200_OK,
-    response_model=ProjectResponse,
-    summary="Получение проекта"
-)
-async def get_project(project_id: UUID, repository: ProjectRepoDep) -> ProjectResponse:
-    project = await repository.read(project_id)
-    if project is None:
-        raise NotFoundError(f"Project with ID {project_id} not found")
-    return map_project_to_response(project)
-
-
-@router.get(
-    path="",
-    status_code=status.HTTP_200_OK,
-    response_model=Page[ProjectResponse],
-    dependencies=[Depends(require_role(*SUPPORT_TEAM))],
-    summary="Получение всех проектов"
-)
-async def get_projects(params: PageParamsDep, repository: ProjectRepoDep) -> Page[dict[str, Any]]:
-    page = await repository.paginate(params)
-    return page.to_response(map_project_to_response)
-
-
-@router.get(
     path="/my",
     status_code=status.HTTP_200_OK,
     response_model=Page[ProjectResponse],
@@ -107,6 +82,31 @@ async def get_my_projects(
     page = await repository.get_by_user_membership(
         current_user.user_id, pagination, role
     )
+    return page.to_response(map_project_to_response)
+
+
+@router.get(
+    path="/{project_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=ProjectResponse,
+    summary="Получение проекта"
+)
+async def get_project(project_id: UUID, repository: ProjectRepoDep) -> ProjectResponse:
+    project = await repository.read(project_id)
+    if project is None:
+        raise NotFoundError(f"Project with ID {project_id} not found")
+    return map_project_to_response(project)
+
+
+@router.get(
+    path="",
+    status_code=status.HTTP_200_OK,
+    response_model=Page[ProjectResponse],
+    dependencies=[Depends(require_role(*SUPPORT_TEAM))],
+    summary="Получение всех проектов"
+)
+async def get_projects(params: PageParamsDep, repository: ProjectRepoDep) -> Page[dict[str, Any]]:
+    page = await repository.paginate(params)
     return page.to_response(map_project_to_response)
 
 
