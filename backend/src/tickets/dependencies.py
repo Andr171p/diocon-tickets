@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import Depends, Query
 
+from ..crm.dependencies import CounterpartyRepoDep
 from ..iam.dependencies import CurrentUserDep
 from ..iam.domain.exceptions import PermissionDeniedError
 from ..iam.domain.vo import UserRole
@@ -33,12 +34,14 @@ def get_project_service(session: SessionDep, repository: ProjectRepoDep) -> Proj
 
 def get_ticket_service(
         session: SessionDep,
+        counterparty_repo: CounterpartyRepoDep,
         ticket_repo: TicketRepoDep,
         project_repo: ProjectRepoDep,
         event_publisher: EventPublisherDep
 ) -> TicketService:
     return TicketService(
         session,
+        counterparty_repo=counterparty_repo,
         ticket_repo=ticket_repo,
         project_repo=project_repo,
         event_publisher=event_publisher

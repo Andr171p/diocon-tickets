@@ -245,3 +245,7 @@ class KeyCheckResponse(BaseModel):
     suggestions: list[str] = Field(
         default_factory=list, description="Варианты, которые можно попробовать "
     )
+
+
+class MemberAdd(BaseModel):
+    """Добавление участника проекта"""

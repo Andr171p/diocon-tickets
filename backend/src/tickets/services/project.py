@@ -108,3 +108,6 @@ class ProjectService:
             f"Try again with a different key.",
             details={"last_suggested_key": key_candidate}
         )
+
+    async def add_member(self) -> ProjectResponse:
+        ...
