@@ -2,7 +2,7 @@ from typing import Annotated, Any, Literal
 
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Path, Query, status
 
 from ...iam.dependencies import CurrentSupportUserDep, CurrentUserDep, require_role
 from ...iam.domain.constants import SUPPORT_TEAM
@@ -117,7 +117,7 @@ async def get_my_projects(
     summary="Добавление участников в проект"
 )
 async def add_members_to_project(
-        project_id: UUID,
+        project_id: Annotated[UUID, Path(..., description="ID проекта")],
         data: MembersAdd,
         current_user: CurrentUserDep,
         service: ProjectServiceDep,
