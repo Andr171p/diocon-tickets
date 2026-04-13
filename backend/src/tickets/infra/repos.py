@@ -1,9 +1,9 @@
-from typing import Any, override
+from typing import Any, Literal, override
 
 from collections.abc import Callable
 from uuid import UUID
 
-from sqlalchemy import BinaryExpression, Select, and_, func, or_, select
+from sqlalchemy import BinaryExpression, Select, and_, exists, func, or_, select
 from sqlalchemy.orm import attributes, selectinload
 
 from ...shared.infra.repos import SqlAlchemyRepository
@@ -163,3 +163,77 @@ class SqlProjectRepository(SqlAlchemyRepository[Project, ProjectOrm]):
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
         return None if model is None else MembershipMapper.to_entity(model)
+
+    async def get_by_owner(self, owner_id: UUID, pagination: PageParams) -> Page[Project]:
+        # 1. Базовый запрос
+        stmt = select(self.model).where(self.model.owner_id == owner_id)
+
+        # 2. Получение общего количества
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total_items = await self.session.scalar(count_stmt)
+        if total_items == 0:
+            return Page.create([], total_items, pagination.page, pagination.size)
+
+        # 3. Получение проектов
+        stmt = (
+            stmt
+            .order_by(self.model.created_at.desc())
+            .offset(pagination.page)
+            .limit(pagination.size)
+        )
+        results = await self.session.execute(stmt)
+        models = results.scalars().all()
+
+        return Page.create(
+            items=[self.model_mapper.to_entity(model) for model in models],
+            total_items=total_items,
+            page=pagination.page,
+            size=pagination.size,
+        )
+
+    async def get_by_user_membership(
+            self,
+            user_id: UUID,
+            pagination: PageParams,
+            role: Literal["owner", "member", "all"] = "all",
+    ) -> Page[Project]:
+        # 1. Базовый запрос + проверка наличия членства в проекте
+        stmt = select(self.model)
+        membership_exists = exists().where(
+            and_(
+                MembershipOrm.project_id == self.model.id,
+                MembershipOrm.user_id == user_id,
+                MembershipOrm.removed_at.is_(None),
+            )
+        )
+
+        # 2. Добавление фильтров в зависимости от выбранной роли
+        if role == "owner":
+            stmt = stmt.where(self.model.owner_id == user_id)
+        elif role == "member":
+            stmt = stmt.where(and_(self.model.owner_id != user_id, membership_exists))
+        else:
+            stmt = stmt.where(or_(self.model.owner_id == user_id, membership_exists))
+
+        # 3. Подсчёт количества для пагинации
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total_items = await self.session.scalar(count_stmt)
+        if total_items == 0:
+            return Page.create([], total_items, pagination.page, pagination.size)
+
+        # 4. Получение проектов
+        stmt = (
+            stmt
+            .order_by(self.model.created_at.desc())
+            .offset(pagination.page)
+            .limit(pagination.size)
+        )
+        results = await self.session.execute(stmt)
+        models = results.scalars().all()
+
+        return Page.create(
+            items=[self.model_mapper.to_entity(model) for model in models],
+            total_items=total_items,
+            page=pagination.page,
+            size=pagination.size,
+        )

@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...iam.domain.vo import UserRole
+from ...shared.domain.events import EventPublisher
 from ...shared.domain.exceptions import AlreadyExistsError, NotFoundError
 from ..domain.entities import Project
 from ..domain.repos import ProjectRepository
@@ -18,9 +19,15 @@ SHORT_PROJECT_KEY_LENGTH = 3
 
 
 class ProjectService:
-    def __init__(self, session: AsyncSession, repository: ProjectRepository) -> None:
+    def __init__(
+            self,
+            session: AsyncSession,
+            repository: ProjectRepository,
+            event_publisher: EventPublisher
+    ) -> None:
         self.session = session
         self.repository = repository
+        self.event_publisher = event_publisher
 
     async def check_key(self, project_key: str) -> KeyCheckResponse:
 
@@ -119,3 +126,20 @@ class ProjectService:
         project = await self.repository.read(project_id)
         if project is None:
             raise NotFoundError(f"Project with ID {project_id} not found")
+
+        # 2. Добавление участников и обновление сущности
+        for member in data.members:
+            project.add_member(
+                user_id=member.user_id,
+                project_role=member.project_role,
+                added_by=added_by,
+                added_by_role=added_by_role,
+            )
+        await self.repository.upsert(project)
+        await self.session.commit()
+
+        # 3. Публикация доменных событий
+        for event in project.collect_events():
+            await self.event_publisher.publish(event)
+
+        return map_project_to_response(project)

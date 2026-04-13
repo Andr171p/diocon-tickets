@@ -1,4 +1,4 @@
-from typing import override
+from typing import Literal, override
 
 from uuid import UUID
 
@@ -54,4 +54,18 @@ class ProjectRepository(Repository[Project]):
     async def get_membership(self, project_id: UUID, user_id: UUID) -> Membership | None:
         """
         Получение участника проекта
+        """
+
+    async def get_by_user_membership(
+            self,
+            user_id: UUID,
+            pagination: PageParams,
+            role: Literal["owner", "member", "all"] = "all",
+    ) -> Page[Project]:
+        """
+        Получение проектов пользователя в зависимости от параметра role:
+
+         - 'owner' - проекты, где пользователь является владельцем.
+         - 'member' - пользователь любой другой участник, кроме владельца.
+         - 'all' - любой участник (на важно какая роль).
         """

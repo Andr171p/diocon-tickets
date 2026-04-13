@@ -1,10 +1,11 @@
-from typing import Any
+from typing import Annotated, Any, Literal
 
 from uuid import UUID
 
 from fastapi import APIRouter, Query, status
 
-from ...iam.dependencies import CurrentSupportUserDep, CurrentUserDep
+from ...iam.dependencies import CurrentSupportUserDep, CurrentUserDep, require_role
+from ...iam.domain.constants import SUPPORT_TEAM
 from ...shared.dependencies import PageParamsDep
 from ...shared.domain.exceptions import NotFoundError
 from ...shared.schemas import Page
@@ -73,10 +74,39 @@ async def get_project(project_id: UUID, repository: ProjectRepoDep) -> ProjectRe
     path="",
     status_code=status.HTTP_200_OK,
     response_model=Page[ProjectResponse],
-    summary="Получение проектов"
+    dependencies=[require_role(*SUPPORT_TEAM)],
+    summary="Получение всех проектов"
 )
 async def get_projects(params: PageParamsDep, repository: ProjectRepoDep) -> Page[dict[str, Any]]:
     page = await repository.paginate(params)
+    return page.to_response(map_project_to_response)
+
+
+@router.get(
+    path="/my",
+    status_code=status.HTTP_200_OK,
+    response_model=Page[ProjectResponse],
+    summary="Получение моих проектов",
+    description="""\
+    Получение проектов пользователя в зависимости от параметра role:
+
+     - `owner` - проекты, где пользователь является владельцем.
+     - `member` - пользователь любой другой участник, кроме владельца.
+     - `all` - любой участник (на важно какая роль).
+    """,
+)
+async def get_my_projects(
+        current_user: CurrentUserDep,
+        pagination: PageParamsDep,
+        repository: ProjectRepoDep,
+        role: Annotated[
+            Literal["owner", "member", "all"],
+            Query(..., description="Роль пользователя в проекте")
+        ] = "all",
+) -> Page[dict[str, Any]]:
+    page = await repository.get_by_user_membership(
+        current_user.user_id, pagination, role
+    )
     return page.to_response(map_project_to_response)
 
 
@@ -87,7 +117,11 @@ async def get_projects(params: PageParamsDep, repository: ProjectRepoDep) -> Pag
     summary="Добавление участников в проект"
 )
 async def add_members_to_project(
-        current_user: CurrentUserDep,
+        project_id: UUID,
         data: MembersAdd,
+        current_user: CurrentUserDep,
         service: ProjectServiceDep,
-) -> ProjectResponse: ...
+) -> ProjectResponse:
+    return await service.add_members(
+        project_id, data, added_by=current_user.user_id, added_by_role=current_user.role
+    )
