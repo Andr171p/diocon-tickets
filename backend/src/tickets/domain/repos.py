@@ -36,8 +36,9 @@ class TicketRepository(Repository[Ticket]):
     async def get_by_reporter(self, reporter_id: UUID, params: PageParams) -> Page[Ticket]:
         """Получение тикетов по его инициатору"""
 
-    async def get_comments(self, ticket_id: UUID, params: PageParams) -> Page[Comment]:
-        """Получение комментариев для тикета"""
+
+class CommentRepository(Repository[Comment]):
+    ...
 
 
 class ProjectRepository(Repository[Project]):

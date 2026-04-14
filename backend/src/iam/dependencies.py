@@ -35,6 +35,9 @@ def get_invitation_repo(session: SessionDep) -> InvitationRepository:
     return SqlInvitationRepository(session)
 
 
+UserRepoDep = Annotated[UserRepository, Depends(get_user_repo)]
+
+
 def get_auth_service(
         session: SessionDep,
         user_repo: Annotated[UserRepository, Depends(get_user_repo)],

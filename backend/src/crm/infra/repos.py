@@ -131,7 +131,7 @@ class SqlCounterpartyRepository(SqlAlchemyRepository[Counterparty, CounterpartyO
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = await self.session.scalar(count_stmt)
         if total == 0:
-            return Page.create_empty(params.page, params.size)
+            return Page.create([], total, params.page, params.size)
 
         # 3. Получение списка клиентов
         stmt = stmt.offset(params.offset).limit(params.size)
@@ -139,14 +139,5 @@ class SqlCounterpartyRepository(SqlAlchemyRepository[Counterparty, CounterpartyO
         models = results.scalars().all()
 
         # 4. Расчёт результата
-        total_pages = (total + params.size - 1) // params.size
         items = [UserMapper.to_entity(model) for model in models]
-        return Page(
-            page=params.page,
-            size=params.size,
-            total_items=total,
-            total_pages=total_pages,
-            has_next=params.page < total_pages,
-            has_prev=params.page > 1,
-            items=items,
-        )
+        return Page.create(items, total, params.page, params.size)

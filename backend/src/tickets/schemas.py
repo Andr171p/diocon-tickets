@@ -14,6 +14,7 @@ class CommentResponse(BaseModel):
     id: UUID = Field(..., description="Уникальный ID комментария")
     created_at: datetime = Field(..., description="Дата создания")
     updated_at: datetime = Field(..., description="Дата обновления")
+    ticket_id: UUID = Field(..., description="ID тикета к которому оставлен комментарий")
     author_id: UUID = Field(..., description="ID автора (тот кто написал комментарий)")
     author_role: UserRole = Field(..., description="Роль автора в системе")
     text: str = Field(..., description="Текст комментария")
@@ -96,9 +97,6 @@ class TicketResponse(TicketBase):
 
     attachments: list[AttachmentResponse] = Field(
         default_factory=list, description="Прикреплённые файлы"
-    )
-    comments: list[CommentResponse] = Field(
-        default_factory=list, description="Последние N комментариев"
     )
     history: list[HistoryEntryResponse] = Field(
         default_factory=list, description="История работы с тикетом"
@@ -260,3 +258,16 @@ class MembersAdd(BaseModel):
     members: list[MemberAdd] = Field(
         default_factory=list, description="Участники, которых нужно добавить в проект"
     )
+
+
+class CommentCreate(BaseModel):
+    """Создание комментария"""
+
+    text: str = Field(..., description="Текст комментария")
+    type: CommentType = Field(CommentType.PUBLIC, description="Тип комментария")
+
+
+class CommentEdit(BaseModel):
+    """Редактирование комментария"""
+
+    text: str = Field(..., description="Новый текст комментария")

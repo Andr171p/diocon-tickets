@@ -20,8 +20,9 @@ ALLOWED_ASSIGN_STATUSES: set[TicketStatus] = {
     TicketStatus.RESOLVED,
 }
 
+# Человеко-читаемые типы комментариев (для UI)
 COMMENT_TYPE_DISPLAY_NAMES: dict[CommentType, str] = {
-    CommentType.INTERNAL: "внутренний",
-    CommentType.PUBLIC: "публичный",
-    CommentType.NOTE: "личный (заметка)"
+    CommentType.INTERNAL: "Внутренний",
+    CommentType.PUBLIC: "Публичный",
+    CommentType.NOTE: "Личный (заметка)"
 }

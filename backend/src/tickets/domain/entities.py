@@ -10,8 +10,17 @@ from ...media.domain.entities import Attachment
 from ...shared.domain.entities import AggregateRoot, Entity
 from ...shared.domain.exceptions import InvariantViolationError
 from ...shared.utils.time import current_datetime
-from .constants import ALLOWED_ASSIGN_STATUSES, ALLOWED_TRANSITIONS, COMMENT_TYPE_DISPLAY_NAMES
-from .events import ProjectCreated, TicketAssigned, TicketCreated
+from .constants import (
+    ALLOWED_ASSIGN_STATUSES,
+    ALLOWED_TRANSITIONS,
+)
+from .events import (
+    CommentAdded,
+    CommentEdited,
+    ProjectCreated,
+    TicketAssigned,
+    TicketCreated,
+)
 from .vo import (
     CommentType,
     ProjectKey,
@@ -37,14 +46,74 @@ class Comment(Entity):
     type: CommentType = field(default=CommentType.PUBLIC)
     attachments: list[Attachment] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        # 1. Текст комментария я не может быть пустым
+        if not self.text.strip():
+            raise ValueError("Comment text cannot be empty")
+
+    @classmethod
+    def create(
+            cls,
+            ticket_id: UUID,
+            author_id: UUID,
+            author_role: UserRole,
+            text: str,
+            comment_type: CommentType = CommentType.PUBLIC
+    ) -> Self:
+        """Оставить комментарий"""
+
+        # 1. Клиенты могут оставлять только публичные комментарии
+        if author_role.is_customer() and comment_type != CommentType.PUBLIC:
+            raise PermissionDeniedError("Customers can only post PUBLIC comments")
+
+        # 2. Сохранение комментария
+        comment_id = uuid4()
+        comment = Comment(
+            id=comment_id,
+            ticket_id=ticket_id,
+            author_id=author_id,
+            author_role=author_role,
+            text=text.strip(),
+            type=comment_type,
+        )
+
+        # 3. Регистрация доменного события
+        comment.register_event(
+            CommentAdded(
+                ticket_id=ticket_id,
+                comment_id=comment.id,
+                author_id=author_id,
+                author_role=author_role,
+                comment_type=comment_type,
+                is_public=comment_type == CommentType.PUBLIC,
+            )
+        )
+
+        return comment
+
     def edit(self, new_text: str, edited_by: UUID) -> None:
         """Редактирование комментария"""
 
+        # 1. Редактировать может только автор
         if edited_by != self.author_id:
             raise PermissionDeniedError("Only author can edit comment")
 
+        # 2. Новый текст не может быть пустым
+        if not new_text.strip():
+            raise ValueError("Comment text cannot be empty")
+
+        # 3. Обновление значений
         self.text = new_text
         self.updated_at = current_datetime()
+
+        # 4. Регистрация доменного события
+        self.register_event(
+            CommentEdited(
+                ticket_id=self.ticket_id,
+                comment_id=self.id,
+                edited_by=edited_by,
+            )
+        )
 
 
 @dataclass(kw_only=True)
@@ -88,7 +157,6 @@ class Ticket(AggregateRoot):
     tags: list[Tag] = field(default_factory=list)
 
     # Внутренние коллекции агрегата
-    comments: list[Comment] = field(default_factory=list)
     attachments: list[Attachment] = field(default_factory=list)
     history: list[TicketHistoryEntry] = field(default_factory=list)
 
@@ -161,7 +229,13 @@ class Ticket(AggregateRoot):
 
         return ticket
 
-    def assign_to(self, assignee_id: UUID, assigned_by: UUID, assigned_by_role: UserRole) -> None:
+    def assign_to(
+            self,
+            assignee_id: UUID,
+            assignee_role: UserRole,
+            assigned_by: UUID,
+            assigned_by_role: UserRole,
+    ) -> None:
         """Назначает (или переназначает) тикет на исполнителя (агента поддержки)"""
 
         # 1. Назначить тикет могут только внутренние сотрудники
@@ -170,31 +244,34 @@ class Ticket(AggregateRoot):
         }:
             raise PermissionDeniedError("Only support team can assign tickets")
 
-        # 2. Для назначения тикета должен быть определённый статус
+        # 2. Назначить тикет можно только на сотрудников поддержки
+        if assignee_role not in {UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER, UserRole.ADMIN}:
+            raise PermissionDeniedError("Tickets can only be assigned to support team")
+
+        # 3. Для назначения тикета должен быть определённый статус
         if self.status not in ALLOWED_ASSIGN_STATUSES:
             raise PermissionDeniedError(
                 f"Cannot assign ticket in status '{self.status.value}'. "
                 f"Allowed statuses: {', '.join(status for status in ALLOWED_ASSIGN_STATUSES)}"
             )
 
-        # 3. Если тикет переназначается на самого себя - то без записи в историю
+        # 4. Если тикет переназначается на самого себя - то без записи в историю
         if assignee_id == self.assigned_to:
             return
 
-        # 4. Назначение исполнителя
+        # 5. Назначение исполнителя
         old_assignee = self.assigned_to
         self.assigned_to = assignee_id
 
-        self.history.append(
-            TicketHistoryEntry(
-                ticket_id=self.id,
-                actor_id=assigned_by,
-                action="assigned",
-                old_value=f"{old_assignee}" if old_assignee else None,
-                new_value=f"{assignee_id}",
-                description="Тикет назначен пользователю",
-            )
+        # 6. Запись изменений в историю
+        self.write_history(
+            actor_id=assigned_by,
+            action="assigned",
+            old_value=f"{old_assignee}" if old_assignee else None,
+            new_value=f"{assignee_id}",
+            description="Тикет назначен пользователю",
         )
+
         self.register_event(
             TicketAssigned(
                 ticket_id=self.id,
@@ -260,46 +337,38 @@ class Ticket(AggregateRoot):
         if new_status == TicketStatus.CLOSED:
             self.closed_at = current_datetime()
 
-        self.history.append(
-            TicketHistoryEntry(
-                ticket_id=self.id,
-                actor_id=changed_by,
-                action="status_changed",
-                old_value=f"{old_status}",
-                new_value=f"{new_status}",
-                description=(
-                    f"Статус изменён с `{old_status.value}` на `{new_status.value}`"
-                )
+        # 5. Запись изменений в историю
+        self.write_history(
+            actor_id=changed_by,
+            action="status_changed",
+            old_value=f"{old_status}",
+            new_value=f"{new_status}",
+            description=(
+                f"Статус изменён с `{old_status.value}` на `{new_status.value}`"
             )
         )
 
-    def add_comment(
-            self,
-            author_id: UUID,
-            author_role: UserRole,
-            text: str,
-            comment_type: CommentType,
-            attachments: list[Attachment] | None = None,
+    def write_history(
+        self,
+        actor_id: UUID,
+        action: str,
+        description: str,
+        old_value: str | None = None,
+        new_value: str | None = None,
     ) -> None:
-        """Добавление комментария"""
-
-        self.comments.append(
-            Comment(
-                ticket_id=self.id,
-                author_id=author_id,
-                author_role=author_role,
-                text=text,
-                type=comment_type,
-                attachments=attachments,
-            )
-        )
+        """
+        Записывает событие в историю тикета.
+        Используется из сервисного слоя и из внутренних методов.
+        """
 
         self.history.append(
             TicketHistoryEntry(
                 ticket_id=self.id,
-                actor_id=author_id,
-                action="comment_added",
-                description=f"Добавлен {COMMENT_TYPE_DISPLAY_NAMES[comment_type]} комментарий"
+                actor_id=actor_id,
+                action=action,
+                old_value=old_value,
+                new_value=new_value,
+                description=description,
             )
         )
 

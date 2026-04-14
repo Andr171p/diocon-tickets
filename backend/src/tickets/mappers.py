@@ -30,6 +30,7 @@ def map_comment_to_response(comment: Comment) -> CommentResponse:
         id=comment.id,
         created_at=comment.created_at,
         updated_at=comment.updated_at,
+        ticket_id=comment.ticket_id,
         author_id=comment.author_id,
         author_role=comment.author_role,
         text=comment.text,
@@ -68,7 +69,6 @@ def map_ticket_to_response(ticket: Ticket) -> TicketResponse:
         closed_at=ticket.closed_at,
         tags=[Tag(name=tag.name, color=tag.color) for tag in ticket.tags],
         attachments=[map_attachment_to_response(attachment) for attachment in ticket.attachments],
-        comments=[map_comment_to_response(comment) for comment in ticket.comments],
         history=[map_history_entry_to_response(history_entry) for history_entry in ticket.history],
     )
 

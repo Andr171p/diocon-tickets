@@ -5,13 +5,13 @@ from uuid import UUID
 from fastapi import Depends, Query
 
 from ..crm.dependencies import CounterpartyRepoDep
-from ..iam.dependencies import CurrentUserDep
+from ..iam.dependencies import CurrentUserDep, UserRepoDep
 from ..iam.domain.exceptions import PermissionDeniedError
 from ..iam.domain.vo import UserRole
 from ..shared.dependencies import EventPublisherDep, SessionDep
-from .domain.repos import ProjectRepository, TicketRepository
+from .domain.repos import CommentRepository, ProjectRepository, TicketRepository
 from .domain.vo import TicketPriority, TicketStatus
-from .infra.repos import SqlProjectRepository, SqlTicketRepository
+from .infra.repos import SqlCommentRepository, SqlProjectRepository, SqlTicketRepository
 from .schemas import TicketFilter
 from .services import ProjectService, TicketService
 
@@ -20,12 +20,17 @@ def get_ticket_repo(session: SessionDep) -> TicketRepository:
     return SqlTicketRepository(session)
 
 
+def get_comment_repo(session: SessionDep) -> CommentRepository:
+    return SqlCommentRepository(session)
+
+
 def get_project_repo(session: SessionDep) -> ProjectRepository:
     return SqlProjectRepository(session)
 
 
 ProjectRepoDep = Annotated[ProjectRepository, Depends(get_project_repo)]
 TicketRepoDep = Annotated[TicketRepository, Depends(get_ticket_repo)]
+CommentRepoDep = Annotated[CommentRepository, Depends(get_comment_repo)]
 
 
 def get_project_service(
@@ -38,14 +43,18 @@ def get_ticket_service(
         session: SessionDep,
         counterparty_repo: CounterpartyRepoDep,
         ticket_repo: TicketRepoDep,
+        comment_repo: CommentRepoDep,
         project_repo: ProjectRepoDep,
+        user_repo: UserRepoDep,
         event_publisher: EventPublisherDep
 ) -> TicketService:
     return TicketService(
         session,
         counterparty_repo=counterparty_repo,
         ticket_repo=ticket_repo,
+        comment_repo=comment_repo,
         project_repo=project_repo,
+        user_repo=user_repo,
         event_publisher=event_publisher
     )
 

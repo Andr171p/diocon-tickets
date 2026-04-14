@@ -8,10 +8,10 @@ from sqlalchemy.orm import attributes, selectinload
 
 from ...shared.infra.repos import SqlAlchemyRepository
 from ...shared.schemas import Page, PageParams
-from ..domain.entities import Membership, Project, Ticket
+from ..domain.entities import Comment, Membership, Project, Ticket
 from ..domain.vo import ProjectKey
 from ..schemas import TicketFilter
-from .mappers import MembershipMapper, ProjectMapper, TicketMapper
+from .mappers import CommentMapper, MembershipMapper, ProjectMapper, TicketMapper
 from .models import CommentOrm, MembershipOrm, ProjectOrm, TicketOrm
 
 
@@ -215,3 +215,8 @@ class SqlProjectRepository(SqlAlchemyRepository[Project, ProjectOrm]):
             page=pagination.page,
             size=pagination.size,
         )
+
+
+class SqlCommentRepository(SqlAlchemyRepository[Comment, CommentOrm]):
+    model = CommentOrm
+    model_mapper = CommentMapper

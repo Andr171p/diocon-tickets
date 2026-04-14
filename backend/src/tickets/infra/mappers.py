@@ -10,7 +10,6 @@ from .models import CommentOrm, MembershipOrm, ProjectOrm, TicketHistoryEntryOrm
 class CommentMapper(ModelMapper[Comment, CommentOrm]):
     @staticmethod
     def to_entity(model: CommentOrm) -> Comment:
-        attachment_mapper = AttachmentMapper()
         return Comment(
             id=model.id,
             created_at=model.created_at,
@@ -21,13 +20,12 @@ class CommentMapper(ModelMapper[Comment, CommentOrm]):
             text=model.text,
             type=model.type,
             attachments=[
-                attachment_mapper.to_entity(attachment) for attachment in model.attachments
+                AttachmentMapper.to_entity(attachment) for attachment in model.attachments
             ],
         )
 
     @staticmethod
     def from_entity(entity: Comment) -> CommentOrm:
-        attachment_mapper = AttachmentMapper()
         return CommentOrm(
             id=entity.id,
             created_at=entity.created_at,
@@ -38,7 +36,7 @@ class CommentMapper(ModelMapper[Comment, CommentOrm]):
             text=entity.text,
             type=entity.type,
             attachments=[
-                attachment_mapper.from_entity(attachment) for attachment in entity.attachments
+                AttachmentMapper.from_entity(attachment) for attachment in entity.attachments
             ],
         )
 
@@ -93,7 +91,6 @@ class TicketMapper(ModelMapper[Ticket, TicketOrm]):
             assigned_to=model.assigned_to,
             closed_at=model.closed_at,
             tags=[Tag(name=tag["name"], color=tag["color"]) for tag in model.tags],
-            comments=[CommentMapper.to_entity(comment) for comment in model.comments],
             attachments=[
                 AttachmentMapper.to_entity(attachment) for attachment in model.attachments
             ],
@@ -119,7 +116,6 @@ class TicketMapper(ModelMapper[Ticket, TicketOrm]):
             assigned_to=model.assigned_to,
             closed_at=model.closed_at,
             tags=[Tag(name=tag["name"], color=tag["color"]) for tag in model.tags],
-            comments=[],
             attachments=[],
             history=[],
         )
@@ -143,7 +139,6 @@ class TicketMapper(ModelMapper[Ticket, TicketOrm]):
             assigned_to=entity.assigned_to,
             closed_at=entity.closed_at,
             tags=[{"name": tag.name, "color": tag.color} for tag in entity.tags],
-            comments=[CommentMapper.from_entity(comment) for comment in entity.comments],
             attachments=[
                 AttachmentMapper.from_entity(attachment) for attachment in entity.attachments
             ],

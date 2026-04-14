@@ -12,6 +12,9 @@ from ..dependencies import TicketFiltersDep, TicketRepoDep, TicketServiceDep
 from ..infra.ai import predict_ticket_fields
 from ..mappers import map_ticket_to_preview, map_ticket_to_response
 from ..schemas import (
+    CommentCreate,
+    CommentEdit,
+    CommentResponse,
     PredictionResponse,
     TicketAssign,
     TicketCreate,
@@ -132,6 +135,60 @@ async def change_ticket_status(
         new_status=data.status,
         changed_by=current_user.user_id,
         changed_by_role=current_user.role,
+    )
+
+
+@router.post(
+    path="/{ticket_id}/comments",
+    status_code=status.HTTP_201_CREATED,
+    response_model=CommentResponse,
+    summary="Оставить комментарий к тикету",
+)
+async def add_comment(
+        ticket_id: UUID,
+        data: CommentCreate,
+        current_user: CurrentUserDep,
+        service: TicketServiceDep,
+) -> CommentResponse:
+    return await service.add_comment(ticket_id, data, current_user)
+
+
+@router.patch(
+    path="/{ticket_id}/comments/{comment_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=CommentResponse,
+    summary="Редактирование комментария",
+)
+async def edit_comment(
+        ticket_id: UUID,
+        comment_id: UUID,
+        data: CommentEdit,
+        current_user: CurrentUserDep,
+        service: TicketServiceDep,
+) -> CommentResponse:
+    return await service.edit_comment(
+        ticket_id=ticket_id,
+        comment_id=comment_id,
+        data=data,
+        edited_by=current_user.user_id
+    )
+
+
+@router.delete(
+    path="/tickets/{ticket_id}/comments/{comment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Удаление комментария"
+)
+async def delete_comment(
+        ticket_id: UUID,
+        comment_id: UUID,
+        current_user: CurrentUserDep,
+        service: TicketServiceDep,
+) -> None:
+    return await service.delete_comment(
+        ticket_id=ticket_id,
+        comment_id=comment_id,
+        deleted_by=current_user.user_id
     )
 
 

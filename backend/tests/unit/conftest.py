@@ -14,7 +14,7 @@ from src.shared.infra.repos import InMemoryRepository
 from src.shared.schemas import Page, PageParams
 from src.shared.utils.time import current_datetime
 from src.tickets.domain.entities import Comment, Membership, Project, Ticket
-from src.tickets.domain.repos import ProjectRepository, TicketRepository
+from src.tickets.domain.repos import CommentRepository, ProjectRepository, TicketRepository
 from src.tickets.domain.vo import ProjectKey
 
 
@@ -132,6 +132,10 @@ class ImMemoryTicketRepository(InMemoryRepository[Ticket]):
         return counter
 
 
+class ImMemoryCommentRepository(InMemoryRepository[Comment]):
+    ...
+
+
 @pytest.fixture
 def mock_counterparty_repo() -> CounterpartyRepository:
     return InMemoryCounterpartyRepository()
@@ -160,6 +164,11 @@ def mock_project_repo() -> ProjectRepository:
 @pytest.fixture
 def mock_ticket_repo() -> TicketRepository:
     return ImMemoryTicketRepository()
+
+
+@pytest.fixture
+def mock_comment_repo() -> CommentRepository:
+    return ImMemoryCommentRepository()
 
 
 @pytest.fixture

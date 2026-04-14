@@ -6,12 +6,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.crm.domain.entities import Counterparty
 from src.crm.domain.vo import CounterpartyType, Inn, Kpp, Phone
+from src.iam.dependencies import CurrentUser
 from src.iam.domain.exceptions import PermissionDeniedError
+from src.iam.domain.services import create_customer, create_support
 from src.iam.domain.vo import UserRole
+from src.iam.security import hash_password
 from src.shared.domain.exceptions import NotFoundError
 from src.tickets.domain.entities import Project, Ticket
-from src.tickets.domain.vo import ProjectRole, TicketNumber, TicketPriority, TicketStatus
-from src.tickets.schemas import Tag, TicketCreate
+from src.tickets.domain.vo import (
+    CommentType,
+    ProjectRole,
+    TicketNumber,
+    TicketPriority,
+    TicketStatus,
+)
+from src.tickets.schemas import CommentCreate, Tag, TicketCreate
 from src.tickets.services import TicketService
 
 
@@ -24,15 +33,19 @@ def mock_session():
 def ticket_service(
         mock_session,
         mock_ticket_repo,
+        mock_comment_repo,
         mock_project_repo,
         mock_counterparty_repo,
+        mock_user_repo,
         event_publisher,
 ):
     return TicketService(
         session=mock_session,
         ticket_repo=mock_ticket_repo,
+        comment_repo=mock_comment_repo,
         project_repo=mock_project_repo,
         counterparty_repo=mock_counterparty_repo,
+        user_repo=mock_user_repo,
         event_publisher=event_publisher,
     )
 
@@ -160,6 +173,83 @@ def ticket_in_progress(reporter_id, support_agent_id, sample_ticket_number):
     )
     ticket.status = TicketStatus.IN_PROGRESS
     return ticket
+
+
+@pytest.fixture
+def ticket_in_counterparty(sample_counterparty, reporter_id, support_agent_id):
+    return Ticket.create(
+        ticket_number=TicketNumber("TEST-26-00000001"),
+        reporter_id=reporter_id,
+        created_by=support_agent_id,
+        created_by_role=UserRole.SUPPORT_AGENT,
+        title="Тестовый тикет",
+        description="Тестовое описание",
+        priority=TicketPriority.HIGH,
+        counterparty_id=sample_counterparty.id,
+    )
+
+
+@pytest.fixture
+async def sample_support(mock_user_repo):
+    support = create_support(
+        email="support@example.com",
+        password_hash=hash_password("1234567890"),
+        user_role=UserRole.SUPPORT_AGENT,
+        full_name="Иванов Иван Иванович"
+    )
+    await mock_user_repo.create(support)
+    return support
+
+
+@pytest.fixture
+async def sample_customer(mock_user_repo, sample_counterparty):
+    customer = create_customer(
+        email="customer@example.com",
+        password_hash=hash_password("1334567890"),
+        counterparty_id=sample_counterparty.id,
+        user_role=UserRole.CUSTOMER,
+    )
+    await mock_user_repo.create(customer)
+    return customer
+
+
+@pytest.fixture
+def current_support_user():
+    return CurrentUser(
+        user_id=uuid4(),
+        email="support@example.com",
+        role=UserRole.SUPPORT_AGENT,
+    )
+
+
+@pytest.fixture
+def current_customer_user(sample_counterparty):
+    return CurrentUser(
+        user_id=uuid4(),
+        email="customer@example.com",
+        role=UserRole.CUSTOMER,
+        counterparty_id=sample_counterparty.id,
+    )
+
+
+@pytest.fixture
+def current_customer_admin_user(sample_counterparty):
+    return CurrentUser(
+        user_id=uuid4(),
+        email="customer.admin@example.com",
+        role=UserRole.CUSTOMER_ADMIN,
+        counterparty_id=sample_counterparty.id,
+    )
+
+
+@pytest.fixture
+def current_customer_reporter_user(sample_counterparty, ticket_in_open, reporter_id):
+    return CurrentUser(
+        user_id=reporter_id,
+        email="customer.and.repoter.admin@example.com",
+        role=UserRole.CUSTOMER,
+        counterparty_id=sample_counterparty.id,
+    )
 
 
 class TestCreate:
@@ -551,14 +641,19 @@ class TestAssignTo:
 
     @pytest.mark.asyncio
     async def test_assign_to_success(
-            self, ticket_service, mock_ticket_repo, ticket_in_progress, support_agent_id
+            self,
+            ticket_service,
+            mock_ticket_repo,
+            ticket_in_progress,
+            support_agent_id,
+            sample_support,
     ):
         """
         Успешное назначение тикета агентом поддержки
         """
 
         await mock_ticket_repo.create(ticket_in_progress)
-        assignee_id = uuid4()
+        assignee_id = sample_support.id
 
         response = await ticket_service.assign_to(
             ticket_id=ticket_in_progress.id,
@@ -572,6 +667,30 @@ class TestAssignTo:
         existing_ticket = await mock_ticket_repo.read(ticket_in_progress.id)
 
         assert existing_ticket.assigned_to == assignee_id
+
+    @pytest.mark.asyncio
+    async def test_cannot_assign_to_customer(
+            self,
+            ticket_service,
+            mock_ticket_repo,
+            ticket_in_progress,
+            support_agent_id,
+            sample_customer,
+    ):
+        """
+        Нельзя назначить тикет на клиента
+        """
+
+        await mock_ticket_repo.create(ticket_in_progress)
+        assignee_id = sample_customer.id
+
+        with pytest.raises(PermissionDeniedError):
+            await ticket_service.assign_to(
+                ticket_id=ticket_in_progress.id,
+                assignee_id=assignee_id,
+                assigned_by=support_agent_id,
+                assigned_by_role=UserRole.SUPPORT_AGENT,
+            )
 
     @pytest.mark.asyncio
     async def test_assign_to_ticket_not_found(self, ticket_service):
@@ -594,6 +713,7 @@ class TestAssignTo:
             mock_ticket_repo,
             ticket_in_progress,
             sample_project,
+            sample_support,
             support_agent_id,
     ):
         """
@@ -605,7 +725,7 @@ class TestAssignTo:
 
         response = await ticket_service.assign_to(
             ticket_id=ticket_in_progress.id,
-            assignee_id=uuid4(),
+            assignee_id=sample_support.id,
             assigned_by=support_agent_id,
             assigned_by_role=UserRole.SUPPORT_AGENT,
         )
@@ -619,6 +739,7 @@ class TestAssignTo:
             mock_ticket_repo,
             ticket_in_open,
             sample_project,
+            sample_support,
     ):
         """
         Нет прав в проекте для назначения исполнителя
@@ -630,14 +751,14 @@ class TestAssignTo:
         with pytest.raises(PermissionDeniedError):
             await ticket_service.assign_to(
                 ticket_id=ticket_in_open.id,
-                assignee_id=uuid4(),
+                assignee_id=sample_support.id,
                 assigned_by=uuid4(),
                 assigned_by_role=UserRole.SUPPORT_AGENT,
             )
 
     @pytest.mark.asyncio
     async def test_customer_cannot_assign_ticket(
-        self, ticket_service, mock_ticket_repo, ticket_in_open
+        self, ticket_service, mock_ticket_repo, ticket_in_open, sample_support
     ):
         """
         Клиент не может назначать тикеты
@@ -648,13 +769,13 @@ class TestAssignTo:
         with pytest.raises(PermissionDeniedError):
             await ticket_service.assign_to(
                 ticket_id=ticket_in_open.id,
-                assignee_id=uuid4(),
+                assignee_id=sample_support.id,
                 assigned_by=uuid4(),
                 assigned_by_role=UserRole.CUSTOMER,
             )
 
     @pytest.mark.asyncio
-    async def test_assign_to_invalid_status(self, ticket_service, sample_ticket):
+    async def test_assign_to_invalid_status(self, ticket_service, sample_ticket, sample_support):
         """
         Нельзя назначать тикет в недопустимом статусе
         """
@@ -662,7 +783,125 @@ class TestAssignTo:
         with pytest.raises(PermissionDeniedError):
             await ticket_service.assign_to(
                 ticket_id=sample_ticket.id,
-                assignee_id=uuid4(),
+                assignee_id=sample_support.id,
                 assigned_by=uuid4(),
                 assigned_by_role=UserRole.SUPPORT_AGENT,
+            )
+
+
+class TestAddComment:
+    """
+    Тесты для оставления комментария
+    """
+
+    @pytest.mark.asyncio
+    async def test_add_by_support_success(
+            self,
+            ticket_service,
+            sample_ticket,
+            current_support_user,
+            mock_comment_repo,
+            mock_ticket_repo,
+    ):
+        """
+        Успешное добавление комментария сотрудником поддержки
+        """
+
+        data = CommentCreate(text="Тестовый комментарий", type=CommentType.PUBLIC)
+        response = await ticket_service.add_comment(
+            ticket_id=sample_ticket.id, data=data, current_user=current_support_user
+        )
+
+        assert response.ticket_id == sample_ticket.id
+
+        # Проверка успешного сохранения
+        existing_ticket = await mock_ticket_repo.read(sample_ticket.id)
+        added_comment = await mock_comment_repo.read(response.id)
+        excepted_history_length = 2
+
+        assert existing_ticket is not None
+        assert len(existing_ticket.history) == excepted_history_length
+        assert existing_ticket.history[-1].action == "comment_added"
+        assert existing_ticket.history[-1].actor_id == current_support_user.user_id
+
+        assert added_comment is not None
+        assert added_comment.text == response.text
+
+    @pytest.mark.asyncio
+    async def test_add_by_customer_who_reported_ticket_success(
+            self, ticket_service, sample_ticket, current_customer_reporter_user
+    ):
+        """
+        Успешное добавление комментария клиентом, который является инициатором
+        """
+
+        data = CommentCreate(text="Тестовый комментарий", type=CommentType.PUBLIC)
+        response = await ticket_service.add_comment(
+            ticket_id=sample_ticket.id,
+            data=data,
+            current_user=current_customer_reporter_user,
+        )
+
+        assert response.ticket_id == sample_ticket.id
+
+    @pytest.mark.asyncio
+    async def test_add_by_not_reporter_customer_forbidden(
+            self, ticket_service, sample_ticket, current_customer_user,
+    ):
+        """
+        Клиент не может комментировать тикет, инициатором которого он не является
+        """
+
+        data = CommentCreate(text="Тестовый комментарий", type=CommentType.PUBLIC)
+
+        with pytest.raises(PermissionDeniedError, match="where you are the reporter"):
+            await ticket_service.add_comment(
+                ticket_id=sample_ticket.id,
+                data=data,
+                current_user=current_customer_user,
+            )
+
+    @pytest.mark.asyncio
+    async def test_add_by_non_reporter_customer_admin(
+            self,
+            ticket_service,
+            ticket_in_counterparty,
+            current_customer_admin_user,
+            mock_ticket_repo,
+    ):
+        """
+        Администратор клиента может комментировать тикеты, инициатором и создателем
+        которого он не является.
+        """
+
+        # Создание тикета с привязкой к контрагенту
+        await mock_ticket_repo.create(ticket_in_counterparty)
+
+        data = CommentCreate(text="Тестовый комментарий", type=CommentType.PUBLIC)
+        response = await ticket_service.add_comment(
+            ticket_id=ticket_in_counterparty.id,
+            data=data,
+            current_user=current_customer_admin_user,
+        )
+
+        assert response.ticket_id == ticket_in_counterparty.id
+
+    @pytest.mark.asyncio
+    async def test_add_by_customer_admin_in_other_counterparty_forbidden(
+            self, ticket_service, sample_ticket, current_customer_admin_user,
+    ):
+        """
+        Админ клиента не может оставить комментарий для тикета привязанного
+        к другому контрагенту.
+        """
+
+        data = CommentCreate(text="Тестовый комментарий", type=CommentType.PUBLIC)
+
+        with pytest.raises(
+                PermissionDeniedError, match="only comment on tickets of your counterparty"
+        ):
+            await ticket_service.add_comment(
+                ticket_id=sample_ticket.id,
+                data=data,
+                current_user=current_customer_admin_user,
             )

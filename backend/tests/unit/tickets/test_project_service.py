@@ -17,8 +17,8 @@ def mock_session():
 
 
 @pytest.fixture
-def project_service(mock_session, mock_project_repo):
-    return ProjectService(mock_session, mock_project_repo)
+def project_service(mock_session, mock_project_repo, event_publisher):
+    return ProjectService(mock_session, mock_project_repo, event_publisher)
 
 
 @pytest.fixture

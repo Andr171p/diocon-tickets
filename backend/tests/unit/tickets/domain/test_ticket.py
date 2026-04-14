@@ -327,6 +327,7 @@ class TestAssignTo:
 
         ticket.assign_to(
             assignee_id=assignee_id,
+            assignee_role=UserRole.SUPPORT_AGENT,
             assigned_by=uuid.uuid4(),
             assigned_by_role=UserRole.SUPPORT_AGENT,
         )
@@ -341,6 +342,7 @@ class TestAssignTo:
 
         ticket.assign_to(
             assignee_id=assignee_id,
+            assignee_role=UserRole.SUPPORT_AGENT,
             assigned_by=uuid.uuid4(),
             assigned_by_role=UserRole.SUPPORT_MANAGER,
         )
@@ -356,7 +358,10 @@ class TestAssignTo:
         assignee_id = uuid.uuid4()
 
         ticket.assign_to(
-            assignee_id=assignee_id, assigned_by=uuid.uuid4(), assigned_by_role=UserRole.ADMIN
+            assignee_id=assignee_id,
+            assignee_role=UserRole.SUPPORT_AGENT,
+            assigned_by=uuid.uuid4(),
+            assigned_by_role=UserRole.ADMIN
         )
 
         assert ticket.assigned_to == assignee_id
@@ -371,6 +376,7 @@ class TestAssignTo:
         with pytest.raises(PermissionDeniedError, match="Only support team"):
             ticket.assign_to(
                 assignee_id=uuid.uuid4(),
+                assignee_role=UserRole.SUPPORT_AGENT,
                 assigned_by=customer_id,
                 assigned_by_role=UserRole.CUSTOMER,
             )
@@ -386,6 +392,7 @@ class TestAssignTo:
         with pytest.raises(PermissionDeniedError, match="Cannot assign ticket in status"):
             ticket.assign_to(
                 assignee_id=uuid.uuid4(),
+                assignee_role=UserRole.SUPPORT_AGENT,
                 assigned_by=uuid.uuid4(),
                 assigned_by_role=UserRole.SUPPORT_AGENT,
             )
@@ -399,6 +406,7 @@ class TestAssignTo:
 
         ticket.assign_to(
             assignee_id=support_agent_id,
+            assignee_role=UserRole.SUPPORT_AGENT,
             assigned_by=support_agent_id,
             assigned_by_role=UserRole.SUPPORT_AGENT,
         )
@@ -413,6 +421,7 @@ class TestAssignTo:
         ticket = ticket_in_open
         ticket.assign_to(
             assignee_id=uuid.uuid4(),
+            assignee_role=UserRole.SUPPORT_AGENT,
             assigned_by=uuid.uuid4(),
             assigned_by_role=UserRole.SUPPORT_MANAGER,
         )
@@ -422,6 +431,7 @@ class TestAssignTo:
 
         ticket.assign_to(
             assignee_id=new_assignee,
+            assignee_role=UserRole.SUPPORT_MANAGER,
             assigned_by=uuid.uuid4(),
             assigned_by_role=UserRole.SUPPORT_AGENT,
         )
@@ -440,8 +450,22 @@ class TestAssignTo:
 
         ticket.assign_to(
             assignee_id=support_agent_id,
+            assignee_role=UserRole.ADMIN,
             assigned_by=uuid.uuid4(),
             assigned_by_role=UserRole.SUPPORT_AGENT,
         )
 
         assert len(ticket.history) == history_len_before
+
+    def test_cannot_assigning_to_customer(self, ticket_in_open, customer_id):
+        """
+        Нельзя назначить тикет на клиента
+        """
+
+        with pytest.raises(PermissionDeniedError, match="can only be assigned to support team"):
+            ticket_in_open.assign_to(
+                assignee_id=customer_id,
+                assignee_role=UserRole.CUSTOMER,
+                assigned_by=uuid.uuid4(),
+                assigned_by_role=UserRole.SUPPORT_AGENT,
+            )

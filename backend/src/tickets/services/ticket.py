@@ -5,15 +5,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...crm.domain.repo import CounterpartyRepository
 from ...iam.domain.exceptions import PermissionDeniedError
+from ...iam.domain.repos import UserRepository
 from ...iam.domain.vo import UserRole
+from ...iam.schemas import CurrentUser
 from ...shared.domain.events import EventPublisher
 from ...shared.domain.exceptions import NotFoundError
-from ..domain.entities import Ticket
-from ..domain.repos import ProjectRepository, TicketRepository
+from ..domain.entities import Comment, Ticket
+from ..domain.repos import CommentRepository, ProjectRepository, TicketRepository
 from ..domain.services import ProjectAccessService
 from ..domain.vo import ProjectKey, Tag, TicketNumber, TicketStatus
-from ..mappers import map_ticket_to_response
-from ..schemas import TicketCreate, TicketResponse
+from ..mappers import map_comment_to_response, map_ticket_to_response
+from ..schemas import CommentCreate, CommentEdit, CommentResponse, TicketCreate, TicketResponse
 
 # Длина короткого ключа проекта
 SHORT_PROJECT_KEY_LENGTH = 3
@@ -34,13 +36,17 @@ class TicketService:
             self,
             session: AsyncSession,
             ticket_repo: TicketRepository,
+            comment_repo: CommentRepository,
             project_repo: ProjectRepository,
+            user_repo: UserRepository,
             counterparty_repo: CounterpartyRepository,
             event_publisher: EventPublisher,
     ) -> None:
         self.session = session
         self.ticket_repo = ticket_repo
+        self.comment_repo = comment_repo
         self.project_repo = project_repo
+        self.user_repo = user_repo
         self.counterparty_repo = counterparty_repo
         self.project_access_service = ProjectAccessService(project_repo)
         self.event_publisher = event_publisher
@@ -160,16 +166,22 @@ class TicketService:
             if not can_assign:
                 raise PermissionDeniedError("No permission to assign tickets in this project")
 
-        # 3. Назначение исполнителя и обновление сущности
+        # 3. Загрузка пользователя на которого назначается тикет
+        assignee = await self.user_repo.read(assignee_id)
+        if assignee is None:
+            raise NotFoundError(f"User with ID {assignee_id} not found")
+
+        # 4. Назначение исполнителя и обновление сущности
         ticket.assign_to(
             assignee_id=assignee_id,
+            assignee_role=assignee.role,
             assigned_by=assigned_by,
             assigned_by_role=assigned_by_role,
         )
         await self.ticket_repo.upsert(ticket)
         await self.session.commit()
 
-        # 4. Публикация доменных событий
+        # 5. Публикация доменных событий
         for event in ticket.collect_events():
             await self.event_publisher.publish(event)
 
@@ -210,4 +222,108 @@ class TicketService:
 
         return map_ticket_to_response(ticket)
 
-    async def close(self): ...
+    async def add_comment(
+            self, ticket_id: UUID, data: CommentCreate, current_user: CurrentUser
+    ) -> CommentResponse:
+        """Добавление комментария к тикету"""
+
+        # 1. Получение тикета
+        ticket = await self.ticket_repo.read(ticket_id)
+        if ticket is None:
+            raise NotFoundError(f"Ticket with ID {ticket_id} not found")
+
+        # 2. Клиент может комментировать только свои тикеты
+        if current_user.role == UserRole.CUSTOMER and current_user.user_id != ticket.reporter_id:
+            raise PermissionDeniedError(
+                "You can only comment on tickets where you are the reporter"
+            )
+
+        # 3. Администратор клиента может комментировать все тикеты своего контрагента
+        if current_user.role == UserRole.CUSTOMER_ADMIN \
+                and current_user.counterparty_id != ticket.counterparty_id:
+            raise PermissionDeniedError("You can only comment on tickets of your counterparty")
+
+        # 4. Создание комментария + запись в историю тикета
+        comment = Comment.create(
+            ticket_id=ticket_id,
+            author_id=current_user.user_id,
+            author_role=current_user.role,
+            text=data.text,
+            comment_type=data.type,
+        )
+        ticket.write_history(
+            actor_id=current_user.user_id,
+            action="comment_added",
+            description=f"Добавлен новый комментарий: '{comment.text[:100]}'",
+        )
+        await self.comment_repo.create(comment)
+        await self.ticket_repo.upsert(ticket)
+        await self.session.commit()
+
+        # 5. Публикация доменных событий
+        for event in comment.collect_events():
+            await self.event_publisher.publish(event)
+
+        return map_comment_to_response(comment)
+
+    async def edit_comment(
+            self, ticket_id: UUID, comment_id: UUID, data: CommentEdit, edited_by: UUID
+    ) -> CommentResponse:
+        """Редактирование комментария"""
+
+        # 1. Получение тикета и комментария
+        ticket = await self.ticket_repo.read(ticket_id)
+        if ticket is None:
+            raise NotFoundError(f"Ticket with ID {ticket_id} not found")
+
+        comment = await self.comment_repo.read(comment_id)
+        if comment is None:
+            raise NotFoundError(f"Comment with ID {comment_id} not found")
+
+        # 2. Редактирование комментария и обновление сущности
+        comment.edit(new_text=data.text, edited_by=edited_by)
+        if comment.text != data.text.strip():  # Если текст изменён, то записывается в историю
+            ticket.write_history(
+                actor_id=edited_by,
+                action="comment_edited",
+                description=f"Комментарий отредактирован: '{data.text[:100]}'",
+                old_value=comment.text[:100],
+                new_value=data.text[:100],
+            )
+        await self.comment_repo.upsert(comment)
+        await self.ticket_repo.upsert(ticket)
+        await self.session.commit()
+
+        # 3. Публикация доменных событий
+        for event in comment.collect_events():
+            await self.event_publisher.publish(event)
+
+        return map_comment_to_response(comment)
+
+    async def delete_comment(self, ticket_id: UUID, comment_id: UUID, deleted_by: UUID) -> None:
+        """Удаление комментария"""
+
+        # 1. Получение тикета и комментария
+        ticket = await self.ticket_repo.read(ticket_id)
+        if ticket is None:
+            raise NotFoundError(f"Ticket with ID {ticket_id} not found")
+
+        comment = await self.comment_repo.read(comment_id)
+        if comment is None:
+            raise NotFoundError(f"Comment with ID {comment_id} not found")
+
+        # 2. Удалять комментарий может только автор
+        if deleted_by != comment.author_id:
+            raise PermissionDeniedError("Only author can delete comments")
+
+        # 3. Удаление и запись в историю
+        await self.comment_repo.delete(comment_id)
+        ticket.write_history(
+            actor_id=deleted_by,
+            action="comment_deleted",
+            description=f"Комментарий удалён: '{comment.text[:100]}'",
+            old_value=comment.text[:100],
+            new_value=None,
+        )
+        await self.ticket_repo.upsert(ticket)
+        await self.session.commit()

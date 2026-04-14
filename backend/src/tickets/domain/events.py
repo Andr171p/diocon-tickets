@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from uuid import UUID
 
+from ...iam.domain.vo import UserRole
 from ...shared.domain.events import Event
-from .vo import TicketPriority
+from .vo import CommentType, TicketPriority
 
 # — События для проектов —
 
@@ -45,3 +46,24 @@ class TicketAssigned(Event):
 @dataclass(frozen=True, kw_only=True)
 class TicketStatusChanged(Event):
     """Статус тикета был изменён"""
+
+
+@dataclass(frozen=True, kw_only=True)
+class CommentAdded(Event):
+    """Добавлен комментарий"""
+
+    ticket_id: UUID
+    comment_id: UUID
+    author_id: UUID
+    author_role: UserRole
+    comment_type: CommentType
+    is_public: bool
+
+
+@dataclass(frozen=True, kw_only=True)
+class CommentEdited(Event):
+    """Комментарий отредактирован"""
+
+    ticket_id: UUID
+    comment_id: UUID
+    edited_by: UUID
