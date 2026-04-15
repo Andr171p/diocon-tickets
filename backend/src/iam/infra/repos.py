@@ -2,6 +2,7 @@ from pydantic import SecretStr
 from sqlalchemy import select
 
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
+from ...shared.schemas import Page, PageParams
 from ..domain.entities import Invitation, User
 from ..domain.vo import FullName, Username, UserRole
 from .models import InvitationOrm, UserOrm
@@ -50,6 +51,15 @@ class SqlUserRepository(SqlAlchemyRepository[User, UserOrm]):
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
         return None if model is None else self.model_mapper.to_entity(model)
+
+    async def get_supports(self, pagination: PageParams) -> Page[User]:
+        stmt = (
+            select(self.model)
+            .where(self.model.role.in_(
+                [UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER]
+            ))
+        )
+        return await self._paginate(stmt, pagination)
 
 
 class InvitationMapper(ModelMapper[Invitation, InvitationOrm]):

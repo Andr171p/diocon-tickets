@@ -3,6 +3,7 @@ from typing import Protocol
 from uuid import UUID
 
 from ...shared.domain.repo import Repository
+from ...shared.schemas import Page, PageParams
 from ..domain.vo import UserRole
 from .entities import Invitation, User
 
@@ -10,6 +11,11 @@ from .entities import Invitation, User
 class UserRepository(Repository[User]):
 
     async def get_by_email(self, email: str) -> User | None: ...
+
+    async def get_supports(self, pagination: PageParams) -> Page[User]:
+        """
+        Получение всех сотрудников поддержки (для ролей SUPPORT_AGENT И SUPPORT_MANAGER)
+        """
 
 
 class TokenBlacklist(Protocol):
