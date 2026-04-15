@@ -1,7 +1,7 @@
 import abc
 from uuid import UUID
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import Select, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import Base
@@ -65,6 +65,29 @@ class SqlAlchemyRepository[EntityT: Entity, ModelT: Base]:
         return Page.create(
             items=[self.model_mapper.to_entity(model) for model in models],
             total_items=total,
+            page=params.page,
+            size=params.size,
+        )
+
+    async def _paginate(self, stmt: Select, params: PageParams) -> Page[EntityT]:
+        # 1. Получение общего количества
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total_items = await self.session.scalar(count_stmt)
+        if total_items == 0:
+            return Page.create([], total_items, params.page, params.size)
+
+        # 2. Получение страницы
+        stmt = stmt.order_by(self.model.created_at.desc()).offset(params.offset).limit(params.size)
+        results = await self.session.execute(stmt)
+        models = results.scalars().all()
+
+        # 3. На странице нет тикетов (пустая страница)
+        if not models:
+            return Page.create([], total_items, params.page, params.size)
+
+        return Page.create(
+            items=[self.model_mapper.to_entity(model) for model in models],
+            total_items=total_items,
             page=params.page,
             size=params.size,
         )

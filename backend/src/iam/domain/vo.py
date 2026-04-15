@@ -24,7 +24,7 @@ class UserRole(StrEnum):
     def is_support(self) -> bool:
         """Является ли поддержкой"""
 
-        return self.value in {self.SUPPORT_AGENT, self.SUPPORT_MANAGER}
+        return self.value in {self.SUPPORT_AGENT, self.SUPPORT_MANAGER, self.ADMIN}
 
 
 @dataclass(frozen=True, slots=True)

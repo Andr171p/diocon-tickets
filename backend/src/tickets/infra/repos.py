@@ -9,7 +9,7 @@ from sqlalchemy.orm import attributes, selectinload
 from ...shared.infra.repos import SqlAlchemyRepository
 from ...shared.schemas import Page, PageParams
 from ..domain.entities import Comment, Membership, Project, Ticket
-from ..domain.vo import ProjectKey
+from ..domain.vo import CommentType, ProjectKey
 from ..schemas import TicketFilter
 from .mappers import CommentMapper, MembershipMapper, ProjectMapper, TicketMapper
 from .models import CommentOrm, MembershipOrm, ProjectOrm, TicketOrm
@@ -220,3 +220,30 @@ class SqlProjectRepository(SqlAlchemyRepository[Project, ProjectOrm]):
 class SqlCommentRepository(SqlAlchemyRepository[Comment, CommentOrm]):
     model = CommentOrm
     model_mapper = CommentMapper
+
+    async def get_by_ticket(
+            self,
+            ticket_id: UUID,
+            pagination: PageParams,
+            *,
+            user_id: UUID | None = None,
+            include_notes: bool = False,
+            include_internal: bool = False,
+    ) -> Page[Comment]:
+        # 1. Валидация входных параметров
+        if user_id is None and include_notes:
+            raise ValueError("User ID required for received NOTE comments")
+
+        # 2. Базовый запрос для получения комментариев тикета
+        stmt = select(self.model).where(self.model.ticket_id == ticket_id)
+
+        # 3. Применение фильтров к запросу
+        if include_notes:
+            stmt = stmt.where(
+                (self.model.type == CommentType.NOTE) &
+                (self.model.author_id == user_id)
+            )
+        if include_internal:
+            stmt = stmt.where(self.model.type == CommentType.INTERNAL)
+
+        return await self._paginate(stmt, pagination)

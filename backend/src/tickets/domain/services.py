@@ -3,6 +3,7 @@ from uuid import UUID
 
 from ...iam.domain.vo import UserRole
 from ...shared.utils.text import get_latin_slug
+from .entities import Ticket
 from .repos import ProjectRepository
 from .vo import ProjectRole
 
@@ -128,3 +129,27 @@ class ProjectAccessService:
             return False  # или добавить свою логику
 
         return membership.project_role in allowed_roles
+
+
+def can_access_ticket(
+        ticket: Ticket,
+        user_id: UUID,
+        user_role: UserRole,
+        user_counterparty_id: UUID | None = None,
+) -> bool:
+    """Проверка есть ли у пользователя доступ к тикету"""
+
+    # 1. Внутренние сотрудники имеют доступ ко всем тикетам
+    if user_role in {UserRole.ADMIN, UserRole.SUPPORT_MANAGER, UserRole.SUPPORT_AGENT}:
+        return True
+
+    # 2. Ограничения для клиентов
+    if user_role.is_customer():
+        # Обычный клиент видит только свои тикеты
+        if user_role == UserRole.CUSTOMER:
+            return ticket.reporter_id == user_id
+        # Админ контрагента видит все тикеты своего контрагента
+        if user_role == UserRole.CUSTOMER_ADMIN:
+            return ticket.counterparty_id == user_counterparty_id
+
+    return False

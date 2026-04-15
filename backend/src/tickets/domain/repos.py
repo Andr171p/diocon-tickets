@@ -38,7 +38,19 @@ class TicketRepository(Repository[Ticket]):
 
 
 class CommentRepository(Repository[Comment]):
-    ...
+
+    async def get_by_ticket(
+            self,
+            ticket_id: UUID,
+            pagination: PageParams,
+            *,
+            user_id: UUID | None = None,
+            include_notes: bool = False,
+            include_internal: bool = False,
+    ) -> Page[Comment]:
+        """
+        Получение списка комментариев с учётом фильтров и прав пользователя
+        """
 
 
 class ProjectRepository(Repository[Project]):

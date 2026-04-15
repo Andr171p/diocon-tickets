@@ -10,9 +10,10 @@ from ...iam.domain.vo import UserRole
 from ...iam.schemas import CurrentUser
 from ...shared.domain.events import EventPublisher
 from ...shared.domain.exceptions import NotFoundError
+from ...shared.schemas import Page, PageParams
 from ..domain.entities import Comment, Ticket
 from ..domain.repos import CommentRepository, ProjectRepository, TicketRepository
-from ..domain.services import ProjectAccessService
+from ..domain.services import ProjectAccessService, can_access_ticket
 from ..domain.vo import ProjectKey, Tag, TicketNumber, TicketStatus
 from ..mappers import map_comment_to_response, map_ticket_to_response
 from ..schemas import CommentCreate, CommentEdit, CommentResponse, TicketCreate, TicketResponse
@@ -327,3 +328,41 @@ class TicketService:
         )
         await self.ticket_repo.upsert(ticket)
         await self.session.commit()
+
+    async def get_comments(
+            self,
+            ticket_id: UUID,
+            pagination: PageParams,
+            current_user: CurrentUser,
+            include_internal: bool = False,
+    ) -> Page[CommentResponse]:
+        """Получение комментариев к тикету с учётом прав"""
+
+        # 1. Получение тикета
+        ticket = await self.ticket_repo.read(ticket_id)
+        if ticket is None:
+            raise NotFoundError(f"Ticket with ID {ticket_id} not found")
+
+        # 2. Имеется ли у пользователя доступ к тикету
+        if not can_access_ticket(
+            ticket,
+            user_id=current_user.user_id,
+            user_role=current_user.role,
+            user_counterparty_id=current_user.counterparty_id,
+        ):
+            raise PermissionDeniedError("You cannot view this ticket")
+
+        # 3. Проверка прав на просмотр внутренних комментариев
+        if include_internal and not current_user.role.is_support():
+            raise PermissionDeniedError("Only support team can view internal comments")
+
+        # 4. Получение страницы с комментариями
+        page = await self.comment_repo.get_by_ticket(
+            ticket_id=ticket_id,
+            pagination=pagination,
+            user_id=current_user.user_id,
+            include_notes=True,
+            include_internal=include_internal,
+        )
+
+        return page.to_response(map_comment_to_response)

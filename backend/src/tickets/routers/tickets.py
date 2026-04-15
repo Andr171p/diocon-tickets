@@ -2,7 +2,8 @@ from typing import Any
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy.sql.annotation import Annotated
 
 from ...iam.dependencies import CurrentUserDep, get_current_user
 from ...shared.dependencies import PageParamsDep
@@ -73,7 +74,7 @@ async def get_tickets(
         params: PageParamsDep,
         filters: TicketFiltersDep,
         repository: TicketRepoDep,
-) -> Page[dict[str, Any]]:
+) -> Page[TicketPreview]:
     page = await repository.paginate(params, filters)
     return page.to_response(map_ticket_to_preview)
 
@@ -135,6 +136,29 @@ async def change_ticket_status(
         new_status=data.status,
         changed_by=current_user.user_id,
         changed_by_role=current_user.role,
+    )
+
+
+@router.get(
+    path="/{ticket_id}/comments",
+    status_code=status.HTTP_200_OK,
+    response_model=Page[CommentResponse],
+    summary="Получение комментариев тикета"
+)
+async def get_ticket_comments(
+        ticket_id: UUID,
+        pagination: PageParamsDep,
+        current_user: CurrentUserDep,
+        service: TicketServiceDep,
+        include_internal: Annotated[
+            bool, Query(..., description="Видеть внутренние комментарии (только для поддержки)")
+        ] = False,
+) -> Page[CommentResponse]:
+    return await service.get_comments(
+        ticket_id=ticket_id,
+        pagination=pagination,
+        current_user=current_user,
+        include_internal=include_internal,
     )
 
 

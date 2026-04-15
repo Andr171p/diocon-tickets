@@ -1,10 +1,12 @@
-from typing import Any, Self
+from __future__ import annotations
+
+from typing import Any, Self, TypeVar
 
 from collections.abc import Callable
 
 from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt
 
-from .domain.entities import Entity
+R = TypeVar("R", bound=BaseModel)
 
 
 class PageParams(BaseModel):
@@ -22,7 +24,7 @@ class PageParams(BaseModel):
         return (self.page - 1) * self.size
 
 
-class Page[T: Entity](BaseModel):
+class Page[T: Any](BaseModel):
     """Полный ответ с пагинацией"""
 
     page: PositiveInt = Field(..., description="Текущая страница")
@@ -45,15 +47,15 @@ class Page[T: Entity](BaseModel):
             items=items,
         )
 
-    def to_response(self, mapper: Callable[[T], BaseModel]) -> dict[str, Any]:
+    def to_response(self, mapper: Callable[[T], R]) -> Page[R]:
         """Преобразование страницы к API схеме ответа"""
 
-        return {
-            "page": self.page,
-            "size": self.size,
-            "total_items": self.total_items,
-            "total_pages": self.total_pages,
-            "has_next": self.has_next,
-            "has_prev": self.has_prev,
-            "items": [mapper(item).model_dump() for item in self.items],
-        }
+        return Page(
+            page=self.page,
+            size=self.size,
+            total_items=self.total_items,
+            total_pages=self.total_pages,
+            has_next=self.has_next,
+            has_prev=self.has_prev,
+            items=[mapper(item) for item in self.items],
+        )
