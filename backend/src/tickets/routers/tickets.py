@@ -1,9 +1,8 @@
-from typing import Any
+from typing import Annotated, Any
 
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.sql.annotation import Annotated
 
 from ...iam.dependencies import CurrentUserDep, get_current_user
 from ...shared.dependencies import PageParamsDep
