@@ -218,16 +218,21 @@ class SqlCommentRepository(SqlAlchemyRepository[Comment, CommentOrm]):
         if user_id is None and include_notes:
             raise ValueError("User ID required for received NOTE comments")
 
-        # 2. Базовый запрос для получения комментариев тикета
-        stmt = select(self.model).where(self.model.ticket_id == ticket_id)
+        # 2. Список условий (фильтров)
+        conditions = []
 
         # 3. Применение фильтров к запросу
         if include_notes:
-            stmt = stmt.where(
+            conditions.append(
                 (self.model.comment_type == CommentType.NOTE) &
                 (self.model.author_id == user_id)
             )
         if include_internal:
-            stmt = stmt.where(self.model.comment_type == CommentType.INTERNAL)
+            conditions.append(self.model.comment_type == CommentType.INTERNAL)
+
+        # 4. Формирование запроса
+        stmt = select(self.model).where(
+            (self.model.ticket_id == ticket_id) & or_(*conditions)
+        )
 
         return await self._paginate(stmt, pagination)
