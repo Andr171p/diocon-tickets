@@ -219,7 +219,7 @@ class SqlCommentRepository(SqlAlchemyRepository[Comment, CommentOrm]):
             raise ValueError("User ID required for received NOTE comments")
 
         # 2. Список условий (фильтров)
-        conditions = []
+        conditions = [self.model.comment_type == CommentType.PUBLIC]
 
         # 3. Применение фильтров к запросу
         if include_notes:
