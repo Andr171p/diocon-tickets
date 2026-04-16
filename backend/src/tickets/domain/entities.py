@@ -220,6 +220,7 @@ class Ticket(AggregateRoot):
             TicketCreated(
                 ticket_id=ticket_id,
                 title=title,
+                number=f"{ticket_number}",
                 created_by=created_by,
                 reporter_id=reporter_id,
                 priority=priority,

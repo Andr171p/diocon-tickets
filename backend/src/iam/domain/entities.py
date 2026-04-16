@@ -29,9 +29,14 @@ class User(Entity):
     def __post_init__(self) -> None:
         """Проверка инвариантов"""
 
+        # 1. Клиенты должны быть привязаны к контрагенту
         if self.counterparty_id is None and \
                 self.role in {UserRole.CUSTOMER, UserRole.CUSTOMER_ADMIN}:
             raise InvariantViolationError("Counterparty must be specified for clients")
+
+        # 2. Сотрудники поддержки не должны иметь прямой связи с контрагентом
+        if self.role.is_support() and self.counterparty_id is not None:
+            raise InvariantViolationError("Support users should not have direct counterparty_id")
 
 
 def generate_invite_token(length: int = 32) -> str:

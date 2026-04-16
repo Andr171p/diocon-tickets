@@ -53,7 +53,7 @@ class EmailChannel:
             ) from e
 
 
-class WebsocketChannel:
+class InAppChannel:
     def __init__(self, ws_manager: WebsocketManager) -> None:
         self.ws_manager = ws_manager
 

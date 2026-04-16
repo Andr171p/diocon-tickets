@@ -4,7 +4,7 @@ from collections.abc import Callable
 from uuid import UUID
 
 from sqlalchemy import BinaryExpression, Select, and_, exists, func, or_, select
-from sqlalchemy.orm import attributes, selectinload
+from sqlalchemy.orm import selectinload
 
 from ...shared.infra.repos import SqlAlchemyRepository
 from ...shared.schemas import Page, PageParams
@@ -31,25 +31,9 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
             )
         )
         result = await self.session.execute(stmt)
-        ticket = result.scalar_one_or_none()
-        if ticket is None:
-            return None
+        model = result.scalar_one_or_none()
 
-        # 2. Получение комментариев с заданным лимитом
-        comments_stmt = (
-            select(CommentOrm)
-            .where(CommentOrm.ticket_id == ticket_id)
-            .order_by(CommentOrm.created_at.desc())
-            .limit(comments_limit)
-            .options(selectinload(CommentOrm.attachments))
-        )
-        results = await self.session.execute(comments_stmt)
-        comments = results.scalars().all()
-
-        # 3. Установка загруженных комментариев в объект
-        attributes.set_committed_value(ticket, "comments", comments)
-
-        return self.model_mapper.to_entity(ticket)
+        return None if model is None else self.model_mapper.to_entity(model)
 
     def _apply_filters(self, stmt: Select, filters: TicketFilter) -> Select:
         # Определение пары - фильтра и функции построения условия
@@ -240,10 +224,10 @@ class SqlCommentRepository(SqlAlchemyRepository[Comment, CommentOrm]):
         # 3. Применение фильтров к запросу
         if include_notes:
             stmt = stmt.where(
-                (self.model.type == CommentType.NOTE) &
+                (self.model.comment_type == CommentType.NOTE) &
                 (self.model.author_id == user_id)
             )
         if include_internal:
-            stmt = stmt.where(self.model.type == CommentType.INTERNAL)
+            stmt = stmt.where(self.model.comment_type == CommentType.INTERNAL)
 
         return await self._paginate(stmt, pagination)

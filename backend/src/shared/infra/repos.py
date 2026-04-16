@@ -81,10 +81,6 @@ class SqlAlchemyRepository[EntityT: Entity, ModelT: Base]:
         results = await self.session.execute(stmt)
         models = results.scalars().all()
 
-        # 3. На странице нет тикетов (пустая страница)
-        if not models:
-            return Page.create([], total_items, params.page, params.size)
-
         return Page.create(
             items=[self.model_mapper.to_entity(model) for model in models],
             total_items=total_items,

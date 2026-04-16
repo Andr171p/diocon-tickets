@@ -1,11 +1,13 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import EmailStr
 
 from ...shared.domain.entities import Entity
 from ...shared.domain.exceptions import InvariantViolationError
-from .vo import ContactPerson, CounterpartyType, Inn, Kpp, Okpo, Phone
+from ...shared.utils.time import current_datetime
+from .vo import ContactPerson, CounterpartyType, Inn, Kpp, Okpo, Phone, SupportAssignmentType
 
 INDIVIDUAL_INN_LENGTH = 12
 LEGAL_INN_LENGTH = 10
@@ -111,3 +113,19 @@ class Counterparty(Entity):
             address=address,
             parent_id=self.id
         )
+
+
+@dataclass(kw_only=True)
+class SupportAssignment(Entity):
+    """
+    Привязка сотрудника поддержки к контрагенту
+    """
+
+    counterparty_id: UUID
+    user_id: UUID
+    assignment_type: SupportAssignmentType
+
+    # Дополнительные метаданные
+    is_active: bool = True
+    assigned_at: datetime | None = field(default_factory=current_datetime)
+    assigned_by: UUID

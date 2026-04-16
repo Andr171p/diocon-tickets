@@ -18,7 +18,7 @@ class CommentMapper(ModelMapper[Comment, CommentOrm]):
             author_id=model.author_id,
             author_role=model.author_role,
             text=model.text,
-            type=model.type,
+            type=model.comment_type,
             attachments=[
                 AttachmentMapper.to_entity(attachment) for attachment in model.attachments
             ],
@@ -34,7 +34,7 @@ class CommentMapper(ModelMapper[Comment, CommentOrm]):
             author_id=entity.author_id,
             author_role=entity.author_role,
             text=entity.text,
-            type=entity.type,
+            comment_type=entity.type,
             attachments=[
                 AttachmentMapper.from_entity(attachment) for attachment in entity.attachments
             ],

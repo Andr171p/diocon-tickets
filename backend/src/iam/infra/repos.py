@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import SecretStr
 from sqlalchemy import select
 
@@ -60,6 +62,13 @@ class SqlUserRepository(SqlAlchemyRepository[User, UserOrm]):
             ))
         )
         return await self._paginate(stmt, pagination)
+
+    async def get_all_support_ids(self) -> list[UUID]:
+        stmt = select(self.model.id).where(self.model.role.in_(
+            [UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER, UserRole.ADMIN]
+        ))
+        results = await self.session.execute(stmt)
+        return list(results.scalars().all())
 
 
 class InvitationMapper(ModelMapper[Invitation, InvitationOrm]):

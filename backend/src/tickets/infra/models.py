@@ -62,7 +62,7 @@ class CommentOrm(Base):
     author_id: Mapped[UUID]
     author_role: Mapped[UserRole] = mapped_column(Enum(UserRole))
     text: Mapped[str] = mapped_column(TEXT)
-    type: Mapped[CommentType] = mapped_column(Enum(CommentType))
+    comment_type: Mapped[CommentType] = mapped_column(Enum(CommentType))
 
     ticket: Mapped["TicketOrm"] = relationship(back_populates="comments")
     attachments: Mapped[list["AttachmentOrm"]] = relationship(
@@ -71,6 +71,7 @@ class CommentOrm(Base):
             "foreign(AttachmentOrm.owner_id)==CommentOrm.id)"
         ),
         viewonly=True,
+        lazy="selectin",
     )
 
 

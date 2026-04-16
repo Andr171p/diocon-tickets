@@ -26,6 +26,7 @@ class TicketCreated(Event):
 
     ticket_id: UUID
     title: str
+    number: str
     created_by: UUID
     reporter_id: UUID
     priority: TicketPriority

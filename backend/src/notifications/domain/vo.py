@@ -8,5 +8,4 @@ class NotificationType(StrEnum):
     TICKET_ASSIGNED = "ticket_assigned"
     TICKET_STATUS_CHANGED = "ticket_status_changed"
     COMMENT_ADDED = "comment_added"
-    MENTIONED = "mentioned"
     SYSTEM = "system"

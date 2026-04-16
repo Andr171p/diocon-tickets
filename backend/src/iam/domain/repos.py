@@ -17,6 +17,12 @@ class UserRepository(Repository[User]):
         Получение всех сотрудников поддержки (для ролей SUPPORT_AGENT И SUPPORT_MANAGER)
         """
 
+    async def get_all_support_ids(self) -> list[UUID]:
+        """
+        Получение всех ID сотрудников поддержки.
+        Должен загружать все ID в память.
+        """
+
 
 class TokenBlacklist(Protocol):
 
