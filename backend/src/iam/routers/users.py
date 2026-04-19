@@ -33,7 +33,7 @@ async def get_me(current_user: CurrentUserDep, repository: UserRepoDep) -> UserR
     description="Доступно только для команды поддержки",
 )
 async def get_supports(pagination: PageParamsDep, repository: UserRepoDep) -> Page[UserResponse]:
-    page = await repository.get_supports(pagination)
+    page = await repository.paginate(pagination, include_roles=[*SUPPORT_TEAM])
     return page.to_response(map_user_to_response)
 
 

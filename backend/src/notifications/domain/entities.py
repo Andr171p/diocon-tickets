@@ -1,12 +1,12 @@
 from typing import Any
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from ...shared.domain.entities import Entity
 from ...shared.utils.time import current_datetime
-from .vo import NotificationType
+from .vo import NotificationChannel, NotificationType
 
 
 @dataclass(kw_only=True)
@@ -40,45 +40,66 @@ class UserPreference(Entity):
     notification_type: NotificationType
 
     # По каким каналам получать уведомления
-    email_enabled: bool = True
-    in_app_enabled: bool = True
+    enabled_channels: set[NotificationChannel] = field(default_factory=set)
 
     # Дополнительные настройки
     muted_until: datetime | None = None
 
-    def is_enabled_for_channel(self, channel: str) -> bool:
+    def __post_init__(self) -> None:
+        # 1. Добавление каналов по умолчанию
+        if not self.enabled_channels:
+            self.enabled_channels = {NotificationChannel.EMAIL, NotificationChannel.IN_APP}
+
+    @property
+    def is_muted(self) -> bool:
+        """Активно ли временное отключение прямо сейчас"""
+
+        return self.muted_until is not None and self.muted_until > current_datetime()
+
+    def is_enabled_for_channel(self, channel: NotificationChannel) -> bool:
         """
         Проверяет, включён ли канал для данного типа уведомления
         """
 
         # 1. Если уведомления отключены, то канал недоступен
-        if self.muted_until is not None and self.muted_until > current_datetime():
+        if self.is_muted:
             return False
 
         # 2. Проверка каналов
-        if channel == "email":
-            return self.email_enabled
-        if channel == "in_app":
-            return self.in_app_enabled
+        return channel in self.enabled_channels
 
-        return False
-
-    def disable_channel(self, channel: str) -> None:
+    def disable_channel(self, channel: NotificationChannel) -> None:
         """Отключение уведомлений для конкретного канала"""
 
-        if channel == "email":
-            self.email_enabled = False
-        elif channel == "in_app":
-            self.in_app_enabled = False
+        if channel not in self.enabled_channels:
+            return
 
+        self.enabled_channels.discard(channel)
         self.updated_at = current_datetime()
 
-    def enable_channel(self, channel: str) -> None:
+    def enable_channel(self, channel: NotificationChannel) -> None:
         """Подключение уведомлений через конкретный канал"""
 
-        if channel == "email":
-            self.email_enabled = True
-        elif channel == "in_app":
-            self.in_app_enabled = True
+        if channel in self.enabled_channels:
+            return
 
+        self.enabled_channels.add(channel)
         self.updated_at = current_datetime()
+
+    def mute(self, duration: timedelta) -> None:
+        """
+        Отключение уведомлений от всех каналов на определённый промежуток времени
+        """
+
+        if current_datetime() + duration <= current_datetime():
+            raise ValueError("Mute until must be in the future")
+
+        self.muted_until = current_datetime() + duration
+        self.updated_at = current_datetime()
+
+    def unmute(self) -> None:
+        """Снимает временное отключение уведомлений"""
+
+        if self.muted_until is not None:
+            self.muted_until = None
+            self.updated_at = current_datetime()

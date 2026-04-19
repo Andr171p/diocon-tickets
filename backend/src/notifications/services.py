@@ -1,16 +1,13 @@
-from typing import Any
-
 import logging
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..shared.domain.exceptions import NotFoundError
-from .channels import ChannelResolver
 from .domain.entities import Notification
 from .domain.exceptions import NotificationSendingFailedError
 from .domain.repo import NotificationRepository
-from .domain.vo import NotificationType
+from .resolvers import ChannelResolver
 
 logger = logging.getLogger(__name__)
 
@@ -26,32 +23,18 @@ class NotificationService:
         self.repository = repository
         self.resolver = resolver
 
-    async def send(
-            self,
-            user_id: UUID,
-            notification_type: NotificationType,
-            title: str,
-            message: str,
-            data: dict[str, Any]
-    ) -> None:
+    async def notify(self, notification: Notification) -> None:
         """Отправка уведомления через все подходящие каналы"""
 
-        # 1. Создание и сохранение сущности
-        notification = Notification(
-            user_id=user_id,
-            type=notification_type,
-            title=title,
-            message=message,
-            data=data,
-        )
+        # 1. Сохранение сущности
         await self.repository.create(notification)
         await self.session.commit()
 
         # 2. Отправка уведомления во все подходящие каналы
-        channels = await self.resolver.resolve(notification_type)
+        channels = await self.resolver.resolve(notification.type)
         for channel in channels:
             try:
-                await channel.send(user_id, notification)
+                await channel.send(notification)
             except NotificationSendingFailedError:
                 logger.exception("Notification sending failed")
 

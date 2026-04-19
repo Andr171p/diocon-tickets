@@ -1,3 +1,5 @@
+from typing import override
+
 from uuid import UUID
 
 from pydantic import SecretStr
@@ -48,27 +50,30 @@ class SqlUserRepository(SqlAlchemyRepository[User, UserOrm]):
     model = UserOrm
     model_mapper = UserMapper
 
+    @override
+    async def paginate(
+            self, params: PageParams, include_roles: list[UserRole] | None = None
+    ) -> Page[User]:
+        stmt = select(self.model)
+        if include_roles is not None:
+            stmt = stmt.where(self.model.role.in_(include_roles))
+
+        return await self._paginate(stmt, params)
+
     async def get_by_email(self, email: str) -> User:
         stmt = select(self.model).where(self.model.email == email)
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
         return None if model is None else self.model_mapper.to_entity(model)
 
-    async def get_supports(self, pagination: PageParams) -> Page[User]:
-        stmt = (
-            select(self.model)
-            .where(self.model.role.in_(
-                [UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER]
-            ))
+    async def get_customer_admins(self, counterparty_id: UUID) -> list[User]:
+        stmt = select(self.model).where(
+            (self.model.counterparty_id == counterparty_id) &
+            (self.model.role == UserRole.CUSTOMER_ADMIN)
         )
-        return await self._paginate(stmt, pagination)
-
-    async def get_all_support_ids(self) -> list[UUID]:
-        stmt = select(self.model.id).where(self.model.role.in_(
-            [UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER, UserRole.ADMIN]
-        ))
         results = await self.session.execute(stmt)
-        return list(results.scalars().all())
+        models = results.scalars().all()
+        return [self.model_mapper.to_entity(model) for model in models]
 
 
 class InvitationMapper(ModelMapper[Invitation, InvitationOrm]):

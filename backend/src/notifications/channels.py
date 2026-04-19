@@ -1,7 +1,6 @@
 from typing import Protocol
 
 import logging
-from uuid import UUID
 
 from ..iam.domain.repos import UserRepository
 from ..shared.domain.exceptions import EmailSendingFailedError
@@ -10,12 +9,13 @@ from ..shared.infra.websocket import WebsocketManager
 from .domain.entities import Notification
 from .domain.exceptions import NotificationSendingFailedError
 from .domain.vo import NotificationType
+from .mappers import map_notification_to_dict
 
 logger = logging.getLogger(__name__)
 
 
 class NotificationChannel(Protocol):
-    async def send(self, user_id: UUID, notification: Notification) -> None:
+    async def send(self, notification: Notification) -> None:
         """Отправить уведомление через текущий канал"""
 
 
@@ -29,8 +29,8 @@ class EmailChannel:
         self.mail_sender = mail_sender
         self.user_repo = user_repo
 
-    async def send(self, user_id: UUID, notification: Notification) -> None:
-        user = await self.user_repo.read(user_id)
+    async def send(self, notification: Notification) -> None:
+        user = await self.user_repo.read(notification.user_id)
         if user is None:
             return
         template_name = EMAIL_TEMPLATE_MAP.get(notification.type)
@@ -57,24 +57,9 @@ class InAppChannel:
     def __init__(self, ws_manager: WebsocketManager) -> None:
         self.ws_manager = ws_manager
 
-    async def send(self, user_id: UUID, notification: Notification) -> None:
+    async def send(self, notification: Notification) -> None:
         payload = {
             "type": "notification",
-            "notification": {
-                "id": notification.id,
-                "title": notification.title,
-                "message": notification.message,
-                "read": notification.read,
-                "data": notification.data,
-                "created_at": notification.created_at,
-            }
+            "notification": map_notification_to_dict(notification)
         }
-        await self.ws_manager.send_to_user(user_id, payload)
-
-
-class ChannelResolver:
-    def __init__(self, *channels: NotificationChannel) -> None:
-        self.channels = {type(channel): channel for channel in channels}
-
-    async def resolve(self, notification_type: NotificationType) -> list[NotificationChannel]:
-        """Возвращает список каналов, на которые нужно отправить уведомление"""
+        await self.ws_manager.send_to_user(notification.user_id, payload)

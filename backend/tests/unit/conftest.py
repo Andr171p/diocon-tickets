@@ -1,3 +1,5 @@
+from typing import override
+
 from uuid import UUID
 
 import pytest
@@ -37,11 +39,40 @@ class InMemoryCounterpartyRepository(InMemoryRepository[Counterparty]):
 
 class InMemoryUserRepository(InMemoryRepository[User]):
 
+    @override
+    async def paginate(
+            self, params: PageParams, include_roles: list[UserRole] | None = None
+    ) -> Page[User]:
+        all_users = list(self.data.values())
+
+        if include_roles is not None:
+            allowed_roles = set(include_roles)
+            filtered_users = [user for user in all_users if user.role in allowed_roles]
+        else:
+            filtered_users = all_users
+
+        total_items = len(filtered_users)
+        sorted_users = sorted(filtered_users, key=lambda user: user.created_at)
+        page_items = sorted_users[params.offset:params.offset + params.size]
+
+        return Page.create(
+            items=page_items,
+            total_items=total_items,
+            page=params.page,
+            size=params.size,
+        )
+
     async def get_by_email(self, email: str) -> User | None:
         for user in self.data.values():
             if user.email == email:
                 return user
         return None
+
+    async def get_customer_admins(self, counterparty_id: UUID) -> list[User]:
+        return [
+            user for user in self.data.values()
+            if user.counterparty_id == counterparty_id and user.role == UserRole.CUSTOMER_ADMIN
+        ]
 
 
 class InMemoryTokenBlacklist:

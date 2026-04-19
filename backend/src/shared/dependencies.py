@@ -5,8 +5,10 @@ from pydantic import PositiveInt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db
+from ..core.settings import settings
 from .domain.events import EventPublisher
 from .infra.events import EventBus
+from .infra.mail import SmtpMailSender
 from .infra.websocket import WebsocketManager
 from .schemas import PageParams
 
@@ -47,3 +49,11 @@ def get_event_publisher() -> EventPublisher:
 
 
 EventPublisherDep = Annotated[EventPublisher, Depends(get_event_publisher)]
+
+
+def get_mail_sender() -> SmtpMailSender:
+    return SmtpMailSender(
+        smtp_port=settings.mail.smtp_port,
+        smtp_host=settings.mail.smtp_host,
+        use_tls=settings.mail.smtp_use_tls,
+    )
