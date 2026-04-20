@@ -27,6 +27,5 @@ class UserPreferenceOrm(Base):
 
     user_id: Mapped[UUID]
     notification_type: Mapped[NotificationType] = mapped_column(Enum(NotificationType))
-    email_enabled: Mapped[bool]
-    in_app_enabled: Mapped[bool]
+    enabled_channels: Mapped[list[str]] = mapped_column(JSONB)
     muted_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

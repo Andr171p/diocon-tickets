@@ -11,7 +11,7 @@ class NotificationType(StrEnum):
     SYSTEM = "system"
 
 
-class NotificationChannel(StrEnum):
+class ChannelType(StrEnum):
     """Каналы куда пользователи получают уведомление"""
 
     EMAIL = "email"

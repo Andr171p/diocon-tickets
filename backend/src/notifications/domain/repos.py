@@ -9,17 +9,17 @@ from .vo import NotificationType
 class NotificationRepository(Repository[Notification]):
 
     async def get_unread_count(self, user_id: UUID) -> int:
-        """Количество непрочитанных уведомлений"""
+        """Количество непрочитанных уведомлений пользователя"""
 
     async def get_by_user(
-            self, user_id: UUID, params: PageParams, unread_only: bool = False
+            self, user_id: UUID, pagination: PageParams, unread_only: bool = False
     ) -> Page[Notification]:
         """Получение уведомлений пользователя"""
 
 
-class PreferencesRepository(Repository[UserPreference]):
+class PreferenceRepository(Repository[UserPreference]):
 
-    async def get_for_user(
+    async def get_for_notification(
             self, user_id: UUID, notification_type: NotificationType
     ) -> UserPreference | None:
         """Получение настроек пользователя для конкретного типа уведомлений"""

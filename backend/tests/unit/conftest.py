@@ -10,6 +10,9 @@ from src.crm.domain.vo import Inn
 from src.iam.domain.entities import Invitation, User
 from src.iam.domain.repos import InvitationRepository, TokenBlacklist, UserRepository
 from src.iam.domain.vo import UserRole
+from src.notifications.domain.entities import Notification, UserPreference
+from src.notifications.domain.repos import NotificationRepository, PreferenceRepository
+from src.notifications.domain.vo import NotificationType
 from src.shared.domain.events import EventPublisher
 from src.shared.infra.events import EventBus
 from src.shared.infra.repos import InMemoryRepository
@@ -144,8 +147,6 @@ class InMemoryProjectRepository(InMemoryRepository[Project]):
 
 class ImMemoryTicketRepository(InMemoryRepository[Ticket]):
 
-    async def get_comments(self, ticket_id: UUID, params: PageParams) -> Page[Comment]: ...
-
     async def get_total(
             self, project_id: UUID | None = None, counterparty_id: UUID | None = None
     ) -> int:
@@ -165,6 +166,57 @@ class ImMemoryTicketRepository(InMemoryRepository[Ticket]):
 
 class ImMemoryCommentRepository(InMemoryRepository[Comment]):
     ...
+
+
+class InMemoryPreferenceRepository(InMemoryRepository[UserPreference]):
+
+    async def get_for_notification(
+            self, user_id: UUID, notification_type: NotificationType
+    ) -> UserPreference | None:
+        for preference in self.data.values():
+            if preference.user_id == user_id and preference.notification_type == notification_type:
+                return preference
+        return None
+
+    async def get_by_user(self, user_id: UUID) -> list[UserPreference]:
+        return [
+            preference for preference in self.data.values() if preference.user_id == user_id
+        ]
+
+
+class InMemoryNotificationRepository(InMemoryRepository[Notification]):
+
+    async def get_unread_count(self, user_id: UUID) -> int:
+        return sum(
+            notification
+            for notification in self.data.values()
+            if notification.user_id == user_id and not notification.read
+        )
+
+    async def get_by_user(
+            self, user_id: UUID, pagination: PageParams, unread_only: bool = False
+    ) -> Page[Notification]:
+        user_notifications = [
+            notification
+            for notification in self.data.values()
+            if notification.user_id == user_id
+        ]
+        if unread_only:
+            user_notifications = [
+                user_notification
+                for user_notification in user_notifications
+                if not user_notification.read
+            ]
+        total_items = len(user_notifications)
+        sorted_users = sorted(user_notifications, key=lambda user: user.created_at)
+        page_items = sorted_users[pagination.offset:pagination.offset + pagination.size]
+
+        return Page.create(
+            items=page_items,
+            total_items=total_items,
+            page=pagination.page,
+            size=pagination.size,
+        )
 
 
 @pytest.fixture
@@ -200,6 +252,16 @@ def mock_ticket_repo() -> TicketRepository:
 @pytest.fixture
 def mock_comment_repo() -> CommentRepository:
     return ImMemoryCommentRepository()
+
+
+@pytest.fixture
+def mock_preference_repo() -> PreferenceRepository:
+    return InMemoryPreferenceRepository()
+
+
+@pytest.fixture
+def mock_notification_repo() -> NotificationRepository:
+    return InMemoryNotificationRepository()
 
 
 @pytest.fixture

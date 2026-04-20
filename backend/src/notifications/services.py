@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..shared.domain.exceptions import NotFoundError
 from .domain.entities import Notification
 from .domain.exceptions import NotificationSendingFailedError
-from .domain.repo import NotificationRepository
+from .domain.repos import NotificationRepository
 from .resolvers import ChannelResolver
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,9 @@ class NotificationService:
         await self.session.commit()
 
         # 2. Отправка уведомления во все подходящие каналы
-        channels = await self.channel_resolver.resolve(notification.type)
+        channels = await self.channel_resolver.resolve(
+            user_id=notification.user_id, notification_type=notification.type
+        )
         for channel in channels:
             try:
                 await channel.send(notification)

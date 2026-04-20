@@ -6,7 +6,7 @@ from uuid import UUID
 
 from ...shared.domain.entities import Entity
 from ...shared.utils.time import current_datetime
-from .vo import NotificationChannel, NotificationType
+from .vo import ChannelType, NotificationType
 
 
 @dataclass(kw_only=True)
@@ -40,7 +40,7 @@ class UserPreference(Entity):
     notification_type: NotificationType
 
     # По каким каналам получать уведомления
-    enabled_channels: set[NotificationChannel] = field(default_factory=set)
+    enabled_channels: set[ChannelType] = field(default_factory=set)
 
     # Дополнительные настройки
     muted_until: datetime | None = None
@@ -48,7 +48,7 @@ class UserPreference(Entity):
     def __post_init__(self) -> None:
         # 1. Добавление каналов по умолчанию
         if not self.enabled_channels:
-            self.enabled_channels = {NotificationChannel.EMAIL, NotificationChannel.IN_APP}
+            self.enabled_channels = {ChannelType.EMAIL, ChannelType.IN_APP}
 
     @property
     def is_muted(self) -> bool:
@@ -56,7 +56,7 @@ class UserPreference(Entity):
 
         return self.muted_until is not None and self.muted_until > current_datetime()
 
-    def is_enabled_for_channel(self, channel: NotificationChannel) -> bool:
+    def is_enabled_for_channel(self, channel: ChannelType) -> bool:
         """
         Проверяет, включён ли канал для данного типа уведомления
         """
@@ -68,7 +68,7 @@ class UserPreference(Entity):
         # 2. Проверка каналов
         return channel in self.enabled_channels
 
-    def disable_channel(self, channel: NotificationChannel) -> None:
+    def disable_channel(self, channel: ChannelType) -> None:
         """Отключение уведомлений для конкретного канала"""
 
         if channel not in self.enabled_channels:
@@ -77,7 +77,7 @@ class UserPreference(Entity):
         self.enabled_channels.discard(channel)
         self.updated_at = current_datetime()
 
-    def enable_channel(self, channel: NotificationChannel) -> None:
+    def enable_channel(self, channel: ChannelType) -> None:
         """Подключение уведомлений через конкретный канал"""
 
         if channel in self.enabled_channels:

@@ -1,4 +1,4 @@
-from typing import Protocol
+from typing import ClassVar, Protocol
 
 import logging
 
@@ -8,13 +8,15 @@ from ..shared.infra.mail import SmtpMailSender
 from ..shared.infra.websocket import WebsocketManager
 from .domain.entities import Notification
 from .domain.exceptions import NotificationSendingFailedError
-from .domain.vo import NotificationType
+from .domain.vo import ChannelType, NotificationType
 from .mappers import map_notification_to_dict
 
 logger = logging.getLogger(__name__)
 
 
 class NotificationChannel(Protocol):
+    channel_type: ClassVar[ChannelType]
+
     async def send(self, notification: Notification) -> None:
         """Отправить уведомление через текущий канал"""
 
@@ -25,6 +27,8 @@ EMAIL_TEMPLATE_MAP: dict[NotificationType, str] = {
 
 
 class EmailChannel:
+    channel_type = ChannelType.EMAIL
+
     def __init__(self, mail_sender: SmtpMailSender, user_repo: UserRepository) -> None:
         self.mail_sender = mail_sender
         self.user_repo = user_repo
@@ -54,6 +58,8 @@ class EmailChannel:
 
 
 class InAppChannel:
+    channel_type = ChannelType.IN_APP
+
     def __init__(self, ws_manager: WebsocketManager) -> None:
         self.ws_manager = ws_manager
 

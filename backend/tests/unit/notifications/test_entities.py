@@ -5,7 +5,7 @@ import pytest
 from freezegun import freeze_time
 
 from src.notifications.domain.entities import Notification, UserPreference
-from src.notifications.domain.vo import NotificationChannel, NotificationType
+from src.notifications.domain.vo import ChannelType, NotificationType
 from src.shared.utils.time import current_datetime
 
 
@@ -62,8 +62,8 @@ class TestUserPreference:
     @pytest.mark.parametrize(
         ("channel", "expected"),
         [
-            (NotificationChannel.EMAIL, True),
-            (NotificationChannel.IN_APP, True),
+            (ChannelType.EMAIL, True),
+            (ChannelType.IN_APP, True),
         ],
     )
     def test_is_enabled_for_channel_returns_correct_flag(self, user_preference, channel, expected):
@@ -99,8 +99,8 @@ class TestUserPreference:
     @pytest.mark.parametrize(
         ("channel", "expected"),
         [
-            (NotificationChannel.EMAIL, False),
-            (NotificationChannel.IN_APP, False),
+            (ChannelType.EMAIL, False),
+            (ChannelType.IN_APP, False),
         ],
     )
     def test_is_enabled_for_channel_returns_false_when_muted(
@@ -114,8 +114,8 @@ class TestUserPreference:
     @pytest.mark.parametrize(
         ("channel", "expected"),
         [
-            (NotificationChannel.EMAIL, True),
-            (NotificationChannel.IN_APP, True),
+            (ChannelType.EMAIL, True),
+            (ChannelType.IN_APP, True),
         ],
     )
     def test_is_enabled_for_channel_restores_after_mute_expires(
@@ -131,19 +131,19 @@ class TestUserPreference:
         original_updated_at = user_preference.updated_at
 
         with freeze_time(current_datetime() + timedelta(seconds=1)):
-            user_preference.disable_channel(NotificationChannel.EMAIL)
+            user_preference.disable_channel(ChannelType.EMAIL)
 
-        assert user_preference.is_enabled_for_channel(NotificationChannel.EMAIL) is False
-        assert user_preference.is_enabled_for_channel(NotificationChannel.IN_APP) is True
+        assert user_preference.is_enabled_for_channel(ChannelType.EMAIL) is False
+        assert user_preference.is_enabled_for_channel(ChannelType.IN_APP) is True
         assert user_preference.updated_at > original_updated_at
 
     def test_enable_channel_updates_flag_and_updated_at(self, user_preference):
-        user_preference.disable_channel(NotificationChannel.IN_APP)
+        user_preference.disable_channel(ChannelType.IN_APP)
         original_updated_at = user_preference.updated_at
 
         with freeze_time(current_datetime() + timedelta(seconds=1)):
-            user_preference.enable_channel(NotificationChannel.IN_APP)
+            user_preference.enable_channel(ChannelType.IN_APP)
 
-        assert user_preference.is_enabled_for_channel(NotificationChannel.IN_APP) is True
-        assert user_preference.is_enabled_for_channel(NotificationChannel.EMAIL) is True
+        assert user_preference.is_enabled_for_channel(ChannelType.IN_APP) is True
+        assert user_preference.is_enabled_for_channel(ChannelType.EMAIL) is True
         assert user_preference.updated_at > original_updated_at
