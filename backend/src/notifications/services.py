@@ -17,11 +17,11 @@ class NotificationService:
             self,
             session: AsyncSession,
             repository: NotificationRepository,
-            resolver: ChannelResolver
+            channel_resolver: ChannelResolver
     ) -> None:
         self.session = session
         self.repository = repository
-        self.resolver = resolver
+        self.channel_resolver = channel_resolver
 
     async def notify(self, notification: Notification) -> None:
         """Отправка уведомления через все подходящие каналы"""
@@ -31,7 +31,7 @@ class NotificationService:
         await self.session.commit()
 
         # 2. Отправка уведомления во все подходящие каналы
-        channels = await self.resolver.resolve(notification.type)
+        channels = await self.channel_resolver.resolve(notification.type)
         for channel in channels:
             try:
                 await channel.send(notification)

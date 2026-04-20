@@ -103,17 +103,27 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
     async def get_total(
             self, project_id: UUID | None = None, counterparty_id: UUID | None = None
     ) -> int:
-        # 1. Генерация комбинаций фильтров
-        filters = [
-            self.model.project_id.is_(None) if project_id is None
-            else self.model.project_id == project_id,
-            self.model.counterparty_id.is_(None) if counterparty_id is None
-            else self.model.counterparty_id == counterparty_id
-        ]
+        conditions = []
+
+        # 1. Применение фильтров в зависимости о переданного пространства имён
+        if project_id is not None:  # по проекту
+            conditions.append(self.model.project_id == project_id)
+            if counterparty_id is not None:  # по проекту и контрагенту (для надёжности)
+                conditions.append(self.model.counterparty_id == counterparty_id)
+        # По контрагенту, проект не указан (null)
+        elif counterparty_id is not None and project_id is None:
+            conditions.extend((
+                self.model.counterparty_id == counterparty_id,
+                self.model.project_id.is_(None)
+            ))
+        else:  # внутренний тикет (ничего не указано)
+            conditions.extend((
+                self.model.project_id.is_(None), self.model.counterparty_id.is_(None),
+            ))
 
         # 2. Запрос с применением фильтров
-        stmt = select(func.count()).select_from(self.model).where(and_(*filters))
-        return await self.session.scalar(stmt)
+        stmt = select(func.count()).select_from(self.model).where(and_(*conditions))
+        return await self.session.scalar(stmt) or 0
 
     async def get_by_reporter(self, reporter_id: UUID, params: PageParams) -> Page[Ticket]:
         # 1. Базовый запрос
