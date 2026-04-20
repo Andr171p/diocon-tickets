@@ -103,7 +103,7 @@ class TestNotificationServiceMarkAsRead:
     ):
         await mock_notification_repo.create(notification)
 
-        await notification_service.mark_as_read(notification.id)
+        await notification_service.mark_as_read(notification.id, read_by=notification.user_id)
 
         updated_notification = await mock_notification_repo.read(notification.id)
 
@@ -130,7 +130,7 @@ class TestNotificationServiceMarkAsRead:
         await mock_notification_repo.create(notification)
 
         with caplog.at_level(logging.WARNING):
-            await notification_service.mark_as_read(notification.id)
+            await notification_service.mark_as_read(notification.id, read_by=notification.user_id)
 
         mock_session.commit.assert_not_awaited()
         assert f"Notification with ID {notification.id} already marked as read" in caplog.text
@@ -142,4 +142,4 @@ class TestNotificationServiceMarkAsRead:
         with pytest.raises(
                 NotFoundError, match=f"Notification with ID {notification.id} not found"
         ):
-            await notification_service.mark_as_read(notification.id)
+            await notification_service.mark_as_read(notification.id, read_by=notification.user_id)

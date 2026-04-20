@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from uuid import UUID
 
+from ...iam.domain.exceptions import PermissionDeniedError
 from ...shared.domain.entities import Entity
 from ...shared.utils.time import current_datetime
 from .vo import ChannelType, NotificationType
@@ -22,8 +23,11 @@ class Notification(Entity):
     read: bool = field(default=False)
     data: dict[str, Any] = field(default_factory=dict)  # Дополнительные данные
 
-    def mark_as_read(self) -> None:
+    def mark_as_read(self, read_by: UUID) -> None:
         """Пометить как прочитанное"""
+
+        if read_by != self.user_id:
+            raise PermissionDeniedError("You can only read your notifications")
 
         if not self.read:
             self.read = True

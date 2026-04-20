@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 from freezegun import freeze_time
 
+from src.iam.domain.exceptions import PermissionDeniedError
 from src.notifications.domain.entities import Notification, UserPreference
 from src.notifications.domain.vo import ChannelType, NotificationType
 from src.shared.utils.time import current_datetime
@@ -15,8 +16,10 @@ class TestNotification:
     """
 
     def test_mark_as_read(self):
+
+        user_id = uuid4()
         notification = Notification(
-            user_id=uuid4(),
+            user_id=user_id,
             title="Новое уведомление",
             message="Тестовое сообщение",
             type=NotificationType.TICKET_CREATED,
@@ -27,14 +30,15 @@ class TestNotification:
         assert notification.read is False
 
         with freeze_time(current_datetime() + timedelta(seconds=5)):
-            notification.mark_as_read()
+            notification.mark_as_read(user_id)
 
         assert notification.read is True
         assert notification.updated_at > original_updated_at
 
     def test_mark_as_read_does_not_update_if_already_read(self):
+        user_id = uuid4()
         notification = Notification(
-            user_id=uuid4(),
+            user_id=user_id,
             title="Новое уведомление",
             message="Тестовое сообщение",
             type=NotificationType.TICKET_CREATED,
@@ -44,10 +48,21 @@ class TestNotification:
         original_updated_at = notification.updated_at
 
         with freeze_time(current_datetime() + timedelta(seconds=5)):
-            notification.mark_as_read()
+            notification.mark_as_read(user_id)
 
         assert notification.read is True
         assert notification.updated_at == original_updated_at
+
+    def test_mark_as_read_does_not_receiver(self):
+        notification = Notification(
+            user_id=uuid4(),
+            title="Новое уведомление",
+            message="Тестовое сообщение",
+            type=NotificationType.TICKET_CREATED,
+        )
+
+        with pytest.raises(PermissionDeniedError, match="You can only read your notifications"):
+            notification.mark_as_read(read_by=uuid4())
 
 
 class TestUserPreference:
