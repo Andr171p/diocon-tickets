@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Path, status
 
 from ..iam.dependencies import get_current_user, require_role
-from ..iam.domain.constants import SUPPORT_MANAGER_OR_ABOVE, SUPPORT_TEAM
+from ..iam.domain.constants import CUSTOMER_ADMIN_AND_ABOVE, SUPPORT_MANAGER_OR_ABOVE, SUPPORT_TEAM
 from ..iam.mappers import map_user_to_response
 from ..iam.schemas import UserResponse
 from ..shared.dependencies import PageParamsDep
@@ -94,7 +94,7 @@ async def delete_counterparty(counterparty_id: UUID, repository: CounterpartyRep
     path="/{counterparty_id}/customers",
     status_code=status.HTTP_200_OK,
     response_model=Page[UserResponse],
-    dependencies=[Depends(require_role(*SUPPORT_TEAM))],
+    dependencies=[Depends(require_role(*CUSTOMER_ADMIN_AND_ABOVE))],
     summary="Получение клиентов контрагента",
     description="Доступно с ролью `customer_admin` и выше",
 )
