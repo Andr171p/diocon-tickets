@@ -6,7 +6,7 @@ from src.iam.domain.exceptions import PermissionDeniedError
 from src.iam.domain.vo import UserRole
 from src.shared.domain.exceptions import InvariantViolationError
 from src.tickets.domain.entities import Ticket
-from src.tickets.domain.vo import TicketNumber, TicketPriority, TicketStatus
+from src.tickets.domain.vo import Tag, TicketNumber, TicketPriority, TicketStatus
 
 # ====================== Fixtures ======================
 
@@ -469,3 +469,203 @@ class TestAssignTo:
                 assigned_by=uuid.uuid4(),
                 assigned_by_role=UserRole.SUPPORT_AGENT,
             )
+
+
+class TestEdit:
+    """
+    Тестирование редактирования тикета
+    """
+
+    @pytest.fixture
+    def creator_id(self):
+        return uuid.uuid4()
+
+    @pytest.fixture
+    def reporter_id(self):
+        return uuid.uuid4()
+
+    @pytest.fixture
+    def ticket(self, reporter_id, creator_id):
+        return Ticket.create(
+            ticket_number=TicketNumber("WEB-26-00000005"),
+            reporter_id=reporter_id,
+            created_by=creator_id,
+            created_by_role=UserRole.CUSTOMER,
+            title="Initial ticket",
+            description="Initial description",
+            tags=[Tag(name="bug"), Tag(name="feature")],
+            counterparty_id=uuid.uuid4(),
+        )
+
+    def test_edit_success(self, ticket, creator_id):
+        """
+        Успешное редактирование всех допустимых полей тикета
+        """
+
+        new_tags = [Tag(name="bug"), Tag(name="feature"), Tag(name="alert")]
+        ticket.edit(
+            edited_by=creator_id,
+            title="New title",
+            description="New description",
+            priority=TicketPriority.HIGH,
+            tags=new_tags,
+        )
+
+        assert ticket.title == "New title"
+        assert ticket.description == "New description"
+        assert ticket.priority == TicketPriority.HIGH
+        assert ticket.tags == new_tags
+
+        history_entry = ticket.history[-1]
+        excepted_history_length = 5
+
+        assert history_entry.actor_id == creator_id
+        assert len(ticket.history) == excepted_history_length
+
+    def test_edit_no_changes(self, ticket, reporter_id):
+        """
+        История изменений не меняется, если данные при редактировании не меняются
+        """
+
+        ticket.edit(
+            edited_by=reporter_id,
+            title="Initial ticket",
+            description="Initial description",
+            priority=TicketPriority.MEDIUM,
+            tags=[Tag(name="bug"), Tag(name="feature")],
+        )
+
+        assert len(ticket.history) == 1
+
+    def test_edit_forbidden_for_not_creator_or_reporter(self, ticket):
+        """
+        Нельзя редактировать тикет, если ты не автор или инициатор
+        """
+
+        with pytest.raises(PermissionDeniedError, match="Only author or reporter can edit ticket"):
+            ticket.edit(edited_by=uuid.uuid4(), title="New title")
+
+    def test_edit_in_not_allowed_status(self, ticket, reporter_id):
+        """
+        Нельзя редактировать тикет, который находится в неразрешённом статусе
+        """
+
+        # Изменение статуса на 'новый'
+        ticket.change_status(
+            new_status=TicketStatus.OPEN,
+            changed_by=reporter_id,
+            changed_by_role=UserRole.CUSTOMER_ADMIN,
+        )
+
+        with pytest.raises(
+                InvariantViolationError, match="Cannot edit ticket in not allowed status"
+        ):
+            ticket.edit(edited_by=reporter_id, title="New title")
+
+    def test_edit_empty_title_ignored(self, ticket, creator_id):
+        """
+        Нельзя устанавливать пустой заголовок и описание
+        """
+
+        ticket.edit(edited_by=creator_id, title="  ", description="  ")
+
+        assert bool(ticket.title) is True
+        assert len(ticket.history) == 1
+        assert ticket.history[-1].action == "ticket_created"
+
+
+class TestArchive:
+    """
+    Тесты для архивирования тикета
+    """
+
+    @pytest.fixture
+    def creator_id(self):
+        return uuid.uuid4()
+
+    @pytest.fixture
+    def reporter_id(self):
+        return uuid.uuid4()
+
+    @pytest.fixture
+    def ticket(self, reporter_id, creator_id):
+        return Ticket.create(
+            ticket_number=TicketNumber("WEB-26-00000005"),
+            reporter_id=reporter_id,
+            created_by=creator_id,
+            created_by_role=UserRole.CUSTOMER,
+            title="Initial ticket",
+            description="Initial description",
+            tags=[Tag(name="bug"), Tag(name="feature")],
+            counterparty_id=uuid.uuid4(),
+        )
+
+    def test_archive_by_creator_success(self, ticket, creator_id):
+        """
+        Успешная архивация тикета автором
+        """
+
+        ticket.archive(archived_by=creator_id, archived_by_role=UserRole.SUPPORT_AGENT)
+
+        excepted_history_length = 2
+
+        assert ticket.is_archived is True
+        assert ticket.updated_at > ticket.created_at
+        assert len(ticket.history) == excepted_history_length
+        assert ticket.history[-1].action == "ticket_archived"
+
+    @pytest.mark.parametrize(
+        "user_role", [
+            UserRole.CUSTOMER,
+            UserRole.CUSTOMER_ADMIN,
+            UserRole.SUPPORT_AGENT,
+            UserRole.SUPPORT_MANAGER,
+            UserRole.ADMIN,
+        ]
+    )
+    def test_archive_by_reporter_success(self, ticket, reporter_id, user_role):
+        """
+        Успешная архивация тикета инициатором
+        """
+
+        ticket.archive(archived_by=reporter_id, archived_by_role=user_role)
+
+        assert ticket.is_archived is True
+
+    @pytest.mark.parametrize("user_role", [UserRole.ADMIN, UserRole.SUPPORT_MANAGER])
+    def test_archive_by_required_staff_success(self, ticket, user_role):
+        """
+        Успешная архивация тикета определёнными сотрудниками
+        """
+
+        ticket.archive(archived_by=uuid.uuid4(), archived_by_role=user_role)
+
+        assert ticket.is_archived is True
+
+    @pytest.mark.parametrize(
+        "wrong_role", [UserRole.CUSTOMER, UserRole.CUSTOMER_ADMIN, UserRole.SUPPORT_AGENT]
+    )
+    def test_archive_forbidden_for_wrong_role_and_outsider_id(self, ticket, wrong_role):
+        """
+        Доступ запрещён если неверная роль и
+        """
+
+        with pytest.raises(
+                PermissionDeniedError, match="Insufficient permissions to archive a ticket"
+        ):
+            ticket.archive(archived_by=uuid.uuid4(), archived_by_role=wrong_role)
+
+    def test_archive_already_archived_does_nothing(self, ticket, reporter_id):
+        """
+        При архивации уже архивированного тикета, не должно обновляться состояние
+        """
+
+        ticket.archive(archived_by=reporter_id, archived_by_role=UserRole.SUPPORT_AGENT)
+
+        removed_at, updated_at = ticket.removed_at, ticket.updated_at
+
+        ticket.archive(archived_by=reporter_id, archived_by_role=UserRole.SUPPORT_MANAGER)
+
+        assert ticket.is_archived is True
+        assert ticket.removed_at == removed_at
+        assert ticket.updated_at == updated_at

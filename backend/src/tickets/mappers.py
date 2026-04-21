@@ -67,6 +67,7 @@ def map_ticket_to_response(ticket: Ticket) -> TicketResponse:
         priority=ticket.priority,
         assigned_to=ticket.assigned_to,
         closed_at=ticket.closed_at,
+        is_archived=ticket.is_archived,
         tags=[Tag(name=tag.name, color=tag.color) for tag in ticket.tags],
         attachments=[map_attachment_to_response(attachment) for attachment in ticket.attachments],
         history=[map_history_entry_to_response(history_entry) for history_entry in ticket.history],

@@ -20,7 +20,7 @@ from src.tickets.domain.vo import (
     TicketPriority,
     TicketStatus,
 )
-from src.tickets.schemas import CommentCreate, Tag, TicketCreate
+from src.tickets.schemas import CommentCreate, Tag, TicketCreate, TicketEdit
 from src.tickets.services import TicketService
 
 
@@ -905,3 +905,71 @@ class TestAddComment:
                 data=data,
                 current_user=current_customer_admin_user,
             )
+
+
+class TestEdit:
+    """
+    Тесты для редактирования тикета
+    """
+
+    @pytest.mark.asyncio
+    async def test_edit_success(
+            self,
+            mock_session,
+            ticket_service,
+            sample_ticket,
+            reporter_id,
+            mock_ticket_repo,
+    ):
+        """
+        Успешное изменение тикета
+        """
+
+        new_tags = [Tag(name="bug", color="#0345fc"), Tag(name="feature", color="#fc0303")]
+        data = TicketEdit(
+            title="New title",
+            description="New description",
+            priority=TicketPriority.LOW,
+            tags=new_tags,
+        )
+        response = await ticket_service.edit(sample_ticket.id, data, edited_by=reporter_id)
+
+        mock_session.commit.assert_awaited_once()
+
+        assert response.id == sample_ticket.id
+        assert response.title == "New title"
+        assert response.description == "New description"
+        assert response.priority == TicketPriority.LOW
+        assert response.tags == new_tags
+
+        edited_ticket = await mock_ticket_repo.read(sample_ticket.id)
+
+        assert edited_ticket is not None
+        assert edited_ticket.title == "New title"
+        assert edited_ticket.description == "New description"
+        assert edited_ticket.priority == TicketPriority.LOW
+
+    @pytest.mark.asyncio
+    async def test_edit_not_found(self, ticket_service, reporter_id):
+        """
+        Тикет не найден
+        """
+
+        ticket_id = uuid4()
+        data = TicketEdit(title="New title", description="New description")
+        with pytest.raises(NotFoundError, match=f"Ticket with ID {ticket_id} not found"):
+            await ticket_service.edit(ticket_id, data, edited_by=reporter_id)
+
+    @pytest.mark.asyncio
+    async def test_edit_partial_fields(self, ticket_service, sample_ticket, reporter_id):
+        """
+        Частичное редактирование полей
+        """
+
+        data = TicketEdit(title="New title", priority=TicketPriority.CRITICAL)
+        response = await ticket_service.edit(sample_ticket.id, data, edited_by=reporter_id)
+
+        assert response.id == sample_ticket.id
+        assert response.title == "New title"
+        assert response.priority == TicketPriority.CRITICAL
+        assert response.description == sample_ticket.description

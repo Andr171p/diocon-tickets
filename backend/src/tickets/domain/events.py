@@ -50,6 +50,27 @@ class TicketStatusChanged(Event):
 
 
 @dataclass(frozen=True, kw_only=True)
+class TicketPriorityChanged(Event):
+    """Изменён приоритет тикета"""
+
+    ticket_id: UUID
+    number: str
+    changed_by: UUID
+    old_priority: TicketPriority
+    new_priority: TicketPriority
+
+
+@dataclass(frozen=True, kw_only=True)
+class TicketArchived(Event):
+    """Тикет архивирован"""
+
+    ticket_id: UUID
+    number: str
+    reporter_id: UUID
+    archived_by: UUID
+
+
+@dataclass(frozen=True, kw_only=True)
 class CommentAdded(Event):
     """Добавлен комментарий"""
 

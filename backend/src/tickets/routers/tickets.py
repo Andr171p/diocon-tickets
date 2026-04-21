@@ -18,6 +18,7 @@ from ..schemas import (
     PredictionResponse,
     TicketAssign,
     TicketCreate,
+    TicketEdit,
     TicketPredict,
     TicketPreview,
     TicketResponse,
@@ -92,6 +93,22 @@ async def get_ticket(ticket_id: UUID, repository: TicketRepoDep) -> TicketRespon
     return map_ticket_to_response(ticket)
 
 
+@router.patch(
+    path="/{ticket_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=TicketResponse,
+    summary="Редактирование тикета",
+    description="",
+)
+async def update_ticket(
+        ticket_id: UUID,
+        data: TicketEdit,
+        current_user: CurrentUserDep,
+        service: TicketServiceDep,
+) -> TicketResponse:
+    return await service.edit(ticket_id, data, edited_by=current_user.user_id)
+
+
 @router.post(
     path="/{ticket_id}/assign",
     status_code=status.HTTP_200_OK,
@@ -135,6 +152,23 @@ async def change_ticket_status(
         new_status=data.status,
         changed_by=current_user.user_id,
         changed_by_role=current_user.role,
+    )
+
+
+@router.delete(
+    path="/{ticket_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=TicketResponse,
+    summary="Архивирование тикета",
+    description="Soft-delete метод, не удаляет тикет фактически (добавляет в архив)",
+)
+async def delete_ticket(
+        ticket_id: UUID, current_user: CurrentUserDep, service: TicketServiceDep
+) -> TicketResponse:
+    return await service.archive(
+        ticket_id=ticket_id,
+        archived_by=current_user.user_id,
+        archived_by_role=current_user.role,
     )
 
 

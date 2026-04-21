@@ -94,6 +94,7 @@ class TicketResponse(TicketBase):
     status: TicketStatus = Field(..., description="Текущий статус")
     assigned_to: UUID | None = Field(None, description="Кому назначен тикет")
     closed_at: datetime | None = Field(None, description="Дата закрытия тикета")
+    is_archived: bool = Field(..., description="Заархивирован ли тикет")
 
     attachments: list[AttachmentResponse] = Field(
         default_factory=list, description="Прикреплённые файлы"
@@ -159,6 +160,15 @@ class TicketStatusChange(BaseModel):
     """Изменение статуса тикета"""
 
     status: TicketStatus = Field(..., description="Статус, который нужно установить")
+
+
+class TicketEdit(BaseModel):
+    """Редактирование тикета"""
+
+    title: str | None = Field(None, description="Заголовок")
+    description: str | None = Field(None, description="Описание")
+    priority: TicketPriority | None = Field(None, description="Приоритет")
+    tags: list[Tag] | None = Field(None, description="Теги")
 
 
 class TicketPredict(BaseModel):

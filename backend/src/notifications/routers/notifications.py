@@ -1,11 +1,13 @@
 from typing import Annotated
 
+from uuid import UUID
+
 from fastapi import APIRouter, Query, status
 
 from ...iam.dependencies import CurrentUserDep
 from ...shared.dependencies import PageParamsDep
 from ...shared.schemas import Page
-from ..dependencies import NotificationRepoDep
+from ..dependencies import NotificationRepoDep, NotificationServiceDep
 from ..mappers import map_notification_to_response
 from ..schemas import NotificationResponse, UnreadCountOut
 
@@ -49,5 +51,8 @@ async def get_unread_count(
     summary="Пометить уведомление как прочитанное",
 )
 async def mark_as_read(
+        notification_id: UUID,
         current_user: CurrentUserDep,
-): ...
+        service: NotificationServiceDep,
+) -> NotificationResponse:
+    return await service.mark_as_read(notification_id, read_by=current_user.user_id)

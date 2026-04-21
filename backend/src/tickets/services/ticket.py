@@ -16,7 +16,14 @@ from ..domain.repos import CommentRepository, ProjectRepository, TicketRepositor
 from ..domain.services import ProjectAccessService, can_access_ticket
 from ..domain.vo import ProjectKey, Tag, TicketNumber, TicketStatus
 from ..mappers import map_comment_to_response, map_ticket_to_response
-from ..schemas import CommentCreate, CommentEdit, CommentResponse, TicketCreate, TicketResponse
+from ..schemas import (
+    CommentCreate,
+    CommentEdit,
+    CommentResponse,
+    TicketCreate,
+    TicketEdit,
+    TicketResponse,
+)
 
 # Длина короткого ключа проекта
 SHORT_PROJECT_KEY_LENGTH = 3
@@ -142,6 +149,53 @@ class TicketService:
         await self.session.commit()
 
         # 5. Публикация доменных событий
+        for event in ticket.collect_events():
+            await self.event_publisher.publish(event)
+
+        return map_ticket_to_response(ticket)
+
+    async def edit(self, ticket_id: UUID, data: TicketEdit, edited_by: UUID) -> TicketResponse:
+        """Редактирование тикета"""
+
+        # 1. Получение тикета
+        ticket = await self.ticket_repo.read(ticket_id)
+        if ticket is None:
+            raise NotFoundError(f"Ticket with ID {ticket_id} not found")
+
+        # 2. Редактирование и обновление сущности
+        ticket.edit(
+            edited_by=edited_by,
+            title=data.title,
+            description=data.description,
+            priority=data.priority,
+            tags=None if data.tags is None
+            else [Tag(name=tag.name, color=tag.color) for tag in data.tags],
+        )
+        await self.ticket_repo.upsert(ticket)
+        await self.session.commit()
+
+        # 3. Публикация доменных событий
+        for event in ticket.collect_events():
+            await self.event_publisher.publish(event)
+
+        return map_ticket_to_response(ticket)
+
+    async def archive(
+            self, ticket_id: UUID, archived_by: UUID, archived_by_role: UserRole
+    ) -> TicketResponse:
+        """Архивация тикета"""
+
+        # 1. Получение тикета
+        ticket = await self.ticket_repo.read(ticket_id)
+        if ticket is None:
+            raise NotFoundError(f"Ticket with ID {ticket_id} not found")
+
+        # 2. Архивация тикета и обновление сущности
+        ticket.archive(archived_by=archived_by, archived_by_role=archived_by_role)
+        await self.ticket_repo.upsert(ticket)
+        await self.session.commit()
+
+        # 3. Публикация доменных событий
         for event in ticket.collect_events():
             await self.event_publisher.publish(event)
 

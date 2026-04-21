@@ -53,3 +53,6 @@ def get_notification_service(
         channel_resolver: ...,
 ) -> NotificationService:
     ...
+
+
+NotificationServiceDep = Annotated[NotificationService, Depends(get_notification_service)]

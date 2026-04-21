@@ -1,6 +1,6 @@
 from .vo import CommentType, TicketStatus
 
-# Разрешённые переходы между статусами тикета (FSM)
+# Разрешённые переходы между статусами тикета
 ALLOWED_TRANSITIONS: dict[TicketStatus, list[TicketStatus]] = {
     TicketStatus.NEW: [TicketStatus.PENDING_APPROVAL, TicketStatus.OPEN],
     TicketStatus.PENDING_APPROVAL: [TicketStatus.OPEN, TicketStatus.REJECTED],
@@ -18,6 +18,12 @@ ALLOWED_ASSIGN_STATUSES: set[TicketStatus] = {
     TicketStatus.IN_PROGRESS,
     TicketStatus.WAITING,
     TicketStatus.RESOLVED,
+}
+
+# Разрешённые статусы для редактирования тикета
+ALLOWED_EDIT_STATUSES: set[TicketStatus] = {
+    TicketStatus.NEW,
+    TicketStatus.PENDING_APPROVAL,
 }
 
 # Человеко-читаемые типы комментариев (для UI)

@@ -4,28 +4,27 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from ...iam.domain.exceptions import PermissionDeniedError
-from ...iam.domain.vo import UserRole
-from ...media.domain.entities import Attachment
-from ...shared.domain.entities import AggregateRoot, Entity
-from ...shared.domain.exceptions import InvariantViolationError
-from ...shared.utils.time import current_datetime
-from .constants import (
+from ....iam.domain.exceptions import PermissionDeniedError
+from ....iam.domain.vo import UserRole
+from ....media.domain.entities import Attachment
+from ....shared.domain.entities import AggregateRoot, Entity
+from ....shared.domain.exceptions import InvariantViolationError
+from ....shared.utils.time import current_datetime
+from ..constants import (
     ALLOWED_ASSIGN_STATUSES,
+    ALLOWED_EDIT_STATUSES,
     ALLOWED_TRANSITIONS,
 )
-from .events import (
+from ..events import (
     CommentAdded,
     CommentEdited,
-    ProjectCreated,
+    TicketArchived,
     TicketAssigned,
     TicketCreated,
+    TicketPriorityChanged,
 )
-from .vo import (
+from ..vo import (
     CommentType,
-    ProjectKey,
-    ProjectRole,
-    ProjectStatus,
     Tag,
     TicketNumber,
     TicketPriority,
@@ -153,6 +152,9 @@ class Ticket(AggregateRoot):
     assigned_to: UUID | None = None
     closed_at: datetime | None = None
 
+    # Служебные поля
+    removed_at: datetime | None = None
+
     # Дополнительно
     tags: list[Tag] = field(default_factory=list)
 
@@ -170,6 +172,12 @@ class Ticket(AggregateRoot):
             raise InvariantViolationError(
                 "Customer-created ticket must be linked to a counterparty"
             )
+
+    @property
+    def is_archived(self) -> bool:
+        """Заархивирован ли тикет"""
+
+        return self.removed_at is not None
 
     @classmethod
     def create(
@@ -229,6 +237,109 @@ class Ticket(AggregateRoot):
         )
 
         return ticket
+
+    def edit(
+            self,
+            edited_by: UUID,
+            title: str | None = None,
+            description: str | None = None,
+            priority: TicketPriority | None = None,
+            tags: list[Tag] | None = None
+    ) -> None:
+        """Редактирование тикета"""
+
+        edited_fields = []
+
+        # 1. Редактировать может только автор или инициатор
+        if edited_by not in {self.reporter_id, self.created_by}:
+            raise PermissionDeniedError("Only author or reporter can edit ticket")
+
+        # 2. Нельзя редактировать тикет, если он в работе + если тикет архивирован
+        if self.status not in ALLOWED_EDIT_STATUSES:
+            raise InvariantViolationError("Cannot edit ticket in not allowed status")
+        if self.is_archived:
+            raise InvariantViolationError("Cannot edit archived ticket")
+
+        # 3. Редактирование заголовка
+        if title is not None and title.strip() != self.title and title.strip():
+            old_title = self.title
+            self.title = title.strip()
+            edited_fields.append(("title", old_title, self.title))
+
+        # 4. Редактирование описания
+        if description is not None and description.strip() != self.description \
+                and description.strip():
+            old_description = self.description
+            self.description = description.strip()
+            edited_fields.append(("description", old_description, self.description))
+
+        # 5. Обновление приоритета
+        if priority is not None and priority != self.priority:
+            old_priority = self.priority
+            self.priority = priority
+            edited_fields.append(("priority", old_priority, self.priority))
+
+            # 5.1 Регистрация доменного события при изменении приоритета
+            self.register_event(
+                TicketPriorityChanged(
+                    ticket_id=self.id,
+                    number=f"{self.number}",
+                    changed_by=edited_by,
+                    old_priority=old_priority,
+                    new_priority=self.priority,
+                )
+            )
+
+        # 6. Редактирование тегов
+        if tags is not None and set(tags) != set(self.tags):
+            old_tags = [tag.name for tag in self.tags]
+            self.tags = tags[:]
+            edited_fields.append(("tags", old_tags, [tag.name for tag in tags]))
+
+        # 7. Запись изменений в историю
+        if edited_fields:
+            self.updated_at = current_datetime()
+            for field, old_value, new_value in edited_fields:
+                self.write_history(
+                    actor_id=edited_by,
+                    action=f"{field}_edited",
+                    old_value=str(old_value),
+                    new_value=str(new_value),
+                    description="Поле отредактировано"
+                )
+
+    def archive(self, archived_by: UUID, archived_by_role: UserRole) -> None:
+        """Архивирование тикета"""
+
+        # 1. Проверка прав на архивирование
+        is_creator_or_reporter = archived_by in {self.created_by, self.reporter_id}
+        is_staff = archived_by_role in {UserRole.ADMIN, UserRole.SUPPORT_MANAGER}
+        if not (is_creator_or_reporter or is_staff):
+            raise PermissionDeniedError("Insufficient permissions to archive a ticket")
+
+        if self.is_archived:
+            return
+
+        # 2. Архивирование
+        self.removed_at = current_datetime()
+        self.updated_at = current_datetime()
+
+        # 3. Запись в историю
+        self.write_history(
+            actor_id=archived_by,
+            action="ticket_archived",
+            description="Тикет архивирован",
+        )
+
+        # 4. Регистрация доменного события
+        self.register_event(
+            TicketArchived(
+                ticket_id=self.id,
+                number=f"{self.number}",
+                reporter_id=self.reporter_id,
+                archived_by=archived_by,
+            )
+        )
 
     def assign_to(
             self,
@@ -370,119 +481,5 @@ class Ticket(AggregateRoot):
                 old_value=old_value,
                 new_value=new_value,
                 description=description,
-            )
-        )
-
-
-@dataclass(kw_only=True)
-class Membership(Entity):
-    """
-    Участник проекта
-    """
-
-    project_id: UUID
-    user_id: UUID
-    project_role: ProjectRole
-    added_at: datetime = field(default_factory=current_datetime)
-    added_by: UUID
-    removed_at: datetime | None = None
-
-    @property
-    def is_active(self) -> bool:
-        return self.removed_at is None
-
-
-@dataclass(kw_only=True)
-class Project(AggregateRoot):
-    """
-    Проект - контейнер для тикетов
-    """
-
-    name: str
-    key: ProjectKey  # Короткий уникальный ключ
-    description: str | None = None
-    counterparty_id: UUID | None = None
-    status: ProjectStatus
-    # Владелец проекта, руководитель или ответственный
-    owner_id: UUID
-    # Участники проекта (члены команды)
-    memberships: list[Membership] = field(default_factory=list)
-    # Метаданные
-    created_by: UUID
-
-    def __post_init__(self) -> None:
-        # 1. Наименование проекта не может быть пустым
-        if not self.name.strip():
-            raise ValueError("Project name cannot be empty")
-
-        # 2. Владелец проекта должен быть среди его участников
-        if not any(membership.user_id == self.owner_id for membership in self.memberships):
-            raise InvariantViolationError("Owner must be a participant of the project")
-
-    @classmethod
-    def create(
-            cls,
-            name: str,
-            key: str,
-            owner_id: UUID,
-            created_by: UUID,
-            description: str | None = None,
-            counterparty_id: UUID | None = None,
-    ) -> Self:
-        """Создание проекта"""
-
-        project_id = uuid4()
-        owner = Membership(
-            project_id=project_id,
-            user_id=owner_id,
-            project_role=ProjectRole.OWNER,
-            added_by=created_by,
-        )
-        project = cls(
-            id=project_id,
-            name=name,
-            key=ProjectKey(key),
-            description=description,
-            counterparty_id=counterparty_id,
-            owner_id=owner_id,
-            status=ProjectStatus.ACTIVE,
-            memberships=[owner],
-            created_by=created_by,
-        )
-        project.register_event(
-            ProjectCreated(
-                project_id=project_id,
-                name=name,
-                created_by=created_by,
-                counterparty_id=counterparty_id,
-            )
-        )
-        return project
-
-    def add_member(
-            self,
-            user_id: UUID,
-            project_role: ProjectRole,
-            added_by: UUID,
-            added_by_role: UserRole,
-    ) -> None:
-        """Добавление участника"""
-
-        # 1. Проверка прав на добавление
-        if added_by != self.owner_id and added_by_role not in {
-            UserRole.SUPPORT_MANAGER, UserRole.SUPPORT_AGENT, UserRole.ADMIN,
-        }:
-            raise PermissionDeniedError("Only owner or support stuff can add memberships")
-
-        # 2. Проверка того, что участник уже есть
-        if user_id in [membership.user_id for membership in self.memberships]:
-            raise InvariantViolationError(f"User with ID {user_id} is already a member")
-
-        self.memberships.append(
-            Membership(
-                project_id=self.id,
-                user_id=user_id,
-                project_role=project_role,
-                added_by=added_by,
             )
         )
