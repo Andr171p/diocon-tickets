@@ -25,14 +25,13 @@ def map_counterparty_to_response(counterparty: Counterparty) -> CounterpartyResp
         parent_id=counterparty.parent_id,
         is_branch=counterparty.is_branch,
         is_active=counterparty.is_active,
-        contact_person=(
-            None
-            if counterparty.contact_person is None
-            else ContactPersonOut(
-                full_name=f"{counterparty.contact_person.full_name}",
-                phone=f"{counterparty.contact_person.phone}",
-                email=counterparty.contact_person.email,
-                messengers=counterparty.contact_person.messengers,
+        contact_persons=[
+            ContactPersonOut(
+                full_name=f"{contact_person.full_name}",
+                phone=f"{contact_person.phone}",
+                email=contact_person.email,
+                messengers=contact_person.messengers,
             )
-        ),
+            for contact_person in counterparty.contact_persons
+        ],
     )

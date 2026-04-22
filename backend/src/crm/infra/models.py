@@ -26,7 +26,7 @@ class CounterpartyOrm(Base):
     email: Mapped[str] = mapped_column(unique=True)
     address: Mapped[str | None] = mapped_column(nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(nullable=True)
-    contact_person: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    contact_persons: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
     is_active: Mapped[bool]
 
     parent_id: Mapped[UUID | None] = mapped_column(

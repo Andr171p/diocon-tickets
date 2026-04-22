@@ -1,13 +1,11 @@
 from dataclasses import dataclass, field
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import EmailStr
 
 from ...shared.domain.entities import Entity
 from ...shared.domain.exceptions import InvariantViolationError
-from ...shared.utils.time import current_datetime
-from .vo import ContactPerson, CounterpartyType, Inn, Kpp, Okpo, Phone, SupportAssignmentType
+from .vo import ContactPerson, CounterpartyType, Inn, Kpp, Okpo, Phone
 
 INDIVIDUAL_INN_LENGTH = 12
 LEGAL_INN_LENGTH = 10
@@ -29,7 +27,7 @@ class Counterparty(Entity):
     email: EmailStr
     address: str | None = None
     avatar_url: str | None = None
-    contact_person: ContactPerson | None = None
+    contact_persons: list[ContactPerson] = field(default_factory=list)
     is_active: bool = True
 
     # Поля для master-slave иерархии (удобно для филиалов)
@@ -113,19 +111,3 @@ class Counterparty(Entity):
             address=address,
             parent_id=self.id
         )
-
-
-@dataclass(kw_only=True)
-class SupportAssignment(Entity):
-    """
-    Привязка сотрудника поддержки к контрагенту
-    """
-
-    counterparty_id: UUID
-    user_id: UUID
-    assignment_type: SupportAssignmentType
-
-    # Дополнительные метаданные
-    is_active: bool = True
-    assigned_at: datetime | None = field(default_factory=current_datetime)
-    assigned_by: UUID

@@ -20,13 +20,13 @@ def legal_entity_data():
         phone="88005553535",
         email="parent@example.com",
         address="Москва, ул. Ленина, д.1",
-        contact_person=ContactPersonIn(
+        contact_persons=[ContactPersonIn(
             first_name="Иван",
             last_name="Иванов",
             middle_name="Иванович",
             phone="88005553535",
             email="ivanov@example.com",
-        ),
+        )],
     )
 
 

@@ -13,13 +13,13 @@ def legal_entity_payload():
         "phone": "88005553535",
         "email": "parent@example.com",
         "address": "Москва, ул. Ленина, д.1",
-        "contact_person": {
+        "contact_persons": [{
             "first_name": "Иван",
             "last_name": "Иванов",
             "middle_name": "Иванович",
             "phone": "88005553535",
             "email": "ivanov@example.com",
-        },
+        }],
     }
 
 

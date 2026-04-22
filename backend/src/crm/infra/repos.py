@@ -29,15 +29,15 @@ class CounterpartyMapper(ModelMapper[Counterparty, CounterpartyOrm]):
             email=model.email,
             address=model.address,
             avatar_url=model.avatar_url,
-            contact_person=(
-                None if model.contact_person is None
-                else ContactPerson(
-                    full_name=FullName(model.contact_person["full_name"]),
-                    phone=Phone(model.contact_person["phone"]),
-                    email=model.contact_person["email"],
-                    messengers=model.contact_person["messengers"],
+            contact_persons=[
+                ContactPerson(
+                    full_name=FullName(contact_person["full_name"]),
+                    phone=Phone(contact_person["phone"]),
+                    email=contact_person["email"],
+                    messengers=contact_person["messengers"],
                 )
-            ),
+                for contact_person in model.contact_persons
+            ],
             is_active=model.is_active,
             parent_id=model.parent_id,
         )
@@ -58,14 +58,15 @@ class CounterpartyMapper(ModelMapper[Counterparty, CounterpartyOrm]):
             email=entity.email,
             address=entity.address,
             avatar_url=entity.avatar_url,
-            contact_person=(
-                None if entity.contact_person is None else {
-                    "full_name": entity.contact_person.full_name.value,
-                    "phone": entity.contact_person.phone.value,
-                    "email": entity.contact_person.email,
-                    "messengers": entity.contact_person.messengers,
+            contact_persons=[
+                {
+                    "full_name": contact_person.full_name.value,
+                    "phone": contact_person.phone.value,
+                    "email": contact_person.email,
+                    "messengers": contact_person.messengers,
                 }
-            ),
+                for contact_person in entity.contact_persons
+            ],
             is_active=entity.is_active,
             parent_id=entity.parent_id,
         )

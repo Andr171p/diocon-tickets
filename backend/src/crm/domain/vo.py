@@ -241,12 +241,3 @@ class ContactPerson(ValueObject):
             email=email,
             messengers=messengers,
         )
-
-
-class SupportAssignmentType(StrEnum):
-    """Типы привязки сотрудника поддержки к контрагенту"""
-
-    PRIMARY = "primary"      # основной ответственный
-    SECONDARY = "secondary"  # может работать
-    TECHNICAL = "technical"  # техническая поддержка
-    ESCALATION = "escalation"  # эскалация

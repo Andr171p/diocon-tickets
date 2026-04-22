@@ -30,19 +30,18 @@ class CounterpartyService:
         okpo = None if data.okpo is None else Okpo(data.okpo)
         phone = Phone(data.phone)
 
-        # 3. Формирование контактного лица
-        contact_person = (
-            None
-            if data.contact_person is None
-            else ContactPerson.create(
-                first_name=data.contact_person.first_name,
-                last_name=data.contact_person.last_name,
-                middle_name=data.contact_person.middle_name,
-                phone=data.contact_person.phone,
-                email=data.contact_person.email,
-                messengers=data.contact_person.messengers,
+        # 3. Формирование контактных лиц лица
+        contact_persons = [
+            ContactPerson.create(
+                first_name=contact_person.first_name,
+                last_name=contact_person.last_name,
+                middle_name=contact_person.middle_name,
+                phone=contact_person.phone,
+                email=contact_person.email,
+                messengers=contact_person.messengers,
             )
-        )
+            for contact_person in data.contact_persons
+        ]
 
         # 4. Создание доменной сущности
         counterparty = Counterparty(
@@ -55,7 +54,7 @@ class CounterpartyService:
             phone=phone,
             email=data.email,
             address=data.address,
-            contact_person=contact_person,
+            contact_persons=contact_persons,
         )
 
         # 5. Запись в базу данных

@@ -50,7 +50,9 @@ class CounterpartyCreate(BaseModel):
     phone: str = Field(..., description="Номер телефона")
     email: EmailStr = Field(..., description="Адрес электронной почты")
     address: str | None = Field(None, description="Фактический адрес компании")
-    contact_person: ContactPersonIn | None = Field(None, description="Контактное лицо")
+    contact_persons: list[ContactPersonIn] = Field(
+        default_factory=list, description="Контактное лицо"
+    )
 
 
 class BranchAdd(BaseModel):
@@ -91,7 +93,9 @@ class CounterpartyResponse(BaseModel):
     email: EmailStr = Field(..., description="Адрес электронной почты")
     address: str | None = Field(None, description="Фактический адрес компании")
     avatar_url: str | None = Field(None, description="URL адрес аватарки")
-    contact_person: ContactPersonOut | None = Field(None, description="Контактное лицо")
+    contact_persons: list[ContactPersonOut] = Field(
+        default_factory=list, description="Контактное лицо"
+    )
     parent_id: UUID | None = Field(None, description="ID головного контрагента")
     is_active: bool = Field(True, description="Доступен ли контрагент в системе")
     is_head: bool = Field(True, description="Является ли контрагент головным")
