@@ -341,7 +341,7 @@ class CommentService:
         def mapper(comment: Comment) -> CommentWithReactionsResponse:
             return map_comment_with_reactions_to_response(
                 comment=comment,
-                reaction_count=stats.counts.get(comment.id, {}),
+                reaction_counts=stats.counts.get(comment.id, {}),
                 user_reactions=list(stats.user_reactions.get(comment.id, set())),
             )
 
