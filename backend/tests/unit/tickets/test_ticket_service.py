@@ -973,3 +973,21 @@ class TestEdit:
         assert response.title == "New title"
         assert response.priority == TicketPriority.CRITICAL
         assert response.description == sample_ticket.description
+
+
+class TestArchive:
+    """
+    Тестирование архивирования тикета
+    """
+
+    @pytest.mark.asyncio
+    async def test_archive_success(
+            self, ticket_service, mock_ticket_repo, sample_ticket, reporter_id
+    ):
+        response = await ticket_service.archive(
+            ticket_id=sample_ticket.id,
+            archived_by=reporter_id,
+            archived_by_role=UserRole.CUSTOMER,
+        )
+
+        assert response.id == sample_ticket.id

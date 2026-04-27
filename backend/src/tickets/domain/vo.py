@@ -253,3 +253,15 @@ class TicketNumber(ValueObject):
         """Является ли тикет внутренним"""
 
         return self.prefix == self.INTERNAL_PREFIX
+
+
+class ReactionType(StrEnum):
+    """
+    Тип реакции, которая оставлена к комментарию
+    """
+
+    LIKE = "like"  # 👍
+    THANKS = "thanks"  # 🙏
+    IN_PROGRESS = "in_progress"  # 👀
+    RESOLVED = "resolved"  # 🚀
+    IMPORTANT = "important"  # ❗

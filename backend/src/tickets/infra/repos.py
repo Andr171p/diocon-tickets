@@ -1,5 +1,6 @@
 from typing import Any, Literal, override
 
+from collections import defaultdict
 from collections.abc import Callable
 from uuid import UUID
 
@@ -8,11 +9,12 @@ from sqlalchemy.orm import selectinload
 
 from ...shared.infra.repos import SqlAlchemyRepository
 from ...shared.schemas import Page, PageParams
-from ..domain.entities import Comment, Membership, Project, Ticket
-from ..domain.vo import CommentType, ProjectKey
+from ..domain.entities import Comment, Membership, Project, Reaction, Ticket
+from ..domain.repos import ReactionStats
+from ..domain.vo import CommentType, ProjectKey, ReactionType
 from ..schemas import TicketFilter
-from .mappers import CommentMapper, MembershipMapper, ProjectMapper, TicketMapper
-from .models import CommentOrm, MembershipOrm, ProjectOrm, TicketOrm
+from .mappers import CommentMapper, MembershipMapper, ProjectMapper, ReactionMapper, TicketMapper
+from .models import CommentOrm, MembershipOrm, ProjectOrm, ReactionOrm, TicketOrm
 
 
 class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
@@ -229,20 +231,103 @@ class SqlCommentRepository(SqlAlchemyRepository[Comment, CommentOrm]):
             raise ValueError("User ID required for received NOTE comments")
 
         # 2. Список условий (фильтров)
-        conditions = [self.model.comment_type == CommentType.PUBLIC]
+        base_conditions = [
+            self.model.ticket_id == ticket_id,
+            self.model.parent_comment_id.is_(None),
+            self.model.deleted_at.is_(None),
+        ]
+        type_conditions = [self.model.comment_type == CommentType.PUBLIC]
 
         # 3. Применение фильтров к запросу
         if include_notes:
-            conditions.append(
+            type_conditions.append(
                 (self.model.comment_type == CommentType.NOTE) &
                 (self.model.author_id == user_id)
             )
         if include_internal:
-            conditions.append(self.model.comment_type == CommentType.INTERNAL)
+            type_conditions.append(self.model.comment_type == CommentType.INTERNAL)
 
         # 4. Формирование запроса
         stmt = select(self.model).where(
-            (self.model.ticket_id == ticket_id) & or_(*conditions)
+            and_(*base_conditions), or_(*type_conditions)
         )
 
         return await self._paginate(stmt, pagination)
+
+    async def get_replies(
+            self,
+            parent_comment_id: UUID,
+            pagination: PageParams,
+            *,
+            user_id: UUID | None = None,
+            include_notes: bool = False,
+            include_internal: bool = False,
+    ) -> Page[Comment]:
+        # 1. Применение фильтров по типу комментария
+        type_conditions = [self.model.comment_type == CommentType.PUBLIC]
+        if include_internal:
+            type_conditions.append(self.model.comment_type == CommentType.INTERNAL)
+        if include_notes:
+            type_conditions.append(
+                (self.model.comment_type == CommentType.NOTE) &
+                (self.model.author_id == user_id)
+            )
+
+        stmt = select(self.model).where(
+            self.model.parent_comment_id == parent_comment_id,
+            self.model.deleted_at.is_(None),
+            or_(*type_conditions),
+        )
+
+        return await self._paginate(stmt, pagination)
+
+
+class SqlReactionRepository(SqlAlchemyRepository[Reaction, ReactionOrm]):
+    model = ReactionOrm
+    model_mapper = ReactionMapper
+
+    async def find(
+            self, comment_id: UUID, author_id: UUID, reaction_type: ReactionType
+    ) -> Reaction | None:
+        stmt = (
+            select(self.model)
+            .where(
+                (self.model.comment_id == comment_id) &
+                (self.model.author_id == author_id) &
+                (self.model.reaction_type == reaction_type)
+            )
+        )
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return None if model is None else self.model_mapper.to_entity(model)
+
+    async def get_reaction_stats(self, comment_ids: list[UUID], user_id: UUID) -> ReactionStats:
+        # 1. Запрос для получения реакции для списка комментариев
+        stmt = (
+            select(
+                self.model.comment_id,
+                self.model.reaction_type,
+                func.count(self.model.id).label("cnt"),
+                func.count(self.model.id)
+                .filter(self.model.author_id == user_id)
+                .label("user_has_type")
+            )
+            .where(
+                (self.model.comment_id.in_(comment_ids)) &
+                (self.model.deleted_at.is_(None))
+            )
+            .group_by(self.model.comment_id, self.model.reaction_type)
+        )
+
+        # 2. Формирование статистики для реакций
+        result = await self.session.execute(stmt)
+
+        counts: dict[UUID, dict[ReactionType, int]] = defaultdict(dict)
+        user_reactions: dict[UUID, set[ReactionType]] = defaultdict(set)
+
+        for row in result:
+            counts[row.comment_id][row.reaction_type] = row.cnt
+            if row.user_has_type > 0:
+                user_reactions[row.comment_id].add(row.reaction_type)
+
+        return ReactionStats(counts=counts, user_reactions=user_reactions)

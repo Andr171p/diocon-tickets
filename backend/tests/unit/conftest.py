@@ -1,8 +1,11 @@
 from typing import override
 
+import math
+from unittest.mock import AsyncMock
 from uuid import UUID
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.crm.domain.entities import Counterparty
 from src.crm.domain.repo import CounterpartyRepository
@@ -18,9 +21,15 @@ from src.shared.infra.events import EventBus
 from src.shared.infra.repos import InMemoryRepository
 from src.shared.schemas import Page, PageParams
 from src.shared.utils.time import current_datetime
-from src.tickets.domain.entities import Comment, Membership, Project, Ticket
-from src.tickets.domain.repos import CommentRepository, ProjectRepository, TicketRepository
-from src.tickets.domain.vo import ProjectKey
+from src.tickets.domain.entities import Comment, Membership, Project, Reaction, Ticket
+from src.tickets.domain.repos import (
+    CommentRepository,
+    ProjectRepository,
+    ReactionRepository,
+    ReactionStats,
+    TicketRepository,
+)
+from src.tickets.domain.vo import CommentType, ProjectKey, ReactionType
 
 
 class InMemoryCounterpartyRepository(InMemoryRepository[Counterparty]):
@@ -165,7 +174,85 @@ class ImMemoryTicketRepository(InMemoryRepository[Ticket]):
 
 
 class ImMemoryCommentRepository(InMemoryRepository[Comment]):
-    ...
+
+    async def get_by_ticket(
+            self,
+            ticket_id: UUID,
+            pagination: PageParams,
+            *,
+            user_id: UUID | None = None,
+            include_notes: bool = False,
+            include_internal: bool = False,
+    ) -> Page[Comment]:
+        if include_notes and user_id is None:
+            raise ValueError("User ID required for received NOTE comments")
+
+        filtered = [
+            c
+            for c in self.data.values()
+            if c.ticket_id == ticket_id
+            and c.parent_comment_id is None
+            and c.deleted_at is None
+            and self._is_visible(c, user_id, include_notes, include_internal)
+        ]
+
+        filtered.sort(key=lambda c: c.created_at)
+        return self._paginate_list(filtered, pagination)
+
+    async def get_replies(
+            self,
+            parent_comment_id: UUID,
+            pagination: PageParams,
+            *,
+            user_id: UUID | None = None,
+            include_notes: bool = False,
+            include_internal: bool = False,
+    ) -> Page[Comment]:
+        if include_notes and user_id is None:
+            raise ValueError("User ID required for received NOTE comments")
+
+        filtered = [
+            c
+            for c in self.data.values()
+            if c.parent_comment_id
+            == parent_comment_id
+            and c.deleted_at is None
+            and self._is_visible(c, user_id, include_notes, include_internal)
+        ]
+
+        filtered.sort(key=lambda c: c.created_at)
+        return self._paginate_list(filtered, pagination)
+
+    @staticmethod
+    def _is_visible(
+        comment: Comment,
+        user_id: UUID | None,
+        include_notes: bool,
+        include_internal: bool,
+    ) -> bool:
+        if comment.type == CommentType.PUBLIC:
+            return True
+        if include_internal and comment.type == CommentType.INTERNAL:
+            return True
+        return bool(
+            include_notes and comment.type == CommentType.NOTE and comment.author_id == user_id
+        )
+
+    @staticmethod
+    def _paginate_list(items: list[Comment], params: PageParams) -> Page[Comment]:
+        total = len(items)
+        start = (params.page - 1) * params.size
+        end = start + params.size
+
+        return Page(
+            page=params.page,
+            size=params.size,
+            total_items=total,
+            total_pages=math.ceil(total / params.size) if total > 0 else 0,
+            has_next=end < total,
+            has_prev=params.page > 1,
+            items=items[start:end],
+        )
 
 
 class InMemoryPreferenceRepository(InMemoryRepository[UserPreference]):
@@ -219,6 +306,48 @@ class InMemoryNotificationRepository(InMemoryRepository[Notification]):
         )
 
 
+class ImMemoryReactionRepository(InMemoryRepository[Reaction]):
+
+    async def find(
+            self, comment_id: UUID, author_id: UUID, reaction_type: ReactionType
+    ) -> Reaction | None:
+        for reaction in self.data.values():
+            if (
+                reaction.comment_id == comment_id and
+                reaction.author_id == author_id and
+                reaction.reaction_type == reaction_type
+            ):
+                return reaction
+
+        return None
+
+    async def get_reaction_stats(self, comment_ids: list[UUID], user_id: UUID) -> ReactionStats:
+        if not comment_ids:
+            return ReactionStats(counts={}, user_reactions={})
+
+        target_ids = set(comment_ids)
+        counts: dict[UUID, dict[ReactionType, int]] = {}
+        user_reactions: dict[UUID, set[ReactionType]] = {}
+
+        for reaction in self.data.values():
+            if reaction.deleted_at is not None or reaction.comment_id not in target_ids:
+                continue
+
+            if reaction.comment_id not in counts:
+                counts[reaction.comment_id] = {}
+            if reaction.comment_id not in user_reactions:
+                user_reactions[reaction.comment_id] = set()
+
+            counts[reaction.comment_id][reaction.reaction_type] = (
+                counts[reaction.comment_id].get(reaction.reaction_type, 0) + 1
+            )
+
+            if reaction.author_id == user_id:
+                user_reactions[reaction.comment_id].add(reaction.reaction_type)
+
+        return ReactionStats(counts=counts, user_reactions=user_reactions)
+
+
 @pytest.fixture
 def mock_counterparty_repo() -> CounterpartyRepository:
     return InMemoryCounterpartyRepository()
@@ -265,5 +394,15 @@ def mock_notification_repo() -> NotificationRepository:
 
 
 @pytest.fixture
+def mock_reaction_repo() -> ReactionRepository:
+    return ImMemoryReactionRepository()
+
+
+@pytest.fixture
 def event_publisher() -> EventPublisher:
     return EventBus(max_queue_size=10)
+
+
+@pytest.fixture
+def mock_session():
+    return AsyncMock(spec=AsyncSession)

@@ -1,7 +1,9 @@
 from ..media.mappers import map_attachment_to_response
 from .domain.entities import Comment, Project, Ticket, TicketHistoryEntry
+from .domain.vo import ReactionType
 from .schemas import (
     CommentResponse,
+    CommentWithReactionsResponse,
     HistoryEntryResponse,
     MembershipResponse,
     ProjectResponse,
@@ -35,7 +37,31 @@ def map_comment_to_response(comment: Comment) -> CommentResponse:
         author_role=comment.author_role,
         text=comment.text,
         type=comment.type,
+        parent_comment_id=comment.parent_comment_id,
+        reply_count=comment.reply_count,
         attachments=[map_attachment_to_response(attachment) for attachment in comment.attachments],
+    )
+
+
+def map_comment_with_reactions_to_response(
+        comment: Comment,
+        reaction_counts: dict[ReactionType, int],
+        user_reactions: list[ReactionType]
+) -> CommentWithReactionsResponse:
+    return CommentWithReactionsResponse(
+        id=comment.id,
+        created_at=comment.created_at,
+        updated_at=comment.updated_at,
+        ticket_id=comment.ticket_id,
+        author_id=comment.author_id,
+        author_role=comment.author_role,
+        text=comment.text,
+        type=comment.type,
+        parent_comment_id=comment.parent_comment_id,
+        reply_count=comment.reply_count,
+        attachments=[map_attachment_to_response(attachment) for attachment in comment.attachments],
+        reaction_counts=reaction_counts,
+        user_reactions=user_reactions,
     )
 
 
@@ -67,7 +93,7 @@ def map_ticket_to_response(ticket: Ticket) -> TicketResponse:
         priority=ticket.priority,
         assigned_to=ticket.assigned_to,
         closed_at=ticket.closed_at,
-        is_archived=ticket.is_archived,
+        is_archived=ticket.is_deleted,
         tags=[Tag(name=tag.name, color=tag.color) for tag in ticket.tags],
         attachments=[map_attachment_to_response(attachment) for attachment in ticket.attachments],
         history=[map_history_entry_to_response(history_entry) for history_entry in ticket.history],

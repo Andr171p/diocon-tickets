@@ -9,11 +9,21 @@ from ..iam.dependencies import CurrentUserDep, UserRepoDep
 from ..iam.domain.exceptions import PermissionDeniedError
 from ..iam.domain.vo import UserRole
 from ..shared.dependencies import EventPublisherDep, SessionDep
-from .domain.repos import CommentRepository, ProjectRepository, TicketRepository
+from .domain.repos import (
+    CommentRepository,
+    ProjectRepository,
+    ReactionRepository,
+    TicketRepository,
+)
 from .domain.vo import TicketPriority, TicketStatus
-from .infra.repos import SqlCommentRepository, SqlProjectRepository, SqlTicketRepository
+from .infra.repos import (
+    SqlCommentRepository,
+    SqlProjectRepository,
+    SqlReactionRepository,
+    SqlTicketRepository,
+)
 from .schemas import TicketFilter
-from .services import ProjectService, TicketService
+from .services import CommentService, ProjectService, TicketService
 
 
 def get_ticket_repo(session: SessionDep) -> TicketRepository:
@@ -28,9 +38,14 @@ def get_project_repo(session: SessionDep) -> ProjectRepository:
     return SqlProjectRepository(session)
 
 
+def get_reaction_repo(session: SessionDep) -> ReactionRepository:
+    return SqlReactionRepository(session)
+
+
 ProjectRepoDep = Annotated[ProjectRepository, Depends(get_project_repo)]
 TicketRepoDep = Annotated[TicketRepository, Depends(get_ticket_repo)]
 CommentRepoDep = Annotated[CommentRepository, Depends(get_comment_repo)]
+ReactionRepoDep = Annotated[ReactionRepository, Depends(get_reaction_repo)]
 
 
 def get_project_service(
@@ -43,7 +58,6 @@ def get_ticket_service(
         session: SessionDep,
         counterparty_repo: CounterpartyRepoDep,
         ticket_repo: TicketRepoDep,
-        comment_repo: CommentRepoDep,
         project_repo: ProjectRepoDep,
         user_repo: UserRepoDep,
         event_publisher: EventPublisherDep
@@ -52,15 +66,31 @@ def get_ticket_service(
         session,
         counterparty_repo=counterparty_repo,
         ticket_repo=ticket_repo,
-        comment_repo=comment_repo,
         project_repo=project_repo,
         user_repo=user_repo,
         event_publisher=event_publisher
     )
 
 
+def get_comment_service(
+        session: SessionDep,
+        ticket_repo: TicketRepoDep,
+        comment_repo: CommentRepoDep,
+        reaction_repo: ReactionRepoDep,
+        event_publisher: EventPublisherDep
+) -> CommentService:
+    return CommentService(
+        session=session,
+        ticket_repo=ticket_repo,
+        comment_repo=comment_repo,
+        reaction_repo=reaction_repo,
+        event_publisher=event_publisher
+    )
+
+
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 TicketServiceDep = Annotated[TicketService, Depends(get_ticket_service)]
+CommentServiceDep = Annotated[CommentService, Depends(get_comment_service)]
 
 
 def get_ticket_filters(

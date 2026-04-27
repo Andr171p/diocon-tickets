@@ -1,8 +1,8 @@
-"""Initial revision
+"""Initial revison
 
-Revision ID: 87c331ade0dc
+Revision ID: 8779c1611bae
 Revises: 
-Create Date: 2026-04-22 10:47:10.260013
+Create Date: 2026-04-27 13:47:38.353428
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '87c331ade0dc'
+revision: str = '8779c1611bae'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -34,6 +34,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('storage_key')
     )
@@ -54,6 +55,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['parent_id'], ['counterparties.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email')
@@ -70,6 +72,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('token')
     )
@@ -84,6 +87,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['counterparty_id'], ['counterparties.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('key')
@@ -100,6 +104,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['counterparty_id'], ['counterparties.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email'),
@@ -115,6 +120,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -136,6 +142,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('number')
@@ -143,16 +150,22 @@ def upgrade() -> None:
     op.create_index('ix_tickets_search_vector', 'tickets', ['search_vector'], unique=False, postgresql_using='gin')
     op.create_table('comments',
     sa.Column('ticket_id', sa.Uuid(), nullable=False),
+    sa.Column('parent_comment_id', sa.Uuid(), nullable=True),
     sa.Column('author_id', sa.Uuid(), nullable=False),
     sa.Column('author_role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'ADMIN', name='userrole'), nullable=False),
     sa.Column('text', sa.TEXT(), nullable=False),
     sa.Column('comment_type', sa.Enum('PUBLIC', 'INTERNAL', 'NOTE', name='commenttype'), nullable=False),
+    sa.Column('reply_count', sa.Integer(), nullable=False),
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['parent_comment_id'], ['comments.id'], ),
     sa.ForeignKeyConstraint(['ticket_id'], ['tickets.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index('ix_comments_parent_comment_id', 'comments', ['parent_comment_id'], unique=False)
+    op.create_index('ix_comments_ticket_id', 'comments', ['ticket_id'], unique=False)
     op.create_table('ticket_history_entries',
     sa.Column('ticket_id', sa.Uuid(), nullable=False),
     sa.Column('actor_id', sa.Uuid(), nullable=False),
@@ -163,16 +176,34 @@ def upgrade() -> None:
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['ticket_id'], ['tickets.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('reactions',
+    sa.Column('comment_id', sa.Uuid(), nullable=False),
+    sa.Column('author_id', sa.Uuid(), nullable=False),
+    sa.Column('reaction_type', sa.Enum('LIKE', 'THANKS', 'IN_PROGRESS', 'RESOLVED', 'IMPORTANT', name='reactiontype'), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['comment_id'], ['comments.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('comment_id', 'author_id', 'reaction_type', name='uq_comment_reaction')
+    )
+    op.create_index('ix_reactions_comment_author', 'reactions', ['comment_id', 'author_id'], unique=False)
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index('ix_reactions_comment_author', table_name='reactions')
+    op.drop_table('reactions')
     op.drop_table('ticket_history_entries')
+    op.drop_index('ix_comments_ticket_id', table_name='comments')
+    op.drop_index('ix_comments_parent_comment_id', table_name='comments')
     op.drop_table('comments')
     op.drop_index('ix_tickets_search_vector', table_name='tickets', postgresql_using='gin')
     op.drop_table('tickets')

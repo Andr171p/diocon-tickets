@@ -1,8 +1,15 @@
 from ...media.infra.repo import AttachmentMapper
 from ...shared.infra.repos import ModelMapper
-from ..domain.entities import Comment, Membership, Project, Ticket, TicketHistoryEntry
+from ..domain.entities import Comment, Membership, Project, Reaction, Ticket, TicketHistoryEntry
 from ..domain.vo import ProjectKey, Tag, TicketNumber
-from .models import CommentOrm, MembershipOrm, ProjectOrm, TicketHistoryEntryOrm, TicketOrm
+from .models import (
+    CommentOrm,
+    MembershipOrm,
+    ProjectOrm,
+    ReactionOrm,
+    TicketHistoryEntryOrm,
+    TicketOrm,
+)
 
 # Маппинг ORM модели тикета в доменную сущность и обратно
 
@@ -19,6 +26,8 @@ class CommentMapper(ModelMapper[Comment, CommentOrm]):
             author_role=model.author_role,
             text=model.text,
             type=model.comment_type,
+            parent_comment_id=model.parent_comment_id,
+            reply_count=model.reply_count,
             attachments=[
                 AttachmentMapper.to_entity(attachment) for attachment in model.attachments
             ],
@@ -35,6 +44,8 @@ class CommentMapper(ModelMapper[Comment, CommentOrm]):
             author_role=entity.author_role,
             text=entity.text,
             comment_type=entity.type,
+            parent_comment_id=entity.parent_comment_id,
+            reply_count=entity.reply_count,
             attachments=[
                 AttachmentMapper.from_entity(attachment) for attachment in entity.attachments
             ],
@@ -212,4 +223,30 @@ class ProjectMapper(ModelMapper[Project, ProjectOrm]):
             memberships=[
                 MembershipMapper.from_entity(membership) for membership in entity.memberships
             ]
+        )
+
+
+class ReactionMapper(ModelMapper[Reaction, ReactionOrm]):
+    @staticmethod
+    def to_entity(model: ReactionOrm) -> Reaction:
+        return Reaction(
+            id=model.id,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            deleted_at=model.deleted_at,
+            comment_id=model.comment_id,
+            author_id=model.author_id,
+            reaction_type=model.reaction_type,
+        )
+
+    @staticmethod
+    def from_entity(entity: Reaction) -> ReactionOrm:
+        return ReactionOrm(
+            id=entity.id,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+            deleted_at=entity.deleted_at,
+            comment_id=entity.comment_id,
+            author_id=entity.author_id,
+            reaction_type=entity.reaction_type,
         )

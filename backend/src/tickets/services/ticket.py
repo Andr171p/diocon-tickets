@@ -7,26 +7,14 @@ from ...crm.domain.repo import CounterpartyRepository
 from ...iam.domain.exceptions import PermissionDeniedError
 from ...iam.domain.repos import UserRepository
 from ...iam.domain.vo import UserRole
-from ...iam.schemas import CurrentUser
 from ...shared.domain.events import EventPublisher
 from ...shared.domain.exceptions import NotFoundError
-from ...shared.schemas import Page, PageParams
-from ..domain.entities import Comment, Ticket
-from ..domain.repos import CommentRepository, ProjectRepository, TicketRepository
-from ..domain.services import ProjectAccessService, can_access_ticket
+from ..domain.entities import Ticket
+from ..domain.repos import ProjectRepository, TicketRepository
+from ..domain.services import ProjectAccessService
 from ..domain.vo import ProjectKey, Tag, TicketNumber, TicketStatus
-from ..mappers import map_comment_to_response, map_ticket_to_response
-from ..schemas import (
-    CommentCreate,
-    CommentEdit,
-    CommentResponse,
-    TicketCreate,
-    TicketEdit,
-    TicketResponse,
-)
-
-# Длина короткого ключа проекта
-SHORT_PROJECT_KEY_LENGTH = 3
+from ..mappers import map_ticket_to_response
+from ..schemas import TicketCreate, TicketEdit, TicketResponse
 
 
 @dataclass
@@ -44,7 +32,6 @@ class TicketService:
             self,
             session: AsyncSession,
             ticket_repo: TicketRepository,
-            comment_repo: CommentRepository,
             project_repo: ProjectRepository,
             user_repo: UserRepository,
             counterparty_repo: CounterpartyRepository,
@@ -52,7 +39,6 @@ class TicketService:
     ) -> None:
         self.session = session
         self.ticket_repo = ticket_repo
-        self.comment_repo = comment_repo
         self.project_repo = project_repo
         self.user_repo = user_repo
         self.counterparty_repo = counterparty_repo
@@ -276,147 +262,3 @@ class TicketService:
             await self.event_publisher.publish(event)
 
         return map_ticket_to_response(ticket)
-
-    async def add_comment(
-            self, ticket_id: UUID, data: CommentCreate, current_user: CurrentUser
-    ) -> CommentResponse:
-        """Добавление комментария к тикету"""
-
-        # 1. Получение тикета
-        ticket = await self.ticket_repo.read(ticket_id)
-        if ticket is None:
-            raise NotFoundError(f"Ticket with ID {ticket_id} not found")
-
-        # 2. Клиент может комментировать только свои тикеты
-        if current_user.role == UserRole.CUSTOMER and current_user.user_id != ticket.reporter_id:
-            raise PermissionDeniedError(
-                "You can only comment on tickets where you are the reporter"
-            )
-
-        # 3. Администратор клиента может комментировать все тикеты своего контрагента
-        if current_user.role == UserRole.CUSTOMER_ADMIN \
-                and current_user.counterparty_id != ticket.counterparty_id:
-            raise PermissionDeniedError("You can only comment on tickets of your counterparty")
-
-        # 4. Создание комментария + запись в историю тикета
-        comment = Comment.create(
-            ticket_id=ticket_id,
-            author_id=current_user.user_id,
-            author_role=current_user.role,
-            text=data.text,
-            comment_type=data.type,
-        )
-        ticket.write_history(
-            actor_id=current_user.user_id,
-            action="comment_added",
-            description=f"Добавлен новый комментарий: '{comment.text[:100]}'",
-        )
-        await self.comment_repo.create(comment)
-        await self.ticket_repo.upsert(ticket)
-        await self.session.commit()
-
-        # 5. Публикация доменных событий
-        for event in comment.collect_events():
-            await self.event_publisher.publish(event)
-
-        return map_comment_to_response(comment)
-
-    async def edit_comment(
-            self, ticket_id: UUID, comment_id: UUID, data: CommentEdit, edited_by: UUID
-    ) -> CommentResponse:
-        """Редактирование комментария"""
-
-        # 1. Получение тикета и комментария
-        ticket = await self.ticket_repo.read(ticket_id)
-        if ticket is None:
-            raise NotFoundError(f"Ticket with ID {ticket_id} not found")
-
-        comment = await self.comment_repo.read(comment_id)
-        if comment is None:
-            raise NotFoundError(f"Comment with ID {comment_id} not found")
-
-        # 2. Редактирование комментария и обновление сущности
-        comment.edit(new_text=data.text, edited_by=edited_by)
-        if comment.text != data.text.strip():  # Если текст изменён, то записывается в историю
-            ticket.write_history(
-                actor_id=edited_by,
-                action="comment_edited",
-                description=f"Комментарий отредактирован: '{data.text[:100]}'",
-                old_value=comment.text[:100],
-                new_value=data.text[:100],
-            )
-        await self.comment_repo.upsert(comment)
-        await self.ticket_repo.upsert(ticket)
-        await self.session.commit()
-
-        # 3. Публикация доменных событий
-        for event in comment.collect_events():
-            await self.event_publisher.publish(event)
-
-        return map_comment_to_response(comment)
-
-    async def delete_comment(self, ticket_id: UUID, comment_id: UUID, deleted_by: UUID) -> None:
-        """Удаление комментария"""
-
-        # 1. Получение тикета и комментария
-        ticket = await self.ticket_repo.read(ticket_id)
-        if ticket is None:
-            raise NotFoundError(f"Ticket with ID {ticket_id} not found")
-
-        comment = await self.comment_repo.read(comment_id)
-        if comment is None:
-            raise NotFoundError(f"Comment with ID {comment_id} not found")
-
-        # 2. Удалять комментарий может только автор
-        if deleted_by != comment.author_id:
-            raise PermissionDeniedError("Only author can delete comments")
-
-        # 3. Удаление и запись в историю
-        await self.comment_repo.delete(comment_id)
-        ticket.write_history(
-            actor_id=deleted_by,
-            action="comment_deleted",
-            description=f"Комментарий удалён: '{comment.text[:100]}'",
-            old_value=comment.text[:100],
-            new_value=None,
-        )
-        await self.ticket_repo.upsert(ticket)
-        await self.session.commit()
-
-    async def get_comments(
-            self,
-            ticket_id: UUID,
-            pagination: PageParams,
-            current_user: CurrentUser,
-            include_internal: bool = False,
-    ) -> Page[CommentResponse]:
-        """Получение комментариев к тикету с учётом прав"""
-
-        # 1. Получение тикета
-        ticket = await self.ticket_repo.read(ticket_id)
-        if ticket is None:
-            raise NotFoundError(f"Ticket with ID {ticket_id} not found")
-
-        # 2. Имеется ли у пользователя доступ к тикету
-        if not can_access_ticket(
-            ticket,
-            user_id=current_user.user_id,
-            user_role=current_user.role,
-            user_counterparty_id=current_user.counterparty_id,
-        ):
-            raise PermissionDeniedError("You cannot view this ticket")
-
-        # 3. Проверка прав на просмотр внутренних комментариев
-        if include_internal and not current_user.role.is_support():
-            raise PermissionDeniedError("Only support team can view internal comments")
-
-        # 4. Получение страницы с комментариями
-        page = await self.comment_repo.get_by_ticket(
-            ticket_id=ticket_id,
-            pagination=pagination,
-            user_id=current_user.user_id,
-            include_notes=True,
-            include_internal=include_internal,
-        )
-
-        return page.to_response(map_comment_to_response)

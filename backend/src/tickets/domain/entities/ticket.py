@@ -152,9 +152,6 @@ class Ticket(AggregateRoot):
     assigned_to: UUID | None = None
     closed_at: datetime | None = None
 
-    # Служебные поля
-    removed_at: datetime | None = None
-
     # Дополнительно
     tags: list[Tag] = field(default_factory=list)
 
@@ -172,12 +169,6 @@ class Ticket(AggregateRoot):
             raise InvariantViolationError(
                 "Customer-created ticket must be linked to a counterparty"
             )
-
-    @property
-    def is_archived(self) -> bool:
-        """Заархивирован ли тикет"""
-
-        return self.removed_at is not None
 
     @classmethod
     def create(
@@ -257,7 +248,7 @@ class Ticket(AggregateRoot):
         # 2. Нельзя редактировать тикет, если он в работе + если тикет архивирован
         if self.status not in ALLOWED_EDIT_STATUSES:
             raise InvariantViolationError("Cannot edit ticket in not allowed status")
-        if self.is_archived:
+        if self.is_deleted:
             raise InvariantViolationError("Cannot edit archived ticket")
 
         # 3. Редактирование заголовка
@@ -317,11 +308,11 @@ class Ticket(AggregateRoot):
         if not (is_creator_or_reporter or is_staff):
             raise PermissionDeniedError("Insufficient permissions to archive a ticket")
 
-        if self.is_archived:
+        if self.is_deleted:
             return
 
         # 2. Архивирование
-        self.removed_at = current_datetime()
+        self.deleted_at = current_datetime()
         self.updated_at = current_datetime()
 
         # 3. Запись в историю

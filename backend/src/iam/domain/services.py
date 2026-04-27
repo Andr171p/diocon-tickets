@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import timedelta
 from uuid import UUID
 
@@ -9,6 +10,20 @@ from .entities import Invitation, User
 from .vo import FullName, Username, UserRole
 
 INVITATION_EXPIRES_IN_DAYS = 7
+
+
+@dataclass(frozen=True)
+class PermissionResult:
+    """
+    Результат проверки прав
+    """
+
+    allowed: bool
+    reason: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.allowed and self.reason is None:
+            raise ValueError("Reason required, when not allowed")
 
 
 def create_customer(
@@ -96,3 +111,15 @@ def invite_customer(
         assigned_role=assigned_role,
         expires_at=get_expiration_time(expires_in=timedelta(days=INVITATION_EXPIRES_IN_DAYS)),
     )
+
+
+def get_display_user_role(user_role: UserRole) -> str:
+    """Преобразование роли пользователя к UI-friendly формату"""
+
+    match user_role:
+        case UserRole.CUSTOMER | UserRole.CUSTOMER_ADMIN:
+            return "Клиент"
+        case UserRole.SUPPORT_AGENT | UserRole.SUPPORT_MANAGER:
+            return "Сотрудник поддержки"
+        case UserRole.ADMIN:
+            return "Администратор"

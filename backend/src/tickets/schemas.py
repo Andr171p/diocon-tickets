@@ -1,11 +1,18 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field, NonNegativeFloat
+from pydantic import BaseModel, Field, NonNegativeFloat, NonNegativeInt
 
 from ..iam.domain.vo import UserRole
 from ..media.schemas import AttachmentResponse
-from .domain.vo import CommentType, ProjectRole, ProjectStatus, TicketPriority, TicketStatus
+from .domain.vo import (
+    CommentType,
+    ProjectRole,
+    ProjectStatus,
+    ReactionType,
+    TicketPriority,
+    TicketStatus,
+)
 
 
 class CommentResponse(BaseModel):
@@ -19,9 +26,30 @@ class CommentResponse(BaseModel):
     author_role: UserRole = Field(..., description="Роль автора в системе")
     text: str = Field(..., description="Текст комментария")
     type: CommentType = Field(..., description="Тип комментария")
+    parent_comment_id: UUID | None = Field(
+        None, description="ID комментария, на который был сделан ответ"
+    )
+    reply_count: NonNegativeInt = Field(..., description="Количество ответов")
     attachments: list[AttachmentResponse] = Field(
         default_factory=list, description="Медиа контент внутри тикета"
     )
+
+
+class ReactionResponse(BaseModel):
+    """Сводка реакций для одного комментария"""
+
+    reaction_counts: dict[ReactionType, NonNegativeInt] = Field(
+        default_factory=dict,
+        description="Счётчик для каждой оставленной реакции",
+        examples=[{ReactionType.LIKE: 17, ReactionType.IN_PROGRESS: 2, ReactionType.RESOLVED: 1}],
+    )
+    user_reactions: list[ReactionType] = Field(
+        default_factory=list, description="Реакции, которые оставил текущий пользователь"
+    )
+
+
+class CommentWithReactionsResponse(CommentResponse, ReactionResponse):
+    """Комментарий с реакциями"""
 
 
 class HistoryEntryResponse(BaseModel):

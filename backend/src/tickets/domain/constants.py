@@ -26,6 +26,11 @@ ALLOWED_EDIT_STATUSES: set[TicketStatus] = {
     TicketStatus.PENDING_APPROVAL,
 }
 
+# Статусы тикета при которых его нельзя комментировать
+NON_COMMENTABLE_STATUSES: set[TicketStatus] = {
+    TicketStatus.CLOSED, TicketStatus.REJECTED, TicketStatus.CANCELED,
+}
+
 # Человеко-читаемые типы комментариев (для UI)
 COMMENT_TYPE_DISPLAY_NAMES: dict[CommentType, str] = {
     CommentType.INTERNAL: "Внутренний",

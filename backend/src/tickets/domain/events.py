@@ -3,7 +3,7 @@ from uuid import UUID
 
 from ...iam.domain.vo import UserRole
 from ...shared.domain.events import Event
-from .vo import CommentType, TicketPriority
+from .vo import CommentType, ReactionType, TicketPriority
 
 # — События для проектов —
 
@@ -89,3 +89,12 @@ class CommentEdited(Event):
     ticket_id: UUID
     comment_id: UUID
     edited_by: UUID
+
+
+@dataclass(frozen=True, kw_only=True)
+class ReactionAdded(Event):
+    """Реакция поставлена"""
+
+    comment_id: UUID
+    author_id: UUID
+    reaction_type: ReactionType

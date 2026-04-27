@@ -1,12 +1,13 @@
 from typing import Literal, override
 
+from dataclasses import dataclass
 from uuid import UUID
 
 from ...shared.domain.repo import Repository
 from ...shared.schemas import Page, PageParams
 from ..schemas import TicketFilter
-from .entities import Comment, Membership, Project, Ticket
-from .vo import ProjectKey
+from .entities import Comment, Membership, Project, Reaction, Ticket
+from .vo import ProjectKey, ReactionType
 
 
 class TicketRepository(Repository[Ticket]):
@@ -50,6 +51,58 @@ class CommentRepository(Repository[Comment]):
     ) -> Page[Comment]:
         """
         Получение списка комментариев с учётом фильтров и прав пользователя
+        """
+
+    async def get_replies(
+        self,
+        parent_comment_id: UUID,
+        pagination: PageParams,
+        *,
+        user_id: UUID | None = None,
+        include_notes: bool = False,
+        include_internal: bool = False,
+    ) -> Page[Comment]:
+        """
+        Получение вложенных ответов на комментарий (дерево комментариев)
+        """
+
+
+@dataclass(frozen=True, slots=True)
+class ReactionStats:
+    """
+    Агрегированные данные о реакциях на комментарии
+    """
+
+    counts: dict[UUID, dict[ReactionType, int]]
+    user_reactions: dict[UUID, set[ReactionType]]
+
+
+class ReactionRepository(Repository[Reaction]):
+
+    async def find(
+            self, comment_id: UUID, author_id: UUID, reaction_type: ReactionType
+    ) -> Reaction | None:
+        """Получение реакции пользователя на комментарий"""
+
+    async def get_reaction_stats(self, comment_ids: list[UUID], user_id: UUID) -> ReactionStats:
+        """
+        Получение информации о реакциях для каждого комментария из списка
+        """
+
+    async def get_counts(self, comment_ids: list[UUID]) -> dict[UUID, dict[ReactionType, int]]:
+        """
+        Получение счётчиков реакций для комментариев.
+        Принимает список ID комментариев для избежания N+1.
+        Маппинг: реакция -> количество ('like' -> 5).
+        """
+
+    async def get_user_reactions(
+            self, comments_ids: list[UUID], author_id: UUID
+    ) -> dict[UUID, set[ReactionType]]:
+        """
+        Получение реакций пользователя на комментарии.
+        Принимает список ID комментариев для избежания N+1.
+        На выходе маппинг Comment ID -> ['like', 'in_progress', ..., 'resolved'].
         """
 
 

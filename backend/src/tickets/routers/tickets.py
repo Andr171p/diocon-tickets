@@ -8,13 +8,14 @@ from ...iam.dependencies import CurrentUserDep, get_current_user
 from ...shared.dependencies import PageParamsDep
 from ...shared.domain.exceptions import NotFoundError
 from ...shared.schemas import Page
-from ..dependencies import TicketFiltersDep, TicketRepoDep, TicketServiceDep
+from ..dependencies import CommentServiceDep, TicketFiltersDep, TicketRepoDep, TicketServiceDep
 from ..infra.ai import predict_ticket_fields
 from ..mappers import map_ticket_to_preview, map_ticket_to_response
 from ..schemas import (
     CommentCreate,
     CommentEdit,
     CommentResponse,
+    CommentWithReactionsResponse,
     PredictionResponse,
     TicketAssign,
     TicketCreate,
@@ -175,20 +176,43 @@ async def delete_ticket(
 @router.get(
     path="/{ticket_id}/comments",
     status_code=status.HTTP_200_OK,
-    response_model=Page[CommentResponse],
+    response_model=Page[CommentWithReactionsResponse],
     summary="Получение комментариев тикета"
 )
 async def get_ticket_comments(
         ticket_id: UUID,
         pagination: PageParamsDep,
         current_user: CurrentUserDep,
-        service: TicketServiceDep,
+        service: CommentServiceDep,
         include_internal: Annotated[
             bool, Query(..., description="Видеть внутренние комментарии (только для поддержки)")
         ] = False,
-) -> Page[CommentResponse]:
+) -> Page[CommentWithReactionsResponse]:
     return await service.get_comments(
         ticket_id=ticket_id,
+        pagination=pagination,
+        current_user=current_user,
+        include_internal=include_internal,
+    )
+
+
+@router.get(
+    path="/comments/{comment_id}/replies",
+    status_code=status.HTTP_200_OK,
+    response_model=Page[CommentWithReactionsResponse],
+    summary="Получение ответов на комментарий"
+)
+async def get_comment_replies(
+        comment_id: UUID,
+        pagination: PageParamsDep,
+        current_user: CurrentUserDep,
+        service: CommentServiceDep,
+        include_internal: Annotated[
+            bool, Query(..., description="Видеть внутренние комментарии (только для поддержки)")
+        ] = False,
+) -> Page[CommentWithReactionsResponse]:
+    return await service.get_comment_replies(
+        comment_id=comment_id,
         pagination=pagination,
         current_user=current_user,
         include_internal=include_internal,
@@ -205,9 +229,30 @@ async def add_comment(
         ticket_id: UUID,
         data: CommentCreate,
         current_user: CurrentUserDep,
-        service: TicketServiceDep,
+        service: CommentServiceDep,
 ) -> CommentResponse:
     return await service.add_comment(ticket_id, data, current_user)
+
+
+@router.post(
+    path="/{ticket_id}/comments/{comment_id}/replies",
+    status_code=status.HTTP_201_CREATED,
+    response_model=CommentResponse,
+    summary="Ответить на комментарий"
+)
+async def add_comment_reply(
+        ticket_id: UUID,
+        comment_id: UUID,
+        data: CommentCreate,
+        current_user: CurrentUserDep,
+        service: CommentServiceDep,
+) -> CommentResponse:
+    return await service.reply_to_comment(
+        ticket_id=ticket_id,
+        comment_id=comment_id,
+        data=data,
+        current_user=current_user,
+    )
 
 
 @router.patch(
@@ -221,7 +266,7 @@ async def edit_comment(
         comment_id: UUID,
         data: CommentEdit,
         current_user: CurrentUserDep,
-        service: TicketServiceDep,
+        service: CommentServiceDep,
 ) -> CommentResponse:
     return await service.edit_comment(
         ticket_id=ticket_id,
@@ -234,18 +279,19 @@ async def edit_comment(
 @router.delete(
     path="/tickets/{ticket_id}/comments/{comment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Удаление комментария"
+    summary="Удаление комментария (Soft-delete)"
 )
 async def delete_comment(
         ticket_id: UUID,
         comment_id: UUID,
         current_user: CurrentUserDep,
-        service: TicketServiceDep,
+        service: CommentServiceDep,
 ) -> None:
     return await service.delete_comment(
         ticket_id=ticket_id,
         comment_id=comment_id,
-        deleted_by=current_user.user_id
+        deleted_by=current_user.user_id,
+        deleted_by_role=current_user.role,
     )
 
 

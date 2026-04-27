@@ -609,7 +609,7 @@ class TestArchive:
 
         excepted_history_length = 2
 
-        assert ticket.is_archived is True
+        assert ticket.is_deleted is True
         assert ticket.updated_at > ticket.created_at
         assert len(ticket.history) == excepted_history_length
         assert ticket.history[-1].action == "ticket_archived"
@@ -630,7 +630,7 @@ class TestArchive:
 
         ticket.archive(archived_by=reporter_id, archived_by_role=user_role)
 
-        assert ticket.is_archived is True
+        assert ticket.is_deleted is True
 
     @pytest.mark.parametrize("user_role", [UserRole.ADMIN, UserRole.SUPPORT_MANAGER])
     def test_archive_by_required_staff_success(self, ticket, user_role):
@@ -640,7 +640,7 @@ class TestArchive:
 
         ticket.archive(archived_by=uuid.uuid4(), archived_by_role=user_role)
 
-        assert ticket.is_archived is True
+        assert ticket.is_deleted is True
 
     @pytest.mark.parametrize(
         "wrong_role", [UserRole.CUSTOMER, UserRole.CUSTOMER_ADMIN, UserRole.SUPPORT_AGENT]
@@ -662,10 +662,10 @@ class TestArchive:
 
         ticket.archive(archived_by=reporter_id, archived_by_role=UserRole.SUPPORT_AGENT)
 
-        removed_at, updated_at = ticket.removed_at, ticket.updated_at
+        deleted_at, updated_at = ticket.deleted_at, ticket.updated_at
 
         ticket.archive(archived_by=reporter_id, archived_by_role=UserRole.SUPPORT_MANAGER)
 
-        assert ticket.is_archived is True
-        assert ticket.removed_at == removed_at
+        assert ticket.is_deleted is True
+        assert ticket.deleted_at == deleted_at
         assert ticket.updated_at == updated_at

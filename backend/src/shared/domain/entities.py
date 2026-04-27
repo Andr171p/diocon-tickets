@@ -20,6 +20,7 @@ class Entity(abc.ABC):
     id: uuid.UUID = field(default_factory=uuid.uuid4)
     created_at: datetime = field(default_factory=current_datetime)
     updated_at: datetime = field(default_factory=current_datetime)
+    deleted_at: datetime | None = None
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Entity):
@@ -28,6 +29,10 @@ class Entity(abc.ABC):
 
     def __hash__(self) -> int:
         return hash(self.id)
+
+    @property
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None
 
     def register_event(self, event: Event) -> None:
         self._events.append(event)

@@ -1,8 +1,10 @@
 import re
 from uuid import UUID
 
+from ...iam.domain.services import PermissionResult
 from ...iam.domain.vo import UserRole
 from ...shared.utils.text import get_latin_slug
+from .constants import NON_COMMENTABLE_STATUSES
 from .entities import Ticket
 from .repos import ProjectRepository
 from .vo import ProjectRole
@@ -136,20 +138,58 @@ def can_access_ticket(
         user_id: UUID,
         user_role: UserRole,
         user_counterparty_id: UUID | None = None,
-) -> bool:
+) -> PermissionResult:
     """Проверка есть ли у пользователя доступ к тикету"""
 
     # 1. Внутренние сотрудники имеют доступ ко всем тикетам
     if user_role in {UserRole.ADMIN, UserRole.SUPPORT_MANAGER, UserRole.SUPPORT_AGENT}:
-        return True
+        return PermissionResult(True)
 
     # 2. Ограничения для клиентов
     if user_role.is_customer():
-        # Обычный клиент видит только свои тикеты
-        if user_role == UserRole.CUSTOMER:
-            return ticket.reporter_id == user_id
-        # Админ контрагента видит все тикеты своего контрагента
-        if user_role == UserRole.CUSTOMER_ADMIN:
-            return ticket.counterparty_id == user_counterparty_id
 
-    return False
+        # 2.1 Обычный клиент видит только свои тикеты
+        if user_role == UserRole.CUSTOMER:
+            # Проверка на инициатора и соответствия контрагента
+            if ticket.reporter_id == user_id and ticket.counterparty_id == user_counterparty_id:
+                return PermissionResult(True)
+
+            return PermissionResult(
+                False, "Customer can access to tickets in which he is the reporter"
+            )
+
+        # 2.2 Админ контрагента видит все тикеты своего контрагента
+        if user_role == UserRole.CUSTOMER_ADMIN:
+            if ticket.counterparty_id == user_counterparty_id:
+                return PermissionResult(True)
+
+            return PermissionResult(
+                False, "Customer admin can access to tickets of his counterparty"
+            )
+
+    return PermissionResult(False, "Access denied for this ticket")
+
+
+def can_comment_ticket(
+        ticket: Ticket,
+        user_id: UUID,
+        user_role: UserRole,
+        user_counterparty_id: UUID | None = None,
+) -> PermissionResult:
+    """Может ли пользователь оставлять комментарии"""
+
+    # 1. Проверка, что тикет в правильном статусе
+    if ticket.status in NON_COMMENTABLE_STATUSES:
+        return PermissionResult(False, f"You cannot comment ticket in status - {ticket.status}")
+
+    # 2. Клиент может комментировать только свои тикеты
+    if user_role == UserRole.CUSTOMER and ticket.reporter_id != user_id:
+        return PermissionResult(False, "Customer can only comment his own tickets")
+
+    # 3. Администратор клиента может комментировать все тикеты своего контрагента
+    if user_role == UserRole.CUSTOMER_ADMIN and ticket.counterparty_id != user_counterparty_id:
+        return PermissionResult(
+            False, "Customer admin can only comment on tickets of his counterparty"
+        )
+
+    return PermissionResult(True)
