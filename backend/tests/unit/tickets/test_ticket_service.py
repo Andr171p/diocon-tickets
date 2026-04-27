@@ -14,13 +14,12 @@ from src.iam.security import hash_password
 from src.shared.domain.exceptions import NotFoundError
 from src.tickets.domain.entities import Project, Ticket
 from src.tickets.domain.vo import (
-    CommentType,
     ProjectRole,
     TicketNumber,
     TicketPriority,
     TicketStatus,
 )
-from src.tickets.schemas import CommentCreate, Tag, TicketCreate, TicketEdit
+from src.tickets.schemas import Tag, TicketCreate, TicketEdit
 from src.tickets.services import TicketService
 
 
@@ -33,7 +32,6 @@ def mock_session():
 def ticket_service(
         mock_session,
         mock_ticket_repo,
-        mock_comment_repo,
         mock_project_repo,
         mock_counterparty_repo,
         mock_user_repo,
@@ -42,7 +40,6 @@ def ticket_service(
     return TicketService(
         session=mock_session,
         ticket_repo=mock_ticket_repo,
-        comment_repo=mock_comment_repo,
         project_repo=mock_project_repo,
         counterparty_repo=mock_counterparty_repo,
         user_repo=mock_user_repo,
@@ -786,124 +783,6 @@ class TestAssignTo:
                 assignee_id=sample_support.id,
                 assigned_by=uuid4(),
                 assigned_by_role=UserRole.SUPPORT_AGENT,
-            )
-
-
-class TestAddComment:
-    """
-    Тесты для оставления комментария
-    """
-
-    @pytest.mark.asyncio
-    async def test_add_by_support_success(
-            self,
-            ticket_service,
-            sample_ticket,
-            current_support_user,
-            mock_comment_repo,
-            mock_ticket_repo,
-    ):
-        """
-        Успешное добавление комментария сотрудником поддержки
-        """
-
-        data = CommentCreate(text="Тестовый комментарий", type=CommentType.PUBLIC)
-        response = await ticket_service.add_comment(
-            ticket_id=sample_ticket.id, data=data, current_user=current_support_user
-        )
-
-        assert response.ticket_id == sample_ticket.id
-
-        # Проверка успешного сохранения
-        existing_ticket = await mock_ticket_repo.read(sample_ticket.id)
-        added_comment = await mock_comment_repo.read(response.id)
-        excepted_history_length = 2
-
-        assert existing_ticket is not None
-        assert len(existing_ticket.history) == excepted_history_length
-        assert existing_ticket.history[-1].action == "comment_added"
-        assert existing_ticket.history[-1].actor_id == current_support_user.user_id
-
-        assert added_comment is not None
-        assert added_comment.text == response.text
-
-    @pytest.mark.asyncio
-    async def test_add_by_customer_who_reported_ticket_success(
-            self, ticket_service, sample_ticket, current_customer_reporter_user
-    ):
-        """
-        Успешное добавление комментария клиентом, который является инициатором
-        """
-
-        data = CommentCreate(text="Тестовый комментарий", type=CommentType.PUBLIC)
-        response = await ticket_service.add_comment(
-            ticket_id=sample_ticket.id,
-            data=data,
-            current_user=current_customer_reporter_user,
-        )
-
-        assert response.ticket_id == sample_ticket.id
-
-    @pytest.mark.asyncio
-    async def test_add_by_not_reporter_customer_forbidden(
-            self, ticket_service, sample_ticket, current_customer_user,
-    ):
-        """
-        Клиент не может комментировать тикет, инициатором которого он не является
-        """
-
-        data = CommentCreate(text="Тестовый комментарий", type=CommentType.PUBLIC)
-
-        with pytest.raises(PermissionDeniedError, match="where you are the reporter"):
-            await ticket_service.add_comment(
-                ticket_id=sample_ticket.id,
-                data=data,
-                current_user=current_customer_user,
-            )
-
-    @pytest.mark.asyncio
-    async def test_add_by_non_reporter_customer_admin(
-            self,
-            ticket_service,
-            ticket_in_counterparty,
-            current_customer_admin_user,
-            mock_ticket_repo,
-    ):
-        """
-        Администратор клиента может комментировать тикеты, инициатором и создателем
-        которого он не является.
-        """
-
-        # Создание тикета с привязкой к контрагенту
-        await mock_ticket_repo.create(ticket_in_counterparty)
-
-        data = CommentCreate(text="Тестовый комментарий", type=CommentType.PUBLIC)
-        response = await ticket_service.add_comment(
-            ticket_id=ticket_in_counterparty.id,
-            data=data,
-            current_user=current_customer_admin_user,
-        )
-
-        assert response.ticket_id == ticket_in_counterparty.id
-
-    @pytest.mark.asyncio
-    async def test_add_by_customer_admin_in_other_counterparty_forbidden(
-            self, ticket_service, sample_ticket, current_customer_admin_user,
-    ):
-        """
-        Админ клиента не может оставить комментарий для тикета привязанного
-        к другому контрагенту.
-        """
-
-        data = CommentCreate(text="Тестовый комментарий", type=CommentType.PUBLIC)
-
-        with pytest.raises(
-                PermissionDeniedError, match="only comment on tickets of your counterparty"
-        ):
-            await ticket_service.add_comment(
-                ticket_id=sample_ticket.id,
-                data=data,
-                current_user=current_customer_admin_user,
             )
 
 
