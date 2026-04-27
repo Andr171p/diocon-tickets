@@ -57,6 +57,18 @@ services:
       - "9901:9001"              # Web Console (UI)
     restart: unless-stopped
 
+  languagetool:
+    image: erikvl87/languagetool:latest
+    container_name: languagetool
+    ports:
+      - "8010:8010"
+    environment:
+      - lang=ru,en
+      - JAVA_OPTS=-Xmx1g
+    volumes:
+      - ./data/languagetool:/data
+    restart: unless-stopped
+
   # text-embeddings:
   #   image: ghcr.io/huggingface/text-embeddings-inference:1.7.2
   #   pull_policy: always

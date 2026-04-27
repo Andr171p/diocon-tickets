@@ -18,6 +18,7 @@ dependencies = [
     "html2text>=2025.4.15",
     "langchain>=1.2.14",
     "langchain-openai>=1.1.12",
+    "language-tool-python>=3.3.0",
     "mypy>=1.19.1",
     "passlib>=1.7.4",
     "pyjwt>=2.12.1",

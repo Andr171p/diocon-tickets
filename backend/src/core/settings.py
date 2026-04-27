@@ -125,6 +125,18 @@ class YandexCloudSettings(BaseSettings):
         return f"gpt://{self.folder_id}/yandexgpt/rc"
 
 
+class LanguageToolSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="LANGTOOL_")
+
+    host: str = "localhost"
+    port: int = 8010
+    language: str = "ru-RU"
+
+    @property
+    def url(self) -> str:
+        return f"http://{self.host}:{self.port}"
+
+
 class AppSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="APP_")
 
@@ -160,6 +172,7 @@ class Settings(BaseSettings):
     mail: MailSettings = MailSettings()
     rabbit: RabbitSettings = RabbitSettings()
     yandex_cloud: YandexCloudSettings = YandexCloudSettings()
+    language_tool: LanguageToolSettings = LanguageToolSettings()
     admin: AdminSettings = AdminSettings()
 
 

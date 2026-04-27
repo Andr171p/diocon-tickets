@@ -13,6 +13,7 @@ from src.core.settings import settings
 from src.crm.router import router as counterparty_router
 from src.iam.routers import router as iam_router
 from src.media.router import router as media_router
+from src.proofreading.router import router as proofreading_router
 from src.shared.domain.exceptions import AppError
 from src.shared.utils.cli import run_cli_command
 from src.tickets.routers import router as tickets_router
@@ -42,6 +43,7 @@ router.include_router(iam_router)
 router.include_router(counterparty_router)
 router.include_router(media_router)
 router.include_router(tickets_router)
+router.include_router(proofreading_router)
 
 app.include_router(router)
 
