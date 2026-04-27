@@ -23,7 +23,7 @@ from .infra.repos import (
     SqlTicketRepository,
 )
 from .schemas import TicketFilter
-from .services import CommentService, ProjectService, TicketService
+from .services import CommentService, ProjectService, ReactionService, TicketService
 
 
 def get_ticket_repo(session: SessionDep) -> TicketRepository:
@@ -88,9 +88,24 @@ def get_comment_service(
     )
 
 
+def get_reaction_service(
+        session: SessionDep,
+        comment_repo: CommentRepoDep,
+        reaction_repo: ReactionRepoDep,
+        event_publisher: EventPublisherDep,
+) -> ReactionService:
+    return ReactionService(
+        session=session,
+        comment_repo=comment_repo,
+        reaction_repo=reaction_repo,
+        event_publisher=event_publisher
+    )
+
+
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 TicketServiceDep = Annotated[TicketService, Depends(get_ticket_service)]
 CommentServiceDep = Annotated[CommentService, Depends(get_comment_service)]
+ReactionServiceDep = Annotated[ReactionService, Depends(get_reaction_service)]
 
 
 def get_ticket_filters(

@@ -34,26 +34,19 @@ class ReactionService:
 
         # 1. Проверка комментария на существование
         comment = await self.comment_repo.read(comment_id)
-        if comment is None:
+        if comment is None or comment.is_deleted:
             raise NotFoundError(f"Comment with ID {comment_id} not found")
 
-        # 2. Проверка - есть ли уже оставленная реакция от текущего пользователя
-        existing_reaction = await self.reaction_repo.find(
+        # 2. Проверка - оставлял ли пользователь такую реакцию
+        existing = await self.reaction_repo.find(
             comment_id=comment_id, author_id=current_user.user_id, reaction_type=reaction_type
         )
-        if existing_reaction is not None:
-            # 2.1 Снятие старой реакции (для переключения на новую)
-            await self.reaction_repo.delete(existing_reaction.id)
-            if existing_reaction.reaction_type != reaction_type:
-                reaction = Reaction.create(
-                    comment_id=comment_id,
-                    author_id=current_user.user_id,
-                    author_role=current_user.role,
-                    reaction_type=reaction_type,
-                )
-                await self.reaction_repo.create(reaction)
-        else:
-            # 2.2 Создание новой реакции
+
+        events_to_publish = []
+
+        # 3. Обработка 3 основных сценариев
+        if existing is None:
+            # 3.1. Пользователь не оставлял реакции - создаём новую реакцию
             reaction = Reaction.create(
                 comment_id=comment_id,
                 author_id=current_user.user_id,
@@ -61,11 +54,20 @@ class ReactionService:
                 reaction_type=reaction_type,
             )
             await self.reaction_repo.create(reaction)
+            events_to_publish.extend(reaction.collect_events())
+        elif existing.reaction_type == reaction_type:
+            # 3.2. Пользователь нажал на ту же реакцию - удаляем
+            await self.reaction_repo.delete(existing.id)
+        else:
+            # 3.3. Пользователь нажал на другую реакцию меняем тип
+            existing.toggle(reaction_type, current_user.role)
+            await self.reaction_repo.upsert(existing)
+            events_to_publish.extend(existing.collect_events())
 
         await self.session.commit()
 
-        # 3. Публикация доменных событий
-        for event in reaction.collect_events():
+        # 4. Публикация доменных событий
+        for event in events_to_publish:
             await self.event_publisher.publish(event)
 
     async def get_reactions_for_comment(
@@ -75,15 +77,12 @@ class ReactionService:
 
         # 1. Проверка существования комментария
         comment = await self.comment_repo.read(comment_id)
-        if comment is None:
+        if comment is None or comment.is_deleted:
             raise NotFoundError(f"Comment with ID {comment_id} not found")
 
-        reaction_counts = await self.reaction_repo.get_counts([comment_id])
-        user_reactions = await self.reaction_repo.get_user_reactions(
-            comment_ids=[comment_id], author_id=current_user.user_id
-        )
+        stats = await self.reaction_repo.get_reaction_stats([comment_id], current_user.user_id)
 
         return ReactionResponse(
-            reaction_counts=reaction_counts.get(comment_id, {}),
-            user_reactions=list(user_reactions.get(comment_id, [])),
+            reaction_counts=stats.counts.get(comment_id, {}),
+            user_reactions=list(stats.user_reactions.get(comment_id, set())),
         )

@@ -2,13 +2,20 @@ from typing import Annotated, Any
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Body, Depends, Query, status
 
 from ...iam.dependencies import CurrentUserDep, get_current_user
 from ...shared.dependencies import PageParamsDep
 from ...shared.domain.exceptions import NotFoundError
 from ...shared.schemas import Page
-from ..dependencies import CommentServiceDep, TicketFiltersDep, TicketRepoDep, TicketServiceDep
+from ..dependencies import (
+    CommentServiceDep,
+    ReactionServiceDep,
+    TicketFiltersDep,
+    TicketRepoDep,
+    TicketServiceDep,
+)
+from ..domain.vo import ReactionType
 from ..infra.ai import predict_ticket_fields
 from ..mappers import map_ticket_to_preview, map_ticket_to_response
 from ..schemas import (
@@ -17,6 +24,7 @@ from ..schemas import (
     CommentResponse,
     CommentWithReactionsResponse,
     PredictionResponse,
+    ReactionResponse,
     TicketAssign,
     TicketCreate,
     TicketEdit,
@@ -277,7 +285,7 @@ async def edit_comment(
 
 
 @router.delete(
-    path="/tickets/{ticket_id}/comments/{comment_id}",
+    path="/{ticket_id}/comments/{comment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удаление комментария (Soft-delete)"
 )
@@ -293,6 +301,42 @@ async def delete_comment(
         deleted_by=current_user.user_id,
         deleted_by_role=current_user.role,
     )
+
+
+@router.post(
+    path="/comments/{comment_id}/reactions",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Оставить/переключить реакцию",
+    description="""\
+    Реализует 3 сценария:
+     - Создание новой реакции
+     - Переключение между реакциями (реакция была создана, пользователь нажал на другую)
+     - Удаление реакции (пользователь нажал на поставленную реакцию)
+    """
+)
+async def toggle_reaction(
+        comment_id: UUID,
+        current_user: CurrentUserDep,
+        service: ReactionServiceDep,
+        reaction_type: Annotated[
+            ReactionType, Body(..., embed=True, description="Реакция, которую нужно оставить")
+        ],
+) -> None:
+    return await service.toggle(
+        comment_id=comment_id, current_user=current_user, reaction_type=reaction_type
+    )
+
+
+@router.get(
+    path="/comments/{comment_id}/reactions",
+    status_code=status.HTTP_200_OK,
+    response_model=ReactionResponse,
+    summary="Получение реакции на комментарий"
+)
+async def get_comment_reactions(
+        comment_id: UUID, current_user: CurrentUserDep, service: ReactionServiceDep
+) -> ReactionResponse:
+    return await service.get_reactions_for_comment(comment_id, current_user)
 
 
 @router.post(

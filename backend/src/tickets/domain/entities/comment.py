@@ -51,6 +51,21 @@ class Reaction(Entity):
 
         return reaction
 
+    def toggle(self, new_type: ReactionType, author_id: UUID, author_role: UserRole) -> None:
+        """Переключение реакции"""
+
+        if self.reaction_type == new_type:
+            return
+
+        if self.author_id != author_id:
+            raise PermissionDeniedError("Only author can toggle his reaction")
+
+        if author_role.is_customer() and new_type == ReactionType.IN_PROGRESS:
+            raise PermissionDeniedError("Customers cannot set 'In Progress' reaction")
+
+        self.reaction_type = new_type
+        self.updated_at = current_datetime()
+
 
 @dataclass(kw_only=True)
 class Comment(Entity):
