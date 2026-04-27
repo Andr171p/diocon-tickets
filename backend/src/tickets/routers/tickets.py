@@ -249,7 +249,7 @@ async def add_comment_reply(
 ) -> CommentResponse:
     return await service.reply_to_comment(
         ticket_id=ticket_id,
-        comment_id=comment_id,
+        parent_comment_id=comment_id,
         data=data,
         current_user=current_user,
     )
