@@ -1,6 +1,6 @@
 from typing import override
 
-from sqlalchemy import desc, or_, select
+from sqlalchemy import desc, func, or_, select
 
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
 from ...shared.schemas import Page, PageParams
@@ -74,6 +74,6 @@ class SqlProductRepository(SqlAlchemyRepository[SoftwareProduct, SoftwareProduct
                     self.model.vendor.op("%%%")(search),
                     self.model.description.op("%%%")(search),
                 )
-            ).order_by(desc("similarity"))
+            ).order_by(desc(func.similarity(self.model.name, search)))
 
         return await self._paginate(stmt, pagination)
