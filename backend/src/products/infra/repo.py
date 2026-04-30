@@ -24,7 +24,7 @@ class SoftwareProductMapper(ModelMapper[SoftwareProduct, SoftwareProductOrm]):
             category=model.category,
             status=model.status,
             attributes=model.attributes,
-            category_id=model.created_by,
+            created_by=model.created_by,
             updated_by=model.updated_by,
         )
 
