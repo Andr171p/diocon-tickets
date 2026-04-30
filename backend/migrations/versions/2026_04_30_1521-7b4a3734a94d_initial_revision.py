@@ -1,8 +1,8 @@
-"""Initial revison
+"""Initial revision
 
-Revision ID: 8779c1611bae
+Revision ID: 7b4a3734a94d
 Revises: 
-Create Date: 2026-04-27 13:47:38.353428
+Create Date: 2026-04-30 15:21:14.904181
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '8779c1611bae'
+revision: str = '7b4a3734a94d'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -76,6 +76,26 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('token')
     )
+    op.create_table('software_products',
+    sa.Column('name', sa.String(), nullable=False),
+    sa.Column('vendor', sa.String(), nullable=False),
+    sa.Column('category', sa.Enum('ERP', 'WEB', 'MOBILE', 'API', 'DESKTOP', 'HARDWARE', 'OTHER', name='productcategory'), nullable=False),
+    sa.Column('description', sa.TEXT(), nullable=True),
+    sa.Column('version', sa.String(), nullable=True),
+    sa.Column('status', sa.Enum('ACTIVE', 'BETA', 'DEPRECATED', 'ARCHIVED', name='productstatus'), nullable=False),
+    sa.Column('attributes', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+    sa.Column('created_by', sa.Uuid(), nullable=True),
+    sa.Column('updated_by', sa.Uuid(), nullable=True),
+    sa.Column('search_vector', postgresql.TSVECTOR(), sa.Computed("to_tsvector('russian', coalesce(name, '') || ' ' || coalesce(vendor, '') || ' ' || coalesce(description, '') || ' ' || coalesce(version, ''))", persisted=True), nullable=True),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index('ix_software_products_active', 'software_products', ['category', 'name'], unique=False, postgresql_where=sa.text("status = 'ACTIVE'"))
+    op.create_index('ix_software_products_attributes', 'software_products', ['attributes'], unique=False, postgresql_using='gin')
+    op.create_index('ix_software_products_search', 'software_products', ['search_vector'], unique=False, postgresql_using='gin')
     op.create_table('projects',
     sa.Column('name', sa.String(), nullable=False),
     sa.Column('key', sa.String(), nullable=False),
@@ -210,6 +230,10 @@ def downgrade() -> None:
     op.drop_table('project_memberships')
     op.drop_table('users')
     op.drop_table('projects')
+    op.drop_index('ix_software_products_search', table_name='software_products', postgresql_using='gin')
+    op.drop_index('ix_software_products_attributes', table_name='software_products', postgresql_using='gin')
+    op.drop_index('ix_software_products_active', table_name='software_products', postgresql_where=sa.text("status = 'ACTIVE'"))
+    op.drop_table('software_products')
     op.drop_table('invitations')
     op.drop_table('counterparties')
     op.drop_table('attachments')

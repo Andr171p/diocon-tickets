@@ -13,6 +13,7 @@ from src.core.database import Base
 from src.crm.infra.models import CounterpartyOrm
 from src.iam.infra.models import InvitationOrm, UserOrm
 from src.media.infra.models import AttachmentOrm
+from src.products.infra.models import SoftwareProductOrm
 from src.tickets.infra.models import (
     CommentOrm,
     TicketHistoryEntryOrm,
