@@ -133,7 +133,7 @@ CurrentSupportUserDep = Annotated[CurrentUser, Depends(get_current_support_user)
 CurrentCustomerAdminDep = Annotated[CurrentUser, Depends(get_current_customer_admin)]
 
 
-async def get_current_user_ws(
+async def get_current_user_from_ws(
         websocket: WebSocket,
         token: str | None = Query(None, description="Access токен"),
         blacklist: TokenBlacklist = Depends(get_token_blacklist),

@@ -41,7 +41,7 @@ def check_text_spells(text: str) -> TextCheckResult:
         # 4. Исправление ошибок в тексте
         if match.replacements:
             corrected_text = (
-                corrected_text[: match.offset]
+                corrected_text[:match.offset]
                 + match.replacements[0]
                 + corrected_text[match.offset + match.error_length:]
             )

@@ -69,6 +69,22 @@ services:
       - ./data/languagetool:/data
     restart: unless-stopped
 
+  rabbitmq:
+    image: rabbitmq:4.3-management-alpine
+    ports:
+      - "5672:5672"   # AMQP protocol
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # text-embeddings:
   #   image: ghcr.io/huggingface/text-embeddings-inference:1.7.2
   #   pull_policy: always
@@ -141,4 +157,5 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  rabbitmq_data:
   hf_cache:

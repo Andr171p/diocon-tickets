@@ -11,6 +11,6 @@ graph TD
     E --> F[NotificationRepository.save]
     F --> G[ChannelResolver]
     G --> H[EmailChannel]
-    H --> I[WebsocketChannel]
-    I --> J[Future: Telegram / Push]
+    G --> I[SSEChannel]
+    G --> J[Future: Telegram / Push]
 ```
