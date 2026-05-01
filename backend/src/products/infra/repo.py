@@ -70,9 +70,9 @@ class SqlProductRepository(SqlAlchemyRepository[SoftwareProduct, SoftwareProduct
         if search is not None:
             stmt = stmt.where(
                 or_(
-                    self.model.name.op("%%")(search),
-                    self.model.vendor.op("%%")(search),
-                    self.model.description.op("%%")(search),
+                    self.model.name.op("%")(search),
+                    self.model.vendor.op("%")(search),
+                    self.model.description.op("%")(search),
                 )
             ).order_by(desc(func.similarity(self.model.name, search)))
 
