@@ -1,10 +1,12 @@
 from uuid import UUID
 
 from ...iam.domain.entities import User
+from ...products.domain.entities import SoftwareProduct
+from ...products.domain.vo import EnvironmentType
 from ...shared.domain.repo import Repository
 from ...shared.schemas import Page, PageParams
 from .entities import Counterparty
-from .vo import Inn
+from .vo import CounterpartyProductStatus, Inn
 
 
 class CounterpartyRepository(Repository[Counterparty]):
@@ -26,3 +28,28 @@ class CounterpartyRepository(Repository[Counterparty]):
 
     async def get_customers(self, counterparty_id: UUID, params: PageParams) -> Page[User]:
         """Получение клиентов контрагента"""
+
+    async def link_product(
+            self,
+            counterparty_id: UUID,
+            product_id: UUID,
+            environment: EnvironmentType,
+            status: CounterpartyProductStatus = CounterpartyProductStatus.ACTIVE,
+            is_primary: bool = False,
+            linked_by: UUID | None = None,
+    ) -> None:
+        """
+        Привязка программного продукта к контрагенту
+        """
+
+    async def get_products(
+            self,
+            counterparty_id: UUID,
+            params: PageParams,
+            environment: EnvironmentType | None = None,
+            status: CounterpartyProductStatus | None = None,
+            is_primary: bool | None = None,
+    ) -> Page[SoftwareProduct]:
+        """
+        Получение программных продуктов, которые используются контрагентом
+        """

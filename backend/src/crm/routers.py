@@ -8,12 +8,14 @@ from ..iam.dependencies import get_current_user, require_role
 from ..iam.domain.constants import CUSTOMER_ADMIN_AND_ABOVE, SUPPORT_MANAGER_OR_ABOVE, SUPPORT_TEAM
 from ..iam.mappers import map_user_to_response
 from ..iam.schemas import UserResponse
+from ..products.mappers import map_product_to_response
+from ..products.schemas import ProductResponse
 from ..shared.dependencies import PageParamsDep
 from ..shared.domain.exceptions import NotFoundError
 from ..shared.schemas import Page
 from .dependencies import CounterpartyRepoDep, CounterpartyServiceDep
 from .mappers import map_counterparty_to_response
-from .schemas import BranchAdd, CounterpartyCreate, CounterpartyResponse
+from .schemas import BranchAdd, CounterpartyCreate, CounterpartyProductCreate, CounterpartyResponse
 
 router = APIRouter(prefix="/counterparties", tags=["Контрагенты"])
 
@@ -103,3 +105,37 @@ async def get_counterparty_customers(
 ) -> Page[dict[str, Any]]:
     page = await repository.get_customers(counterparty_id, params)
     return page.to_response(map_user_to_response)
+
+
+@router.post(
+    path="/{counterparty_id}/products",
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_role(*SUPPORT_MANAGER_OR_ABOVE))],
+    summary="Привязка программного продукта к контрагенту"
+)
+async def add_counterparty_product(
+        counterparty_id: UUID, data: CounterpartyProductCreate, repository: CounterpartyRepoDep
+) -> dict[str, str]:
+    await repository.link_product(
+        counterparty_id=counterparty_id,
+        product_id=data.product_id,
+        environment=data.environment,
+        is_primary=data.is_primary,
+    )
+    return {"message": "Software product linked successfully"}
+
+
+@router.get(
+    path="/{counterparty_id}/products",
+    status_code=status.HTTP_200_OK,
+    response_model=Page[ProductResponse],
+    dependencies=[Depends(get_current_user)],
+    summary="Получение программных продуктов контрагента"
+)
+async def get_counterparty_products(
+        counterparty_id: UUID,
+        pagination: PageParamsDep,
+        repository: CounterpartyRepoDep
+) -> Page[ProductResponse]:
+    page = await repository.get_products(counterparty_id, pagination)
+    return page.to_response(map_product_to_response)

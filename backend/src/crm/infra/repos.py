@@ -4,11 +4,15 @@ from sqlalchemy import func, select
 
 from ...iam.domain.entities import User
 from ...iam.domain.vo import FullName
+from ...products.domain.entities import SoftwareProduct
+from ...products.domain.vo import EnvironmentType
+from ...products.infra.models import SoftwareProductOrm
+from ...products.infra.repo import SoftwareProductMapper
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
 from ...shared.schemas import Page, PageParams
 from ..domain.entities import Counterparty
-from ..domain.vo import ContactPerson, Inn, Kpp, Okpo, Phone
-from .models import CounterpartyOrm
+from ..domain.vo import ContactPerson, CounterpartyProductStatus, Inn, Kpp, Okpo, Phone
+from .models import CounterpartyOrm, CounterpartyProductOrm
 
 
 class CounterpartyMapper(ModelMapper[Counterparty, CounterpartyOrm]):
@@ -142,3 +146,65 @@ class SqlCounterpartyRepository(SqlAlchemyRepository[Counterparty, CounterpartyO
         # 4. Расчёт результата
         items = [UserMapper.to_entity(model) for model in models]
         return Page.create(items, total, params.page, params.size)
+
+    async def link_product(
+            self,
+            counterparty_id: UUID,
+            product_id: UUID,
+            environment: EnvironmentType,
+            status: CounterpartyProductStatus = CounterpartyProductStatus.ACTIVE,
+            is_primary: bool = False,
+            linked_by: UUID | None = None,
+    ) -> None:
+        model = CounterpartyProductOrm(
+            counterparty_id=counterparty_id,
+            product_id=product_id,
+            environment=environment,
+            status=status,
+            is_primary=is_primary,
+            linked_by=linked_by,
+        )
+        self.session.add(model)
+
+    async def get_products(
+            self,
+            counterparty_id: UUID,
+            pagination: PageParams,
+            environment: EnvironmentType | None = None,
+            status: CounterpartyProductStatus | None = None,
+            is_primary: bool | None = None,
+    ) -> Page[SoftwareProduct]:
+        # 1. Базовый запрос на получение программный продуктов
+        stmt = (
+            select(SoftwareProductOrm)
+            .join(
+                CounterpartyProductOrm,
+                SoftwareProductOrm.id == CounterpartyProductOrm.product_id,
+            )
+            .where(CounterpartyProductOrm.counterparty_id == counterparty_id)
+            .distinct()  # 1.1 Исключение дубликатов из-за разных environment
+        )
+
+        # 2. Применение фильтров
+        if status is not None:
+            stmt = stmt.where(CounterpartyProductOrm.status == status)
+        if environment is not None:
+            stmt = stmt.where(CounterpartyProductOrm.environment == environment)
+        if is_primary is not None:
+            stmt = stmt.where(CounterpartyProductOrm.is_primary == is_primary)
+
+        # 3. Подсчёт общего количества записей удовлетворяющих запросу
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total_items = await self.session.scalar(count_stmt)
+        if total_items == 0:
+            return Page.create([], total_items, pagination.page, pagination.size)
+
+        # 4. Пагинация программных продуктов
+        stmt = stmt.offset(pagination.offset).limit(pagination.size)
+        results = await self.session.execute(stmt)
+        models = results.scalars().all()
+
+        # 5. Преобразование ORM моделей в доменные сущности
+        items = [SoftwareProductMapper.to_entity(model) for model in models]
+
+        return Page.create(items, total_items, pagination.page, pagination.size)

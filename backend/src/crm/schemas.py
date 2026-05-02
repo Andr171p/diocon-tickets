@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
+from ..products.domain.vo import EnvironmentType
 from .domain.vo import CounterpartyType
 
 
@@ -100,3 +101,15 @@ class CounterpartyResponse(BaseModel):
     is_active: bool = Field(True, description="Доступен ли контрагент в системе")
     is_head: bool = Field(True, description="Является ли контрагент головным")
     is_branch: bool = Field(False, description="Является ли дочерним объектом")
+
+
+class CounterpartyProductCreate(BaseModel):
+    """Привязка программного продукта к контрагенту"""
+
+    product_id: UUID = Field(..., description="ID программного продукта из справочника")
+    environment: EnvironmentType = Field(..., description="Окружение в котором работает продукт")
+    is_primary: bool = Field(False, description="Является ли продукт основным")
+
+
+class CounterpartyProductFilters(BaseModel):
+    """Фильтры для программных продуктов контрагента"""

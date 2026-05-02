@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from src.core.redis import redis_client
 from src.core.settings import settings
-from src.crm.router import router as counterparty_router
+from src.crm.routers import router as counterparty_router
 from src.iam.routers import router as iam_router
 from src.media.router import router as media_router
 from src.products.routers import router as product_router

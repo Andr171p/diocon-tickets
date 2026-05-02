@@ -1,4 +1,5 @@
 import pytest
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from testcontainers.core.wait_strategies import PortWaitStrategy
 from testcontainers.minio import MinioContainer
@@ -62,6 +63,7 @@ async def engine(postgres_container):
     )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
     yield engine
     await engine.dispose()
 

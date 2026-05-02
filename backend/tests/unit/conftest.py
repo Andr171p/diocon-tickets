@@ -16,6 +16,7 @@ from src.iam.domain.vo import UserRole
 from src.notifications.domain.entities import Notification, UserPreference
 from src.notifications.domain.repos import NotificationRepository, PreferenceRepository
 from src.notifications.domain.vo import NotificationType
+from src.products.domain.repo import ProductRepository
 from src.shared.domain.events import EventPublisher
 from src.shared.infra.events import EventBus
 from src.shared.infra.repos import InMemoryRepository
@@ -348,6 +349,10 @@ class ImMemoryReactionRepository(InMemoryRepository[Reaction]):
         return ReactionStats(counts=counts, user_reactions=user_reactions)
 
 
+class InMemoryProductRepository(InMemoryRepository):
+    ...
+
+
 @pytest.fixture
 def mock_counterparty_repo() -> CounterpartyRepository:
     return InMemoryCounterpartyRepository()
@@ -396,6 +401,11 @@ def mock_notification_repo() -> NotificationRepository:
 @pytest.fixture
 def mock_reaction_repo() -> ReactionRepository:
     return ImMemoryReactionRepository()
+
+
+@pytest.fixture
+def mock_product_repo() -> ProductRepository:
+    return InMemoryProductRepository()
 
 
 @pytest.fixture
