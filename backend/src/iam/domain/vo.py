@@ -10,10 +10,18 @@ from ...shared.domain.vo import ValueObject
 class UserRole(StrEnum):
     """Роли пользователей"""
 
+    # Клиентские
     CUSTOMER_ADMIN = "customer_admin"  # администратор клиентской стороны
     CUSTOMER = "customer"  # клиент / обычный пользователь
+
+    # Команда поддержки
     SUPPORT_AGENT = "support_agent"  # сотрудник поддержки (1 линия)
     SUPPORT_MANAGER = "support_manager"  # старший сотрудник поддержки (team lead)
+
+    # Работа с договорами и клиентами
+    ACCOUNT_MANAGER = "account_manager"
+    FINANCE = "finance"
+
     ADMIN = "admin"  # системный администратор
 
     def is_customer(self) -> bool:
@@ -25,6 +33,11 @@ class UserRole(StrEnum):
         """Является ли поддержкой"""
 
         return self.value in {self.SUPPORT_AGENT, self.SUPPORT_MANAGER, self.ADMIN}
+
+    def is_internal(self) -> bool:
+        """Является ли роль внутренней"""
+
+        return self.value not in {self.CUSTOMER, self.CUSTOMER_ADMIN}
 
 
 @dataclass(frozen=True, slots=True)

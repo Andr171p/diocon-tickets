@@ -12,7 +12,7 @@ from .constants import INVITATION_EXPIRE_IN_DAYS, INVITATION_SUBJECT, INVITATION
 from .domain.entities import Invitation, User
 from .domain.exceptions import InvitationExpiredError, UnauthorizedError
 from .domain.repos import InvitationRepository, TokenBlacklist, UserRepository
-from .domain.services import create_customer, create_support, invite_customer, invite_support
+from .domain.services import create_customer, create_support, invite_customer, invite_internal
 from .domain.vo import UserRole
 from .schemas import Tokens, UserCreateForm
 from .security import (
@@ -202,8 +202,8 @@ class InvitationService:
         if invitation is None:
             logger.info("Invitation is not found, start creating new")
 
-            if assigned_role.is_support():
-                invitation = invite_support(
+            if assigned_role.is_internal():
+                invitation = invite_internal(
                     invited_by=invited_by, email=email, assigned_role=assigned_role
                 )
             elif assigned_role.is_customer() and counterparty_id is not None:

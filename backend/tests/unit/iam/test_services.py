@@ -8,8 +8,10 @@ from freezegun import freeze_time
 
 from src.iam.domain.exceptions import InvitationExpiredError
 from src.iam.domain.services import (
+    create_account_manager,
     create_admin,
     create_customer,
+    create_finance,
     create_support,
     invite_customer,
     invite_support,
@@ -116,10 +118,26 @@ def make_admin():
     return create_admin(email=fake.email(), password_hash=generate_password_hash())
 
 
+def make_account_manager():
+    return create_account_manager(
+        email=fake.email(), password_hash=generate_password_hash(), full_name=fake.name(),
+    )
+
+
+def make_finance():
+    return create_finance(
+        email=fake.email(), password_hash=generate_password_hash(), full_name=fake.name()
+    )
+
+
 class TestCreateTokensForUser:
     """Тесты для метода create_tokens_for_user"""
 
-    @pytest.mark.parametrize("user", [make_support(), make_admin(), make_customer()])
+    @pytest.mark.parametrize(
+        "user", [
+            make_support(), make_admin(), make_customer(), make_account_manager(), make_finance()
+        ]
+    )
     def test_create_tokens_for_user(self, user):
         # 1. Получение пары токенов
         tokens = create_tokens_for_user(user)

@@ -80,6 +80,40 @@ def create_admin(email: str, password_hash: str) -> User:
     )
 
 
+def create_account_manager(
+    email: str,
+    password_hash: str,
+    username: str | None = None,
+    full_name: str | None = None,
+) -> User:
+    """Создание менеджера по работе с клиентами"""
+
+    return User(
+        email=email,
+        password_hash=SecretStr(password_hash),
+        username=None if username is None else Username(username),
+        full_name=None if full_name is None else FullName(full_name),
+        role=UserRole.ACCOUNT_MANAGER,
+    )
+
+
+def create_finance(
+    email: str,
+    password_hash: str,
+    username: str | None = None,
+    full_name: str | None = None,
+) -> User:
+    """Создание финансового специалиста"""
+
+    return User(
+        email=email,
+        password_hash=SecretStr(password_hash),
+        username=None if username is None else Username(username),
+        full_name=None if full_name is None else FullName(full_name),
+        role=UserRole.FINANCE,
+    )
+
+
 def invite_support(
         invited_by: UUID, email: str, assigned_role: UserRole
 ) -> Invitation:
@@ -113,6 +147,20 @@ def invite_customer(
     )
 
 
+def invite_internal(invited_by: UUID, email: str, assigned_role: UserRole) -> Invitation:
+    """Создание приглашения для внутреннего сотрудника"""
+
+    if not assigned_role.is_internal():
+        raise InvariantViolationError("Invalid role assignment for internal user")
+
+    return Invitation(
+        email=email,
+        invited_by=invited_by,
+        assigned_role=assigned_role,
+        expires_at=get_expiration_time(expires_in=timedelta(days=INVITATION_EXPIRES_IN_DAYS)),
+    )
+
+
 def get_display_user_role(user_role: UserRole) -> str:
     """Преобразование роли пользователя к UI-friendly формату"""
 
@@ -123,3 +171,7 @@ def get_display_user_role(user_role: UserRole) -> str:
             return "Сотрудник поддержки"
         case UserRole.ADMIN:
             return "Администратор"
+        case UserRole.ACCOUNT_MANAGER:
+            return "Менеджер по работе с клиентами"
+        case UserRole.FINANCE:
+            return "Бухгалтер"

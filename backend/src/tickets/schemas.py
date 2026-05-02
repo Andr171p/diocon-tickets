@@ -93,7 +93,7 @@ class TicketBase(BaseModel):
         None, description="Программный продукт к которому привязан тикет"
     )
     tags: list[Tag] = Field(
-        default_factory=list, description="Теги для упрощения поиск аи фильтрации"
+        default_factory=list, description="Теги для упрощения поиска и фильтрации"
     )
 
 
