@@ -89,6 +89,9 @@ class TicketBase(BaseModel):
         None, description="ID проекта, к которому нужно привязать тикет"
     )
     counterparty_id: UUID | None = Field(None, description="Контрагент к которому привязан тикет")
+    product_id: UUID | None = Field(
+        None, description="Программный продукт к которому привязан тикет"
+    )
     tags: list[Tag] = Field(
         default_factory=list, description="Теги для упрощения поиск аи фильтрации"
     )

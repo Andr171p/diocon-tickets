@@ -27,6 +27,7 @@ class TicketOrm(Base):
 
     project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
     counterparty_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    product_id: Mapped[UUID | None] = mapped_column(nullable=True)
     created_by_role: Mapped[UserRole] = mapped_column(Enum(UserRole))
     created_by: Mapped[UUID]
     reporter_id: Mapped[UUID]

@@ -83,6 +83,7 @@ def map_ticket_to_response(ticket: Ticket) -> TicketResponse:
         updated_at=ticket.updated_at,
         project_id=ticket.project_id,
         counterparty_id=ticket.counterparty_id,
+        product_id=ticket.product_id,
         created_by_role=ticket.created_by_role,
         created_by=ticket.created_by,
         reporter_id=ticket.reporter_id,

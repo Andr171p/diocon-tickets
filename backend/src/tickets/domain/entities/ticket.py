@@ -138,6 +138,7 @@ class Ticket(AggregateRoot):
 
     project_id: UUID | None = None
     counterparty_id: UUID | None = None
+    product_id: UUID | None = None
 
     # Ключевые поля
     created_by: UUID  # Технический создатель
@@ -182,6 +183,7 @@ class Ticket(AggregateRoot):
         priority: TicketPriority = TicketPriority.MEDIUM,
         project_id: UUID | None = None,
         counterparty_id: UUID | None = None,
+        product_id: UUID | None = None,
         tags: list[Tag] | None = None,
     ) -> Self:
         """Создание тикета"""
@@ -203,6 +205,7 @@ class Ticket(AggregateRoot):
             status=initial_status,
             project_id=project_id,
             counterparty_id=counterparty_id,
+            product_id=product_id,
             tags=tags if tags is not None else [],
             history=[
                 TicketHistoryEntry(

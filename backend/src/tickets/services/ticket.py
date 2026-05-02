@@ -129,6 +129,7 @@ class TicketService:
             priority=data.priority,
             project_id=context.project_id,
             counterparty_id=context.counterparty_id,
+            product_id=data.product_id,
             tags=[Tag(name=tag.name, color=tag.color) for tag in data.tags],
         )
         await self.ticket_repo.create(ticket)
