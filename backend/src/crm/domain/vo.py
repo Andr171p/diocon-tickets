@@ -241,11 +241,3 @@ class ContactPerson(ValueObject):
             email=email,
             messengers=messengers,
         )
-
-
-class CounterpartyProductStatus(StrEnum):
-    """Статус использования программного продукта"""
-
-    ACTIVE = "active"
-    SUSPENDED = "suspended"  # приостановленный
-    ARCHIVED = "archived"

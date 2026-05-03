@@ -2,7 +2,7 @@ from typing import Annotated, Any
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Path, status
+from fastapi import APIRouter, Body, Depends, Path, status
 
 from ..iam.dependencies import get_current_user, require_role
 from ..iam.domain.constants import CUSTOMER_ADMIN_AND_ABOVE, SUPPORT_MANAGER_OR_ABOVE, SUPPORT_TEAM
@@ -15,7 +15,7 @@ from ..shared.domain.exceptions import NotFoundError
 from ..shared.schemas import Page
 from .dependencies import CounterpartyRepoDep, CounterpartyServiceDep
 from .mappers import map_counterparty_to_response
-from .schemas import BranchAdd, CounterpartyCreate, CounterpartyProductCreate, CounterpartyResponse
+from .schemas import BranchAdd, CounterpartyCreate, CounterpartyResponse
 
 router = APIRouter(prefix="/counterparties", tags=["Контрагенты"])
 
@@ -113,15 +113,14 @@ async def get_counterparty_customers(
     dependencies=[Depends(require_role(*SUPPORT_MANAGER_OR_ABOVE))],
     summary="Привязка программного продукта к контрагенту"
 )
-async def add_counterparty_product(
-        counterparty_id: UUID, data: CounterpartyProductCreate, repository: CounterpartyRepoDep
+async def link_counterparty_product(
+        counterparty_id: UUID,
+        product_id: Annotated[
+            UUID, Body(..., embed=True, description="ID продукта из справочника")
+        ],
+        repository: CounterpartyRepoDep
 ) -> dict[str, str]:
-    await repository.link_product(
-        counterparty_id=counterparty_id,
-        product_id=data.product_id,
-        environment=data.environment,
-        is_primary=data.is_primary,
-    )
+    await repository.link_product(counterparty_id=counterparty_id, product_id=product_id)
     return {"message": "Software product linked successfully"}
 
 

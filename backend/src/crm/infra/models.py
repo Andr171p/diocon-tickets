@@ -10,8 +10,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ...core.database import Base
-from ...products.domain.vo import EnvironmentType
-from ..domain.vo import CounterpartyProductStatus, CounterpartyType
+from ..domain.vo import CounterpartyType
 
 
 class CounterpartyOrm(Base):
@@ -42,7 +41,9 @@ class CounterpartyOrm(Base):
     )
 
     customers: Mapped[list["UserOrm"]] = relationship(back_populates="counterparty")
-    products: Mapped[list["CounterpartyProductOrm"]] = relationship(back_populates="counterparty")
+    products: Mapped[list["CounterpartyProductOrm"]] = relationship(
+        back_populates="counterparty"
+    )
 
 
 class CounterpartyProductOrm(Base):
@@ -50,10 +51,5 @@ class CounterpartyProductOrm(Base):
 
     counterparty_id: Mapped[UUID] = mapped_column(ForeignKey("counterparties.id"), unique=False)
     product_id: Mapped[UUID] = mapped_column(ForeignKey("software_products.id"), unique=False)
-    environment: Mapped[EnvironmentType] = mapped_column(Enum(EnvironmentType))
-    is_primary: Mapped[bool]
-    status: Mapped[CounterpartyProductStatus] = mapped_column(Enum(CounterpartyProductStatus))
-
-    linked_by: Mapped[UUID | None] = mapped_column(nullable=True)
 
     counterparty: Mapped["CounterpartyOrm"] = relationship(back_populates="products")
