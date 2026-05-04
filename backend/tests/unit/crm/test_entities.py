@@ -226,3 +226,27 @@ def test_is_head_and_is_branch_properties():
 
     assert branch.is_head is False
     assert branch.is_branch is True
+
+
+def test_add_contact_person_success():
+    counterparty = Counterparty(
+        counterparty_type=CounterpartyType.LEGAL_ENTITY,
+        name="Головная компания",
+        legal_name="Головная компания",
+        inn=Inn("7707083893"),
+        kpp=Kpp("773301001"),
+        phone=Phone("+79991234567"),
+        email="head@company.ru",
+    )
+    counterparty.add_contact_person(
+        first_name="Иван",
+        last_name="Иванов",
+        middle_name="Иванович",
+        phone="88005553535",
+        email="ivanov.ivan@mail.ru",
+        messengers={"vk": "12345"}
+    )
+
+    assert counterparty.contact_persons != []
+    assert counterparty.contact_persons[0].full_name.value == "Иванов Иван Иванович"
+    assert counterparty.updated_at > counterparty.created_at

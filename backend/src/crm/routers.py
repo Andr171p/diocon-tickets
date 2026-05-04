@@ -15,7 +15,7 @@ from ..shared.domain.exceptions import NotFoundError
 from ..shared.schemas import Page
 from .dependencies import CounterpartyRepoDep, CounterpartyServiceDep
 from .mappers import map_counterparty_to_response
-from .schemas import BranchAdd, CounterpartyCreate, CounterpartyResponse
+from .schemas import BranchAdd, ContactPersonIn, CounterpartyCreate, CounterpartyResponse
 
 router = APIRouter(prefix="/counterparties", tags=["Контрагенты"])
 
@@ -90,6 +90,19 @@ async def get_counterparties(
 )
 async def delete_counterparty(counterparty_id: UUID, repository: CounterpartyRepoDep) -> None:
     await repository.update(counterparty_id, is_active=False)
+
+
+@router.post(
+    path="/{counterparty_id}/contact-persons",
+    status_code=status.HTTP_201_CREATED,
+    response_model=CounterpartyResponse,
+    dependencies=[Depends(require_role(*SUPPORT_MANAGER_OR_ABOVE))],
+    summary="Добавление контактного лица контрагента"
+)
+async def add_contact_person(
+        counterparty_id: UUID, data: ContactPersonIn, service: CounterpartyServiceDep
+) -> CounterpartyResponse:
+    return await service.add_contact_person(counterparty_id, data)
 
 
 @router.get(

@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..shared.domain.exceptions import AlreadyExistsError, NotFoundError
@@ -5,7 +7,7 @@ from .domain.entities import Counterparty
 from .domain.repo import CounterpartyRepository
 from .domain.vo import ContactPerson, Inn, Kpp, Okpo, Phone
 from .mappers import map_counterparty_to_response
-from .schemas import BranchAdd, CounterpartyCreate, CounterpartyResponse
+from .schemas import BranchAdd, ContactPersonIn, CounterpartyCreate, CounterpartyResponse
 
 
 class CounterpartyService:
@@ -89,3 +91,27 @@ class CounterpartyService:
         await self.session.commit()
 
         return map_counterparty_to_response(branch)
+
+    async def add_contact_person(
+            self, counterparty_id: UUID, data: ContactPersonIn
+    ) -> CounterpartyResponse:
+        """Добавление контактного лица"""
+
+        # 1. Получение и проверка на существование контрагента
+        counterparty = await self.repository.read(counterparty_id)
+        if counterparty is None:
+            raise NotFoundError(f"Counterparty with ID {counterparty_id} not found")
+
+        # 2. Добавление контактного лица и обновление сущности
+        counterparty.add_contact_person(
+            first_name=data.first_name,
+            last_name=data.last_name,
+            middle_name=data.middle_name,
+            phone=data.phone,
+            email=data.email,
+            messengers=data.messengers,
+        )
+        await self.repository.upsert(counterparty)
+        await self.session.commit()
+
+        return map_counterparty_to_response(counterparty)

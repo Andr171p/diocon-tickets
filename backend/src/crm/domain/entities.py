@@ -1,3 +1,5 @@
+from typing import Self
+
 from dataclasses import dataclass, field
 from uuid import UUID
 
@@ -5,6 +7,7 @@ from pydantic import EmailStr
 
 from ...shared.domain.entities import Entity
 from ...shared.domain.exceptions import InvariantViolationError
+from ...shared.utils.time import current_datetime
 from .vo import ContactPerson, CounterpartyType, Inn, Kpp, Okpo, Phone
 
 INDIVIDUAL_INN_LENGTH = 12
@@ -111,3 +114,26 @@ class Counterparty(Entity):
             address=address,
             parent_id=self.id
         )
+
+    def add_contact_person(
+            self,
+            first_name: str,
+            last_name: str,
+            phone: str,
+            email: str,
+            middle_name: str | None = None,
+            messengers: dict[str, str] | None = None,
+    ) -> Self:
+        """Добавления контактного лица"""
+
+        self.contact_persons.append(
+            ContactPerson.create(
+                first_name=first_name,
+                last_name=last_name,
+                middle_name=middle_name,
+                phone=phone,
+                email=email,
+                messengers=messengers,
+            )
+        )
+        self.updated_at = current_datetime()
