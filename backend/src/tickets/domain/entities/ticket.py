@@ -16,103 +16,17 @@ from ..constants import (
     ALLOWED_TRANSITIONS,
 )
 from ..events import (
-    CommentAdded,
-    CommentEdited,
     TicketArchived,
     TicketAssigned,
     TicketCreated,
     TicketPriorityChanged,
 )
 from ..vo import (
-    CommentType,
     Tag,
     TicketNumber,
     TicketPriority,
     TicketStatus,
 )
-
-
-@dataclass(kw_only=True)
-class Comment(Entity):
-    """
-    Комментарий лоя тикета
-    """
-
-    ticket_id: UUID
-    author_id: UUID
-    author_role: UserRole
-    text: str
-    type: CommentType = field(default=CommentType.PUBLIC)
-    attachments: list[Attachment] = field(default_factory=list)
-
-    def __post_init__(self) -> None:
-        # 1. Текст комментария я не может быть пустым
-        if not self.text.strip():
-            raise ValueError("Comment text cannot be empty")
-
-    @classmethod
-    def create(
-            cls,
-            ticket_id: UUID,
-            author_id: UUID,
-            author_role: UserRole,
-            text: str,
-            comment_type: CommentType = CommentType.PUBLIC
-    ) -> Self:
-        """Оставить комментарий"""
-
-        # 1. Клиенты могут оставлять только публичные комментарии
-        if author_role.is_customer() and comment_type != CommentType.PUBLIC:
-            raise PermissionDeniedError("Customers can only post PUBLIC comments")
-
-        # 2. Сохранение комментария
-        comment_id = uuid4()
-        comment = Comment(
-            id=comment_id,
-            ticket_id=ticket_id,
-            author_id=author_id,
-            author_role=author_role,
-            text=text.strip(),
-            type=comment_type,
-        )
-
-        # 3. Регистрация доменного события
-        comment.register_event(
-            CommentAdded(
-                ticket_id=ticket_id,
-                comment_id=comment.id,
-                author_id=author_id,
-                author_role=author_role,
-                comment_type=comment_type,
-                is_public=comment_type == CommentType.PUBLIC,
-            )
-        )
-
-        return comment
-
-    def edit(self, new_text: str, edited_by: UUID) -> None:
-        """Редактирование комментария"""
-
-        # 1. Редактировать может только автор
-        if edited_by != self.author_id:
-            raise PermissionDeniedError("Only author can edit comment")
-
-        # 2. Новый текст не может быть пустым
-        if not new_text.strip():
-            raise ValueError("Comment text cannot be empty")
-
-        # 3. Обновление значений
-        self.text = new_text
-        self.updated_at = current_datetime()
-
-        # 4. Регистрация доменного события
-        self.register_event(
-            CommentEdited(
-                ticket_id=self.ticket_id,
-                comment_id=self.id,
-                edited_by=edited_by,
-            )
-        )
 
 
 @dataclass(kw_only=True)
