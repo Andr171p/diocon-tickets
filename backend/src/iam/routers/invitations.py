@@ -1,5 +1,3 @@
-from typing import Any
-
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, status
@@ -64,12 +62,12 @@ async def get_invitation(
 @router.get(
     path="",
     status_code=status.HTTP_200_OK,
-    response_model=Page[dict[str, Any]],
+    response_model=Page[InvitationResponse],
     summary="Получение всех приглашений",
 )
 async def get_invitations(
         params: PageParamsDep, repository: InvitationRepository = Depends(get_invitation_repo)
-) -> dict[str, Any]:
+) -> Page[InvitationResponse]:
     page = await repository.paginate(params)
     return page.to_response(map_invitation_to_response)
 
