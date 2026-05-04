@@ -10,7 +10,7 @@ from ..iam.mappers import map_user_to_response
 from ..iam.schemas import UserResponse
 from ..products.mappers import map_product_to_response
 from ..products.schemas import ProductResponse
-from ..shared.dependencies import PageParamsDep, SessionDep
+from ..shared.dependencies import PageParamsDep
 from ..shared.domain.exceptions import NotFoundError
 from ..shared.schemas import Page
 from .dependencies import CounterpartyRepoDep, CounterpartyServiceDep
@@ -131,11 +131,9 @@ async def link_counterparty_product(
         product_id: Annotated[
             UUID, Body(..., embed=True, description="ID продукта из справочника")
         ],
-        session: SessionDep,
-        repository: CounterpartyRepoDep
+        service: CounterpartyServiceDep,
 ) -> dict[str, str]:
-    await repository.link_product(counterparty_id=counterparty_id, product_id=product_id)
-    await session.commit()
+    await service.link_product(counterparty_id, product_id)
     return {"message": "Software product linked successfully"}
 
 

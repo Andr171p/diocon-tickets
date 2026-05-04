@@ -115,3 +115,18 @@ class CounterpartyService:
         await self.session.commit()
 
         return map_counterparty_to_response(counterparty)
+
+    async def link_product(self, counterparty_id: UUID, product_id: UUID) -> None:
+        """
+        Привязка программного продукта к контрагенту
+        (программны продукт из общего справочника)
+        """
+
+        # 1. Получение и проверка на существование контрагента
+        counterparty = await self.repository.read(counterparty_id)
+        if counterparty is None:
+            raise NotFoundError(f"Counterparty with ID {counterparty_id} not found")
+
+        # 2. Привязка продукта
+        await self.repository.link_product(counterparty.id, product_id)
+        await self.session.commit()
