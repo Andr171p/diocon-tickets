@@ -145,6 +145,10 @@ services:
   #     # --- MinIO ---
   #     MINIO_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY_ID}
   #     MINIO_SECRET_ACCESS_KEY: ${MINIO_SECRET_ACCESS_KEY}
+  #     # --- Redis ---
+  #     REDIS_HOST: ${REDIS_HOST}
+  #     REDIS_PORT: ${REDIS_PORT}
+  #     REDIS_PASSWORD: ${REDIS_PASSWORD}
   #     # --- Admin ---
   #     ADMIN_EMAIL: ${ADMIN_EMAIL}
   #     ADMIN_PASSWORD: ${ADMIN_PASSWORD}

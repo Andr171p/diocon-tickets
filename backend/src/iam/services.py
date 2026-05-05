@@ -118,7 +118,7 @@ class AuthService:
         user = await self.user_repo.get_by_email(email)
         if user is None:
             raise UnauthorizedError(f"User not found by email - '{email}'")
-        if not verify_password(password, user.password_hash.get_secret_value()) and \
+        if not verify_password(password, user.password_hash.get_secret_value()) or \
                 not user.is_active:
             raise UnauthorizedError("Invalid password or user is not active")
 

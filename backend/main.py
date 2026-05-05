@@ -39,6 +39,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Prometheus мониторинг
+Instrumentator().instrument(app).expose(app)
+
 router = APIRouter(prefix="/api/v1")
 
 router.include_router(iam_router)
@@ -57,9 +60,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Prometheus мониторинг
-Instrumentator().instrument(app).expose(app)
 
 
 @app.exception_handler(ValueError)
