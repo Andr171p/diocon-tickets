@@ -34,9 +34,9 @@ async def init_s3_buckets() -> None:
 
     # 1. Инициализация приватного S3 клиента
     storage = S3Storage(
-        endpoint_url=settings.minio.endpoint_url,
-        access_key=settings.minio.access_key_id,
-        secret_key=settings.minio.secret_access_key,
+        endpoint_url=settings.yandex_cloud.endpoint_url,
+        access_key=settings.yandex_cloud.access_key_id,
+        secret_key=settings.yandex_cloud.secret_access_key,
         bucket_name=S3_BUCKET_NAME,
     )
 
