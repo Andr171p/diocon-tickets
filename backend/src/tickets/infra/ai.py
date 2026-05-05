@@ -16,22 +16,23 @@ PREDICT_TICKET_PROMPT = """\
 - CRITICAL: Критический. Полная остановка работы, угроза безопасности, сбой сервиса.
 
 Теги — это ключевые слова для классификации. Используй только теги из списка ниже, если возможно. Если ни один из существующих не подходит, ты можешь предложить новый тег (название на русском, краткое).
-Существующие теги (с примерными цветами):
-- bug (красный)
-- feature (синий)
-- improvement (зелёный)
-- question (жёлтый)
-- incident (оранжевый)
-- billing (фиолетовый)
-- access (серый)
-- security (тёмно-красный)
-- performance (оранжевый)
-- ui (голубой)
-- api (синий)
+Существующие теги (с примерными цветами, названия на русском):
+- ошибка (красный, #E53E3E)
+- функциональность (синий, #4299E1)
+- улучшение (зелёный, #38A169)
+- вопрос (жёлтый, #D69E2E)
+- инцидент (оранжевый, #ED8936)
+- биллинг (фиолетовый, #805AD5)
+- доступ (серый, #718096)
+- безопасность (тёмно-красный, #C53030)
+- производительность (оранжевый, #ED8936)
+- интерфейс (голубой, #90CDF4)
+- API (синий, #3182CE)
+- интеграция (синий, #5A67D8)
+- отчётность (зелёный, #38B2AC)
 
-Для нового тега предложи цвет в HEX (например, #FF5733).
-Имя тега должно быть на русском, если он новый, или на английском, если он из списка.
-Старайся не создавать дубликаты.
+Для нового тега предложи цвет в HEX (например, #FF5733). Имя тега должно быть на русском, кратким и отражать суть.
+Старайся не создавать дубликаты — если подходящий тег уже есть, используй его.
 
 Для каждого предложения укажи уверенность (confidence) от 0 до 1, где 1 — полная уверенность.
 Уверенность для приоритета и тегов может быть разной.
@@ -46,7 +47,7 @@ PREDICT_TICKET_PROMPT = """\
 Ответ:
 {
   "suggested_priority": "CRITICAL",
-  "suggested_tags": [{"name": "bug", "color": "#E53E3E"}, {"name": "access", "color": "#718096"}],
+  "suggested_tags": [{"name": "ошибка", "color": "#E53E3E"}, {"name": "доступ", "color": "#718096"}],
   "confidence": {"priority": 1.0, "tags": 0.9}
 }
 
@@ -56,7 +57,7 @@ PREDICT_TICKET_PROMPT = """\
 Ответ:
 {
   "suggested_priority": "LOW",
-  "suggested_tags": [{"name": "feature", "color": "#4299E1"}, {"name": "ui", "color": "#90CDF4"}],
+  "suggested_tags": [{"name": "функциональность", "color": "#4299E1"}, {"name": "интерфейс", "color": "#90CDF4"}],
   "confidence": {"priority": 1.0, "tags": 1.0}
 }
 
@@ -66,7 +67,7 @@ PREDICT_TICKET_PROMPT = """\
 Ответ:
 {
   "suggested_priority": "HIGH",
-  "suggested_tags": [{"name": "performance", "color": "#ED8936"}, {"name": "bug", "color": "#E53E3E"}],
+  "suggested_tags": [{"name": "производительность", "color": "#ED8936"}, {"name": "ошибка", "color": "#E53E3E"}],
   "confidence": {"priority": 0.9, "tags": 0.85}
 }
 
@@ -79,7 +80,7 @@ async def predict_ticket_fields(data: TicketPredict) -> PredictionResponse:
 
     model = ChatOpenAI(
         api_key=settings.yandex_cloud.api_key,
-        model=settings.yandex_cloud.qwen3_235b,
+        model=settings.yandex_cloud.yandexgpt_rc,
         base_url=settings.yandex_cloud.base_url,
         temperature=0.2,
     )
