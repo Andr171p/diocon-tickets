@@ -19,6 +19,7 @@ TEMPLATES_DIR = BASE_DIR / "templates"
 
 # Имя основного S3 бакета
 S3_BUCKET_NAME = "diocon-tickets-uploads"
+S3_BACKUPS_BUCKET_NAME = "diocon-tickets-backups"
 
 
 class PostgresSettings(BaseSettings):
@@ -107,6 +108,10 @@ class YandexCloudSettings(BaseSettings):
     folder_id: str = "<FOLDER_ID>"
     api_key: str = "<API_KEY>"
     base_url: str = "https://llm.api.cloud.yandex.net/v1"
+
+    access_key_id: str = "<ACCESS_KEY_ID>"
+    secret_access_key: str = "<SECRET_ACCESS_KEY>"
+    endpoint_url: str = "https://storage.yandexcloud.net/"
 
     @property
     def gemma_3_27b_it(self) -> str:

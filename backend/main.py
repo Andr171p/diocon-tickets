@@ -28,7 +28,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     await redis_client.ping()
     await run_cli_command(sys.executable, "-m", "alembic", "upgrade", "head")
     await run_cli_command(sys.executable, "-m", "cli", "create-first-admin")
-    await run_cli_command(sys.executable, "-m", "cli", "init-s3-storage")
+    await run_cli_command(sys.executable, "-m", "cli", "init-s3-buckets")
     yield
 
 

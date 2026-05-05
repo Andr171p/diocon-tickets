@@ -3,7 +3,7 @@ import logging
 from botocore.exceptions import ClientError
 
 from src.core.database import session_factory
-from src.core.settings import S3_BUCKET_NAME, settings
+from src.core.settings import S3_BACKUPS_BUCKET_NAME, S3_BUCKET_NAME, settings
 from src.iam.domain.services import create_admin
 from src.iam.infra.repos import SqlUserRepository
 from src.iam.security import hash_password
@@ -29,7 +29,7 @@ async def create_first_admin() -> None:
         logger.info("First admin created successfully")
 
 
-async def init_s3_storage() -> None:
+async def init_s3_buckets() -> None:
     """Создание S3 бакетов"""
 
     # 1. Инициализация приватного S3 клиента
@@ -42,11 +42,12 @@ async def init_s3_storage() -> None:
 
     # 2. Инициализация публичного S3 клиента
     async with storage.get_client() as client:
-        try:
-            await client.head_bucket(Bucket=S3_BUCKET_NAME)
-            logger.info("S3 bucket already exists, skipping creation")
-        except ClientError:
-            logger.info("S3 bucket does not exist, start creating")
-            await client.create_bucket(Bucket=S3_BUCKET_NAME)
+        for bucket in [S3_BUCKET_NAME, S3_BACKUPS_BUCKET_NAME]:
+            try:
+                await client.head_bucket(Bucket=bucket)
+                logger.info("S3 bucket - `%s` already exists, skipping creation", bucket)
+            except ClientError:
+                logger.info("S3 bucket does not exist, start creating - `%s`", bucket)
+                await client.create_bucket(Bucket=bucket)
 
     logger.info("S3 storage initialized successfully")
