@@ -154,6 +154,31 @@ services:
   #     minio:
   #       condition: service_healthy
 
+  backup:
+    image: alpine:3.20
+    container_name: backup
+    restart: unless-stopped
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup_script.sh:/app/backup.sh:ro
+      - ./.env:/app/.env:ro
+      - ./.docker/minio-data:/minio_data:ro
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - MINIO_ACCESS_KEY_ID=${MINIO_ACCESS_KEY_ID}
+      - MINIO_SECRET_ACCESS_KEY=${MINIO_SECRET_ACCESS_KEY}
+      # Yandex Cloud credentials (можно взять из .env)
+      - YANDEX_S3_BUCKET=backups
+      - YANDEX_S3_ENDPOINT=https://storage.yandexcloud.net
+    command: |
+      /bin/sh -c "
+      apk add --no-cache postgresql-client curl openssl
+      echo '0 2 * * * /app/backup.sh >> /var/log/backup.log 2>&1' | crontab -
+      crond -f
+      "
+
 volumes:
   postgres_data:
   redis_data:
