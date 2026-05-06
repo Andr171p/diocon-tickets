@@ -135,7 +135,7 @@
         }
       ],
       "timeFrom": "24h",
-      "title": "Total Requests",
+      "title": "Всего запросов",
       "transformations": [
         {
           "id": "seriesToRows",
@@ -218,7 +218,7 @@
         }
       ],
       "timeFrom": "24h",
-      "title": "Requests Count",
+      "title": "Количество запросов",
       "transformations": [
         {
           "id": "seriesToRows",
@@ -315,7 +315,7 @@
           "refId": "A"
         }
       ],
-      "title": "Requests Average Duration",
+      "title": "Средняя длительность запросов",
       "type": "bargauge"
     },
     {
@@ -403,7 +403,7 @@
         }
       ],
       "timeFrom": "24h",
-      "title": "Total Exceptions",
+      "title": "Всего исключений",
       "type": "stat"
     },
     {
@@ -518,7 +518,7 @@
           "useBackend": false
         }
       ],
-      "title": "Percent of 2xx Requests",
+      "title": "Процент 2xx запросов",
       "type": "timeseries"
     },
     {
@@ -633,7 +633,7 @@
           "useBackend": false
         }
       ],
-      "title": "Percent of 4xx Requests",
+      "title": "Процент 4xx запросов",
       "type": "timeseries"
     },
     {
@@ -730,7 +730,7 @@
           "refId": "A"
         }
       ],
-      "title": "PR 99 Requests Duration",
+      "title": "99-й перцентиль длительности",
       "type": "timeseries"
     },
     {
@@ -843,7 +843,7 @@
           "useBackend": false
         }
       ],
-      "title": "Request In Process",
+      "title": "Запросов в обработке",
       "type": "timeseries"
     },
     {
@@ -940,7 +940,7 @@
           "refId": "A"
         }
       ],
-      "title": "Request Per Sec",
+      "title": "Запросов в секунду",
       "type": "timeseries"
     }
   ],

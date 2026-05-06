@@ -84,7 +84,7 @@ class SqlCounterpartyRepository(SqlAlchemyRepository[Counterparty, CounterpartyO
             select(self.model)
             .where(
                 (self.model.email == email) &
-                (self.model.parent_id is None)
+                (self.model.parent_id.is_(None))
             )
         )
         result = await self.session.execute(stmt)
