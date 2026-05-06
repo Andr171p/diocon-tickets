@@ -5,6 +5,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+# Принимаем аргументы из docker-compose
+ARG VITE_API_URL
+# Делаем их доступными как ENV для процесса сборки
+ENV VITE_API_URL=$VITE_API_URL
 COPY . .
 RUN npm run build
 
