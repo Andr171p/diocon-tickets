@@ -26,6 +26,8 @@ import type {
   CreateProductPayload,
   Product,
   ProductAttributesSchemaResponse,
+  KeySuggestionResponse,
+  KeyAvailabilityResponse,
 } from '@/types';
 import apiClient from './apiClient';
 
@@ -446,6 +448,31 @@ export const projectsApi = {
     const response = await api.get<PaginatedResponse<Project>>('/api/v1/projects/my', {
       params: { role, page, size },
     });
+    return response.data;
+  },
+
+    // Выдаёт ключ по названию
+  getKeySuggestion: async (
+    name: string
+  ): Promise<KeySuggestionResponse> => {
+    const response = await api.get<KeySuggestionResponse>(
+      '/api/v1/projects/key-suggestion',
+      {
+        params: { name },
+      }
+    );
+
+    return response.data;
+  },
+
+  // Проверяет ключ на доступность
+  checkKeyAvailability: async (
+    key: string
+  ): Promise<KeyAvailabilityResponse> => {
+    const response = await api.get<KeyAvailabilityResponse>(
+      `/api/v1/projects/keys/${encodeURIComponent(key)}`
+    );
+
     return response.data;
   },
 

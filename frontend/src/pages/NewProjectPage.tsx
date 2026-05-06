@@ -18,15 +18,6 @@ interface SimpleUser {
   role: string;
 }
 
-interface KeySuggestionResponse {
-  key: string;
-}
-
-interface KeyAvailabilityResponse {
-  available: boolean;
-  suggestions: string[];
-}
-
 export default function NewProjectPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -194,75 +185,57 @@ export default function NewProjectPage() {
   };
 
   // AI: генерация ключа из названия
-  const generateKeySuggestion = async () => {
-    if (!name || name.length < 2) return;
-    
-    setAiLoading(true);
-    try {
-      const response = await fetch(
-        `http://localhost:8000/api/v1/projects/key-suggestion?name=${encodeURIComponent(name)}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          },
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const data: KeySuggestionResponse = await response.json();
-      setAiSuggestion(data.key);
-      setKey(data.key);
-    } catch (error) {
-      console.error('Failed to get key suggestion:', error);
-    } finally {
-      setAiLoading(false);
-    }
-  };
+const generateKeySuggestion = async () => {
+  if (!name || name.length < 2) return;
+
+  setAiLoading(true);
+
+  try {
+    const data = await projectsApi.getKeySuggestion(name);
+
+    setAiSuggestion(data.key);
+    setKey(data.key);
+  } catch (error) {
+    console.error('Failed to get key suggestion:', error);
+  } finally {
+    setAiLoading(false);
+  }
+};
 
   // Проверка доступности ключа
-  const checkKeyAvailability = async () => {
-    if (!key || !isValidKey(key)) return;
-    
-    setKeyValidating(true);
-    try {
-      const response = await fetch(
-        `http://localhost:8000/api/v1/projects/keys/${encodeURIComponent(key)}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          },
-        }
-      );
-      
-      if (response.status === 400) {
-        setKeyAvailability(null);
-        return;
-      }
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const data: KeyAvailabilityResponse = await response.json();
-      setKeyAvailability(data);
-      
-      if (!data.available && data.suggestions && data.suggestions.length > 0 && !keyAvailability?.available) {
-        toast({
-          title: 'Ключ занят',
-          description: `Предлагаем: ${data.suggestions.slice(0, 3).join(', ')}`,
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      console.error('Failed to check key availability:', error);
-      setKeyAvailability(null);
-    } finally {
-      setKeyValidating(false);
+const checkKeyAvailability = async () => {
+  if (!key || !isValidKey(key)) return;
+
+  setKeyValidating(true);
+
+  try {
+    const data = await projectsApi.checkKeyAvailability(key);
+
+    setKeyAvailability(data);
+
+    if (
+      !data.available &&
+      data.suggestions?.length > 0
+    ) {
+      toast({
+        title: 'Ключ занят',
+        description: `Предлагаем: ${data.suggestions.slice(0, 3).join(', ')}`,
+        variant: 'destructive',
+      });
     }
-  };
+  } catch (error: any) {
+    console.error('Failed to check key availability:', error);
+
+    if (error?.response?.status === 400) {
+      setKeyAvailability(null);
+      return;
+    }
+
+    setKeyAvailability(null);
+  } finally {
+    setKeyValidating(false);
+  }
+};
 
   // Применить предложение
   const applySuggestion = (suggestedKey: string) => {

@@ -455,6 +455,15 @@ export interface Project {
   participants: ProjectParticipant[];
 }
 
+export interface KeySuggestionResponse {
+  key: string;
+}
+
+export interface KeyAvailabilityResponse {
+  available: boolean;
+  suggestions: string[];
+}
+
 export interface CreateProjectInput {
   name: string;
   key: string;
@@ -480,6 +489,7 @@ export interface CreateTicketInput {
   reporter_id?: string | null; // ID пользователя-инициатора (если не указан, берется текущий)
   tags?: TicketTag[];
 }
+
 
 
 
