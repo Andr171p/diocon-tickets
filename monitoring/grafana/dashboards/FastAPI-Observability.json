@@ -956,7 +956,7 @@
           "uid": "${DS_PROMETHEUS}"
         },
         "definition": "label_values(fastapi_app_info{}, app_name)",
-        "hide": 0,
+        "hide": 2,
         "includeAll": false,
         "label": "Application Name",
         "multi": false,
