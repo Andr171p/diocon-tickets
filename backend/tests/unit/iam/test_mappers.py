@@ -6,6 +6,7 @@ from src.iam.domain.entities import Invitation, User
 from src.iam.domain.vo import FullName, Username, UserRole
 from src.iam.infra.models import InvitationOrm, UserOrm
 from src.iam.infra.repos import InvitationMapper, UserMapper
+from src.iam.mappers import map_invitation_to_response, map_user_to_response
 from src.shared.utils.time import current_datetime
 
 
@@ -15,6 +16,11 @@ class TestUserMapper:
     """
 
     def test_to_entity(self):
+        """
+        Проверяем ORM-маппер пользователя: он нужен, чтобы преобразовать
+        UserOrm из БД в доменную сущность User.
+        Данные: ORM-пользователь со всеми основными полями.
+        """
         password_hash = "hashed_password"
         model = UserOrm(
             email="test@example.com",
@@ -41,6 +47,11 @@ class TestUserMapper:
         assert entity.is_active == model.is_active
 
     def test_to_entity_with_none_values(self):
+        """
+        Проверяем ORM-маппер пользователя: он должен корректно переносить
+        nullable поля из UserOrm в доменную сущность.
+        Данные: ORM-пользователь без username, full_name, avatar_url и counterparty_id.
+        """
         password_hash = "hashed_password"
         model = UserOrm(
             email="test@example.com",
@@ -61,6 +72,11 @@ class TestUserMapper:
         assert entity.counterparty_id is None
 
     def test_from_entity(self):
+        """
+        Проверяем ORM-маппер пользователя: он нужен, чтобы преобразовать
+        доменную сущность User в UserOrm для сохранения в БД.
+        Данные: доменный customer-пользователь со всеми основными полями.
+        """
         entity = User(
             email="test@example.com",
             username=Username("john_doe"),
@@ -87,6 +103,11 @@ class TestUserMapper:
         assert model.is_active == entity.is_active
 
     def test_from_entity_with_none_values(self):
+        """
+        Проверяем ORM-маппер пользователя: он должен корректно сохранять
+        отсутствующие nullable поля как None.
+        Данные: support-пользователь без username, full_name, avatar_url и counterparty_id.
+        """
         entity = User(
             email="test@example.com",
             username=None,
@@ -112,6 +133,11 @@ class TestInvitationMapper:
     """
 
     def test_to_entity(self):
+        """
+        Проверяем ORM-маппер приглашения: он нужен, чтобы преобразовать
+        InvitationOrm из БД в доменную сущность Invitation.
+        Данные: ORM-приглашение customer-пользователя.
+        """
         token = "some-token"
         model = InvitationOrm(
             email="invitee@example.com",
@@ -139,6 +165,11 @@ class TestInvitationMapper:
         assert entity.is_used == model.is_used
 
     def test_from_entity(self):
+        """
+        Проверяем ORM-маппер приглашения: он нужен, чтобы преобразовать
+        доменную сущность Invitation в InvitationOrm для сохранения в БД.
+        Данные: доменное приглашение customer_admin-пользователя.
+        """
         token = "some-token"
         entity = Invitation(
             email="invitee@example.com",
@@ -164,3 +195,63 @@ class TestInvitationMapper:
         assert model.expires_at == entity.expires_at
         assert model.used_at == entity.used_at
         assert model.is_used == entity.is_used
+
+
+class TestUserResponseMapper:
+    def test_map_user_to_response(self):
+        """
+        Проверяем API-маппер пользователя: он нужен, чтобы роутеры отдавали наружу
+        безопасную response-схему, а не доменную сущность с лишними полями.
+        Данные: support-пользователь со всеми необязательными полями.
+        """
+        user = User(
+            email="support@example.com",
+            username=Username("support_user"),
+            full_name=FullName("Support User"),
+            avatar_url="https://example.com/avatar.jpg",
+            role=UserRole.SUPPORT_AGENT,
+            password_hash=SecretStr("hashed_password"),
+            is_active=True,
+        )
+
+        response = map_user_to_response(user)
+
+        assert response.id == user.id
+        assert response.created_at == user.created_at
+        assert response.updated_at == user.updated_at
+        assert response.email == user.email
+        assert response.username == user.username.value
+        assert response.full_name == user.full_name.value
+        assert response.avatar_url == user.avatar_url
+        assert response.role == user.role
+        assert response.counterparty_id == user.counterparty_id
+        assert response.is_active == user.is_active
+
+
+class TestInvitationResponseMapper:
+    def test_map_invitation_to_response(self):
+        """
+        Проверяем API-маппер приглашения: он нужен для endpoint-ов приглашений,
+        чтобы клиент получил только поля из InvitationResponse.
+        Данные: неиспользованное приглашение для сотрудника поддержки.
+        """
+        invitation = Invitation(
+            email="invitee@example.com",
+            invited_by=uuid4(),
+            assigned_role=UserRole.SUPPORT_MANAGER,
+            expires_at=current_datetime(),
+            used_at=None,
+            is_used=False,
+        )
+
+        response = map_invitation_to_response(invitation)
+
+        assert response.id == invitation.id
+        assert response.created_at == invitation.created_at
+        assert response.invited_by == invitation.invited_by
+        assert response.email == invitation.email
+        assert response.assigned_role == invitation.assigned_role
+        assert response.counterparty_id == invitation.counterparty_id
+        assert response.expires_at == invitation.expires_at
+        assert response.used_at == invitation.used_at
+        assert response.is_used == invitation.is_used

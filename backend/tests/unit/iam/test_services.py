@@ -99,7 +99,7 @@ def make_customer():
         email=fake.email(),
         password_hash=generate_password_hash(),
         username=fake.user_name(),
-        full_name=fake.name(),
+        full_name=f"{fake.first_name()} {fake.last_name()}",
         counterparty_id=uuid4(),
         user_role=UserRole.CUSTOMER_ADMIN,
     )
@@ -109,7 +109,7 @@ def make_support():
     return create_support(
         email=fake.email(),
         password_hash=generate_password_hash(),
-        full_name=fake.name(),
+        full_name=f"{fake.first_name()} {fake.last_name()}",
         user_role=UserRole.SUPPORT_MANAGER,
     )
 
@@ -139,6 +139,11 @@ class TestCreateTokensForUser:
         ]
     )
     def test_create_tokens_for_user(self, user):
+        """
+        Проверяем выпуск токенов: функция нужна, чтобы создать access/refresh
+        пару для пользователя и положить в access token основные claims.
+        Данные: support, admin и customer пользователи.
+        """
         # 1. Получение пары токенов
         tokens = create_tokens_for_user(user)
 
@@ -175,6 +180,11 @@ class TestAuthServiceRegister:
             mock_invitation_for_customer,
             sample_form_data,
     ):
+        """
+        Проверяем AuthService.register: он нужен, чтобы зарегистрировать
+        customer-пользователя по валидному приглашению.
+        Данные: in-memory приглашение customer и форма регистрации.
+        """
         # 1. Сохранения приглашения
         invitation = await mock_invitation_repo.create(mock_invitation_for_customer)
 
@@ -189,6 +199,11 @@ class TestAuthServiceRegister:
 
     @pytest.mark.asyncio
     async def test_register_raises_invitation_not_found(self, mock_auth_service, sample_form_data):
+        """
+        Проверяем AuthService.register: он должен отказать, если token
+        приглашения не найден.
+        Данные: неправильный token и валидная форма регистрации.
+        """
         with pytest.raises(NotFoundError, match="Invitation not found"):
             await mock_auth_service.register("wrong-token", sample_form_data)
 
@@ -200,6 +215,11 @@ class TestAuthServiceRegister:
             mock_invitation_for_customer,
             sample_form_data,
     ):
+        """
+        Проверяем AuthService.register: он должен отказать, если приглашение
+        истекло по времени.
+        Данные: сохранённое customer-приглашение и время, сдвинутое на 20 дней.
+        """
 
         # 1. Сохранения приглашения
         invitation = await mock_invitation_repo.create(mock_invitation_for_customer)
@@ -221,6 +241,11 @@ class TestAuthServiceRegister:
             sample_form_data,
             sample_counterparty_id,
     ):
+        """
+        Проверяем AuthService.register: он должен отказать, если пользователь
+        с email из приглашения уже существует.
+        Данные: customer-приглашение и сохранённый пользователь с тем же email.
+        """
 
         # 1. Создание и сохранение пользователя
         password = "StrongPass123!"
@@ -250,6 +275,11 @@ class TestAuthServiceAuthenticate:
             mock_user_repo,
             mock_auth_service,
     ):
+        """
+        Проверяем AuthService.authenticate: он нужен, чтобы пользователь
+        получил токены по корректным email и паролю.
+        Данные: customer-пользователь в in-memory репозитории и правильный пароль.
+        """
 
         # 1. Сохранение пользователя на прямую в БД
         user = create_customer(
@@ -293,6 +323,11 @@ class TestInvitationServiceSendInvitation:
     async def test_send_invitation_support_new(
             self, mock_invitation_service, mock_invitation_repo, mock_session, mock_mail_sender
     ):
+        """
+        Проверяем InvitationService.send_invitation: он нужен, чтобы создать
+        новое приглашение сотруднику поддержки и отправить письмо.
+        Данные: invited_by, email и роль SUPPORT_AGENT.
+        """
         # 1. Создание и отправка приглашения
         invited_by = uuid4()
         email = fake.email()
@@ -325,6 +360,11 @@ class TestInvitationServiceSendInvitation:
     async def test_send_invitation_customer_new(
             self, mock_invitation_service, mock_invitation_repo, mock_session, mock_mail_sender
     ):
+        """
+        Проверяем InvitationService.send_invitation: он нужен, чтобы создать
+        новое клиентское приглашение с привязкой к контрагенту.
+        Данные: invited_by, email, роль CUSTOMER и counterparty_id.
+        """
         # 1. Создание и отправка приглашения
         invited_by = uuid4()
         email = fake.email()
@@ -362,6 +402,11 @@ class TestInvitationServiceSendInvitation:
     async def test_send_invitation_already_exists(
             self, mock_invitation_service, mock_invitation_repo, mock_session, mock_mail_sender
     ):
+        """
+        Проверяем InvitationService.send_invitation: он должен переиспользовать
+        активное приглашение вместо создания дубля.
+        Данные: уже сохранённое support-приглашение с тем же email и ролью.
+        """
         # 1. Создание и сохранение приглашения
         invited_by = uuid4()
         email = fake.email()
@@ -391,6 +436,11 @@ class TestInvitationServiceSendInvitation:
     async def test_send_invitation_raises_invalid_params(
             self, mock_invitation_service
     ):
+        """
+        Проверяем InvitationService.send_invitation: он должен отказать,
+        если параметры приглашения не подходят ни для support, ни для customer.
+        Данные: роль CUSTOMER без обязательного counterparty_id.
+        """
         invited_by = uuid4()
         email = fake.email()
 
@@ -411,6 +461,11 @@ class TestInvitationServiceRevokeInvitation:
     async def test_revoke_invitation_success(
             self, mock_invitation_service, mock_invitation_repo, mock_session
     ):
+        """
+        Проверяем InvitationService.revoke_invitation: он нужен, чтобы удалить
+        существующее приглашение из репозитория.
+        Данные: сохранённое support-приглашение.
+        """
         invitation = invite_support(
             invited_by=uuid4(), email=fake.email(), assigned_role=UserRole.SUPPORT_AGENT
         )
@@ -426,5 +481,10 @@ class TestInvitationServiceRevokeInvitation:
 
     @pytest.mark.asyncio
     async def test_revoke_invitation_raises_not_found(self, mock_invitation_service):
+        """
+        Проверяем InvitationService.revoke_invitation: он должен отказать,
+        если приглашение с переданным id не найдено.
+        Данные: случайный id, которого нет в репозитории.
+        """
         with pytest.raises(NotFoundError):
             await mock_invitation_service.revoke_invitation(uuid4())
