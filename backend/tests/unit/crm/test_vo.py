@@ -1,6 +1,7 @@
 import pytest
 
-from src.crm.domain.vo import Inn, Kpp, Okpo, Phone
+from src.crm.domain.vo import ContactPerson, Inn, Kpp, Okpo, Phone
+from src.iam.domain.vo import FullName
 
 
 @pytest.mark.parametrize(
@@ -168,3 +169,98 @@ def test_phone_equality():
     assert first_phone == second_phone
     assert first_phone == third_phone
     assert hash(first_phone) == hash(second_phone) == hash(third_phone)
+
+
+def test_kpp_repr():
+    """
+    Проверяем repr для Kpp: он нужен для понятного отображения value object
+    в отладке и сообщениях тестов.
+    Данные: валидный КПП.
+    """
+    kpp = Kpp("773301001")
+
+    assert repr(kpp) == "Kpp('773301001')"
+
+
+def test_okpo_repr():
+    """
+    Проверяем repr для Okpo: он нужен для понятного отображения value object
+    в отладке и сообщениях тестов.
+    Данные: валидный ОКПО.
+    """
+    okpo = Okpo("00123456")
+
+    assert repr(okpo) == "Okpo('00123456')"
+
+
+def test_phone_invalid_length_after_normalization():
+    """
+    Проверяем телефон: он должен упасть, если после нормализации длина
+    не соответствует формату +7 и 10 цифр.
+    Данные: номер, который начинается с 9, но содержит слишком мало цифр.
+    """
+    with pytest.raises(ValueError, match="Invalid phone number"):
+        Phone("912345678")
+
+
+def test_phone_repr():
+    """
+    Проверяем repr для Phone: он нужен для понятного отображения телефона
+    в отладке и сообщениях тестов.
+    Данные: валидный телефон.
+    """
+    phone = Phone("+79991234567")
+
+    assert repr(phone) == "Phone('+79991234567')"
+
+
+def test_contact_person_raises_for_disabled_messenger():
+    """
+    Проверяем ContactPerson: он должен отказать, если передан мессенджер
+    не из разрешенного списка.
+    Данные: контактное лицо с messenger discord.
+    """
+    with pytest.raises(ValueError, match="Disabled messengers"):
+        ContactPerson(
+            full_name=FullName("Иванов Иван Иванович"),
+            phone=Phone("+79991234567"),
+            email="ivan@example.com",
+            messengers={"discord": "ivan"},
+        )
+
+
+@pytest.mark.parametrize("bad_value", ["", None, 123])
+def test_contact_person_raises_for_empty_or_not_string_messenger_value(bad_value):
+    """
+    Проверяем ContactPerson: значение messenger должно быть непустой строкой.
+    Данные: telegram со значением пустая строка, None или число.
+    """
+    with pytest.raises(ValueError, match="must be non empty string"):
+        ContactPerson(
+            full_name=FullName("Иванов Иван Иванович"),
+            phone=Phone("+79991234567"),
+            email="ivan@example.com",
+            messengers={"telegram": bad_value},
+        )
+
+
+def test_contact_person_repr():
+    """
+    Проверяем repr для ContactPerson: он нужен для понятного отображения
+    контактного лица в отладке и сообщениях тестов.
+    Данные: валидное контактное лицо с telegram.
+    """
+    contact_person = ContactPerson(
+        full_name=FullName("Иванов Иван Иванович"),
+        phone=Phone("+79991234567"),
+        email="ivan@example.com",
+        messengers={"telegram": "ivan"},
+    )
+
+    assert repr(contact_person) == (
+        "ContactPerson("
+        "full_name=FullName('Иванов Иван Иванович'), "
+        "phone=Phone('+79991234567'), "
+        "email='ivan@example.com', "
+        "messengers={'telegram': 'ivan'})"
+    )

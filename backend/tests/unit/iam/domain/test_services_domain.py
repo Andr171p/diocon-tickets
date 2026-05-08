@@ -8,6 +8,7 @@ from src.iam.domain.services import (
     create_support,
     get_display_user_role,
     invite_customer,
+    invite_internal,
     invite_support,
 )
 from src.iam.domain.vo import UserRole
@@ -96,6 +97,21 @@ def test_invite_customer_raises_for_invalid_role():
         )
 
 
+def test_invite_internal_raises_for_invalid_role():
+    """
+    Проверяем доменную фабрику внутреннего приглашения: она должна запрещать
+    клиентские роли, потому что internal-приглашение предназначено только
+    для сотрудников проекта.
+    Данные: invited_by, email и роль CUSTOMER.
+    """
+    with pytest.raises(InvariantViolationError, match="Invalid role assignment for internal user"):
+        invite_internal(
+            invited_by=uuid4(),
+            email="internal@example.com",
+            assigned_role=UserRole.CUSTOMER,
+        )
+
+
 @pytest.mark.parametrize(
     ("role", "expected"),
     [
@@ -104,6 +120,8 @@ def test_invite_customer_raises_for_invalid_role():
         (UserRole.SUPPORT_AGENT, "Сотрудник поддержки"),
         (UserRole.SUPPORT_MANAGER, "Сотрудник поддержки"),
         (UserRole.ADMIN, "Администратор"),
+        (UserRole.ACCOUNT_MANAGER, "Менеджер по работе с клиентами"),
+        (UserRole.FINANCE, "Бухгалтер"),
     ],
 )
 def test_get_display_user_role(role, expected):
