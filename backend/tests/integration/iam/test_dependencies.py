@@ -16,7 +16,7 @@ from src.iam.dependencies import (
     get_current_customer_admin,
     get_current_support_user,
     get_current_user,
-    get_current_user_ws,
+    get_current_user_from_ws,
     get_invitation_repo,
     get_invitation_service,
     get_mail_sender,
@@ -105,8 +105,6 @@ def test_get_auth_service_wires_dependencies(session, redis_token_blacklist):
     assert isinstance(service.user_repo, SqlUserRepository)
     assert isinstance(service.invitation_repo, SqlInvitationRepository)
     assert isinstance(service.blacklist, RedisTokenBlacklist)
-
-
 
 
 def test_get_mail_sender_returns_smtp_sender():
@@ -338,7 +336,7 @@ def ws_app(redis_url):
     @app.websocket("/ws")
     async def websocket_endpoint(
         websocket: WebSocket,
-        current_user: CurrentUser | None = Depends(get_current_user_ws),
+        current_user: CurrentUser | None = Depends(get_current_user_from_ws),
     ):
         if current_user is None:
             return
