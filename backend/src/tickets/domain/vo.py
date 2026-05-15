@@ -91,14 +91,14 @@ class TicketNumber(ValueObject):
             raise ValueError("Ticket number cannot be empty")
 
         # 2. Проверка формата
-        if not self._is_valid_format(self.value):
+        if not self.is_valid_format(self.value):
             raise ValueError(
                 f"Invalid ticket number format: {self.value}. "
                 f"Expected: PREFIX-YY-NNNNNNNN (e.g: ROMASHKA-26-00012345)"
             )
 
     @classmethod
-    def _is_valid_format(cls, number: str) -> bool:
+    def is_valid_format(cls, number: str) -> bool:
         """Проверка формата PREFIX-YY-NNNNNNNN"""
 
         if len(number) > cls.MAX_PREFIX_LENGTH + 1 + cls.YEAR_LENGTH + 1 + cls.SEQUENCE_LENGTH:

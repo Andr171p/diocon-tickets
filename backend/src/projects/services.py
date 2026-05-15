@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..iam.domain.exceptions import PermissionDeniedError
+from ..iam.domain.repos import UserRepository
 from ..iam.schemas import CurrentUser
 from ..shared.domain.events import EventPublisher
 from ..shared.domain.exceptions import AlreadyExistsError, NotFoundError
@@ -35,9 +36,11 @@ class ProjectService:
             session: AsyncSession,
             project_repo: ProjectRepository,
             membership_repo: MembershipRepository,
+            user_repo: UserRepository,
             event_publisher: EventPublisher,
     ) -> None:
         self.session = session
+        self.user_repo = user_repo
         self.project_repo = project_repo
         self.membership_repo = membership_repo
         self.access_service = ProjectAccessService(membership_repo)
@@ -170,22 +173,28 @@ class ProjectService:
         if project is None:
             raise NotFoundError(f"Project with ID {project_id} not found")
 
-        # 2. Проверка прав на добавление участника
+        # 2. Получение пользователя, которого нужно добавить в проект
+        target_user = await self.user_repo.read(data.user_id)
+        if target_user is None or target_user.is_deleted:
+            raise NotFoundError(f"User with ID {data.user_id} not found")
+
+        # 3. Проверка прав на добавление участника
         permission = await self.access_service.can_add_members(
             project=project,
-            target_role=data.project_role,
+            target_user_role=target_user.role,
+            target_project_role=data.project_role,
             user_id=current_user.user_id,
             user_role=current_user.role,
         )
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
 
-        # 3. Был ли такой участник уже добавлен в проект
+        # 4. Был ли такой участник уже добавлен в проект
         existing = await self.membership_repo.find(project_id, data.user_id)
         if existing is not None:
             raise AlreadyExistsError(f"User with ID {current_user.user_id} is already a member")
 
-        # 4. Создание и сохранение сущности
+        # 5. Создание и сохранение сущности
         membership = project.create_membership(
             user_id=data.user_id,
             project_role=data.project_role,
@@ -194,7 +203,7 @@ class ProjectService:
         await self.membership_repo.create(membership)
         await self.session.commit()
 
-        # 5. Публикация доменных событий
+        # 6. Публикация доменных событий
         for event in project.collect_events():
             await self.event_publisher.publish(event)
 
