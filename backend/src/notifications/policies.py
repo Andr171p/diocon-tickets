@@ -4,11 +4,11 @@ from uuid import UUID
 
 from ..iam.domain.constants import SUPPORT_TEAM
 from ..iam.domain.repos import UserRepository
+from ..projects.domain.repos import MembershipRepository
+from ..projects.domain.vo import ProjectRole
 from ..shared.domain.events import Event
 from ..shared.utils.helpers import iterate_batches
-from ..tickets.domain.events import TicketCreated
-from ..tickets.domain.repos import ProjectRepository
-from ..tickets.domain.vo import ProjectRole
+from ..tickets.domain.events import TicketCreated, TicketReassigned
 
 
 class NotificationPolicy[EventT: Event](Protocol):
@@ -24,8 +24,10 @@ class NotificationPolicy[EventT: Event](Protocol):
 
 
 class TicketCreatedPolicy:
-    def __init__(self, project_repo: ProjectRepository, user_repo: UserRepository) -> None:
-        self.project_repo = project_repo
+    def __init__(
+            self, project_membership_repo: MembershipRepository, user_repo: UserRepository
+    ) -> None:
+        self.project_membership_repo = project_membership_repo
         self.user_repo = user_repo
 
     async def get_targets(self, event: TicketCreated) -> list[UUID]:
@@ -45,17 +47,34 @@ class TicketCreatedPolicy:
 
         # 3. Если есть проект - уведомления для поддержки проекта
         if event.project_id is not None:
-            project = await self.project_repo.read(event.project_id)
-            if project is not None:
-                for membership in project.memberships:
-                    if membership.is_active and membership.project_role in {
-                        ProjectRole.OWNER, ProjectRole.MANAGER, ProjectRole.MEMBER
-                    }:
-                        targets.add(membership.user_id)
+            async for members in iterate_batches(
+                    self.project_membership_repo,
+                    project_id=event.project_id,
+                    include_project_roles=[
+                        ProjectRole.OWNER, ProjectRole.MANAGER, ProjectRole.CONTRIBUTOR
+                    ]
+            ):
+                targets.update({member.user_id for member in members})
 
         # 4. Иначе - уведомляем всех сотрудников поддержки
         else:
             async for supports in iterate_batches(self.user_repo, include_roles=[*SUPPORT_TEAM]):
                 targets.update({support.id for support in supports})
+
+        return list(targets)
+    
+
+class TicketReassignedPolicy:
+    async def get_targets(self, event: TicketReassigned) -> list[UUID]:
+        """
+        Определяем получателей уведомления о переназначении тикета.
+        Уведомление получает: инициатор переназначения, новый испольнитель и старый исполнитель
+        """
+
+        targets = {
+            event.reassigned_by,
+            event.new_assignee_id,
+            event.old_assignee_id,
+        }
 
         return list(targets)

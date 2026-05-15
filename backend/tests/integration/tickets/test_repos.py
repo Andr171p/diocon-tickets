@@ -3,11 +3,12 @@ from uuid import uuid4
 import pytest
 
 from src.iam.domain.vo import UserRole
+from src.projects.domain.entities import Project
+from src.projects.infra.repos import SqlProjectRepository
 from src.shared.schemas import PageParams
-from src.tickets.domain.entities import Comment, Project, Reaction, Ticket
+from src.tickets.domain.entities import Comment, Reaction, Ticket
 from src.tickets.domain.vo import (
     CommentType,
-    ProjectRole,
     ReactionType,
     Tag,
     TicketNumber,
@@ -16,11 +17,12 @@ from src.tickets.domain.vo import (
 )
 from src.tickets.infra.repos import (
     SqlCommentRepository,
-    SqlProjectRepository,
     SqlReactionRepository,
     SqlTicketRepository,
 )
 from src.tickets.schemas import TicketFilter
+
+EXPECTED_LIKE_REACTIONS_COUNT = 2
 
 
 @pytest.fixture
@@ -49,7 +51,6 @@ async def saved_project(session, project_repo):
     project = Project.create(
         name=f"Проект поддержки {uuid4()}",
         key=f"P{uuid4().hex[:5].upper()}",
-        owner_id=owner_id,
         created_by=owner_id,
         description="Проект поддержки",
     )
@@ -92,11 +93,11 @@ async def saved_comment(session, comment_repo, saved_ticket):
 @pytest.mark.integration
 class TestSqlProjectRepository:
     @pytest.mark.asyncio
-    async def test_get_by_key_returns_project_with_owner_membership(
+    async def test_get_by_key_returns_project(
             self, project_repo, saved_project
     ):
         """
-        Репозиторий возвращает проект по ключу вместе с owner membership.
+        Репозиторий возвращает проект по ключу.
         Это основной поиск для сервисов проектов и проверки прав.
         """
 
@@ -106,7 +107,6 @@ class TestSqlProjectRepository:
         assert found_project.id == saved_project.id
         assert found_project.key == saved_project.key
         assert found_project.owner_id == saved_project.owner_id
-        assert found_project.memberships[0].project_role == ProjectRole.OWNER
 
 
 @pytest.mark.integration
@@ -299,6 +299,6 @@ class TestSqlReactionRepository:
             user_id=user_id,
         )
 
-        assert stats.counts[saved_comment.id][ReactionType.LIKE] == 2
+        assert stats.counts[saved_comment.id][ReactionType.LIKE] == EXPECTED_LIKE_REACTIONS_COUNT
         assert stats.counts[saved_comment.id][ReactionType.IMPORTANT] == 1
         assert stats.user_reactions[saved_comment.id] == {ReactionType.LIKE}
