@@ -64,6 +64,17 @@ def generate_project_key(name: str, default: str = "PRJ") -> str:
     return key
 
 
+def get_allowed_project_roles_for_user(user_role: UserRole) -> set[ProjectRole]:
+    """
+    Получение допустимых проектных ролей для пользователя
+    """
+
+    if user_role.is_customer():
+        return {ProjectRole.VIEWER, ProjectRole.CUSTOMER, ProjectRole.CUSTOMER_MANAGER}
+
+    return {ProjectRole.VIEWER, ProjectRole.CONTRIBUTOR, ProjectRole.MANAGER}
+
+
 class ProjectAccessService:
     """
     Доменный сервис для проверки прав доступа к действиям над проектом
@@ -92,32 +103,47 @@ class ProjectAccessService:
         return PermissionResult(False, "Insufficient permissions to create a project")
 
     async def can_add_members(
-            self, project: Project, target_role: ProjectRole, user_id: UUID, user_role: UserRole
+            self,
+            project: Project,
+            target_user_role: UserRole,
+            target_project_role: ProjectRole,
+            user_id: UUID,
+            user_role: UserRole
     ) -> PermissionResult:
         """Может ли пользователь добавлять участников в проект"""
 
         # 1. Нельзя назначить владельца проекта через добавление участника
-        if target_role == ProjectRole.OWNER:
+        if target_project_role == ProjectRole.OWNER:
             return PermissionResult(
                 False, "OWNER role cannot be assigned through membership addition"
             )
 
-        # 2. Фактический создатель/админ может добавлять любого участника с любой ролью
+        # 2. Участнику проекта можно назначать только определённый набор ролей
+        allowed_project_roles = get_allowed_project_roles_for_user(target_user_role)
+
+        if target_project_role not in allowed_project_roles:
+            return PermissionResult(
+                False,
+                f"User with system role '{target_user_role.value}' "
+                f"cannot be assigned project role '{target_project_role.value}'.",
+            )
+
+        # 3. Фактический создатель/админ может добавлять любого участника с любой ролью
         if user_id in {project.created_by, project.owner_id} or user_role == UserRole.ADMIN:
             return PermissionResult(True)
 
-        # 3. Для остальных проверка на членство в проекте
+        # 4. Для остальных проверка на членство в проекте
         membership = await self.membership_repo.find(project.id, user_id)
-        if membership is None:
+        if membership is None or membership.is_deleted:
             return PermissionResult(False, "Your are not member of the project")
 
-        # 4. Менеджер проекта может добавлять любых участников
+        # 5. Менеджер проекта может добавлять любых участников
         if membership.project_role == ProjectRole.MANAGER:
             return PermissionResult(True)
 
-        # 4.1 Участник может добавлять только ограниченный набор ролей
+        # 5.1 Участник может добавлять только ограниченный набор ролей
         if membership.project_role == ProjectRole.CONTRIBUTOR:
-            if target_role not in {
+            if target_project_role not in {
                 ProjectRole.VIEWER, ProjectRole.CUSTOMER, ProjectRole.CONTRIBUTOR
             }:
                 return PermissionResult(
@@ -128,9 +154,9 @@ class ProjectAccessService:
 
             return PermissionResult(True)
 
-        # 4.2 Менеджер со стороны клиента может добавлять только клиентов
+        # 5.2 Менеджер со стороны клиента может добавлять только клиентов
         if membership.project_role == ProjectRole.CUSTOMER_MANAGER:
-            if target_role not in {ProjectRole.CUSTOMER, ProjectRole.CUSTOMER_MANAGER}:
+            if target_project_role not in {ProjectRole.CUSTOMER, ProjectRole.CUSTOMER_MANAGER}:
                 return PermissionResult(
                     False,
                     "Customer manager can add only members with roles: CUSTOMER, CUSTOMER_MANAGER"
@@ -341,3 +367,26 @@ class ProjectAccessService:
             )
 
         return PermissionResult(False)
+
+    async def can_create_task(
+            self, project_id: UUID, user_id: UUID, user_role: UserRole
+    ) -> PermissionResult:
+        """Может ли пользователь создавать задачу в проекте"""
+
+        if user_role == UserRole.ADMIN:
+            return PermissionResult(True)
+
+        # Проверка членства в проекте
+        membership = await self.membership_repo.find(project_id, user_id)
+        if membership is None or membership.is_deleted:
+            return PermissionResult(False, "Your not member of this project")
+
+        # Только участники с ролью CONTRIBUTOR и выше могут создавать задачи
+        if membership.project_role not in {
+            ProjectRole.CONTRIBUTOR, ProjectRole.MANAGER, ProjectRole.OWNER
+        }:
+            return PermissionResult(
+                False, "Only members with role CONTRIBUTOR or above can create task"
+            )
+
+        return PermissionResult(True)

@@ -1,7 +1,7 @@
 import abc
 from uuid import UUID
 
-from sqlalchemy import Select, delete, func, select, update
+from sqlalchemy import Select, delete, exists, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.database import Base
@@ -107,13 +107,9 @@ class SqlAlchemyRepository[EntityT: Entity, ModelT: Base]:
         stmt = delete(self.model).where(self.model.id == uid)
         await self.session.execute(stmt)
 
-    async def get_or_404(self, uid: UUID) -> EntityT:
-        stmt = select(self.model).where(self.model.id == uid)
-        result = await self.session.execute(stmt)
-        model = result.scalar_one_or_none()
-        if model is None:
-            raise NotFoundError(f"Not found by ID {uid}")
-        return self.model_mapper.to_entity(model)
+    async def exists(self, uid: UUID) -> bool:
+        stmt = select(exists()).where(self.model.id == uid)
+        return await self.session.scalar(stmt)
 
 
 class InMemoryRepository[EntityT: Entity]:
@@ -159,3 +155,6 @@ class InMemoryRepository[EntityT: Entity]:
 
     async def delete(self, uid: UUID) -> None:
         self.data.pop(uid)
+
+    async def exists(self, uid: UUID) -> bool:
+        return uid in self.data

@@ -19,11 +19,14 @@ def mock_session():
 
 
 @pytest.fixture
-def project_service(mock_session, fake_project_repo, fake_membership_repo, event_publisher):
+def project_service(
+        mock_session, fake_project_repo, fake_membership_repo, fake_user_repo, event_publisher
+):
     return ProjectService(
         session=mock_session,
         project_repo=fake_project_repo,
         membership_repo=fake_membership_repo,
+        user_repo=fake_user_repo,
         event_publisher=event_publisher,
     )
 

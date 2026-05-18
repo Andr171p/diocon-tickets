@@ -12,3 +12,17 @@ ALLOWED_TRANSITIONS: dict[TaskStatus: list[TaskStatus]] = {
     TaskStatus.DONE: [],
     TaskStatus.CANCELLED: [],
 }
+
+# Разрешённые статусы для редактирования задачи
+ALLOWED_EDIT_STATUSES: set[TaskStatus] = {
+    TaskStatus.BACKLOG, TaskStatus.TODO,
+}
+
+# Разрешённые статусы для назначения задачи
+ALLOWED_ASSIGN_STATUSES: set[TaskStatus] = {
+    TaskStatus.BACKLOG,
+    TaskStatus.TODO,
+    TaskStatus.IN_PROGRESS,
+    TaskStatus.BLOCKED,
+    TaskStatus.REVIEW,
+}

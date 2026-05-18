@@ -14,12 +14,11 @@ from src.crm.infra.models import CounterpartyOrm
 from src.iam.infra.models import InvitationOrm, UserOrm
 from src.media.infra.models import AttachmentOrm
 from src.products.infra.models import SoftwareProductOrm
+from src.projects.infra.models import MembershipOrm, ProjectOrm
 from src.tickets.infra.models import (
     CommentOrm,
     TicketHistoryEntryOrm,
     TicketOrm,
-    ProjectOrm,
-    MembershipOrm,
 )
 
 # this is the Alembic Config object, which provides
