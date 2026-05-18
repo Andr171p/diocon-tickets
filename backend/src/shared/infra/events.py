@@ -102,7 +102,7 @@ class EventBus:
 
 # Маппинг доменных событий к топикам в которых они будут обработаны (очереди)
 EVENT_TOPIC_MAP: dict[type[Event], str] = {
-    TicketCreated: "tickets.create",
+    TicketCreated: "tickets.created",
     TicketReassigned: "tickets.reassigned",
 }
 
