@@ -8,7 +8,7 @@ from ..projects.domain.repos import MembershipRepository
 from ..projects.domain.vo import ProjectRole
 from ..shared.domain.events import Event
 from ..shared.utils.helpers import iterate_batches
-from ..tickets.domain.events import TicketCreated, TicketReassigned
+from ..tickets.domain.events import TicketAssigned, TicketCreated
 
 
 class NotificationPolicy[EventT: Event](Protocol):
@@ -64,17 +64,18 @@ class TicketCreatedPolicy:
         return list(targets)
     
 
-class TicketReassignedPolicy:
-    async def get_targets(self, event: TicketReassigned) -> list[UUID]:
+class TicketAssignedPolicy:
+    async def get_targets(self, event: TicketAssigned) -> list[UUID]:
         """
-        Определяем получателей уведомления о переназначении тикета.
-        Уведомление получает: инициатор переназначения, новый испольнитель и старый исполнитель
+        Определяем получателей уведомления о назначении тикета.
         """
 
         targets = {
-            event.reassigned_by,
-            event.new_assignee_id,
-            event.old_assignee_id,
+            event.assigned_by,
+            event.assignee_id,
         }
+
+        if event.old_assignee is not None:
+            targets.add(event.old_assignee)
 
         return list(targets)

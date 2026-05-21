@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from ..tickets.domain.events import TicketCreated, TicketReassigned
+from ..tickets.domain.events import TicketAssigned, TicketCreated
 from .domain.entities import Notification
 from .domain.vo import NotificationType
 
@@ -20,26 +20,30 @@ class NotificationFactory:
                     "ticket_id": f"{event.ticket_id}",
                     "ticket_number": event.number,
                     "title": event.title,
-                }
-            ) for target in targets
+                },
+            )
+            for target in targets
         ]
-    
+
     @staticmethod
-    def from_ticket_reassigned(event: TicketReassigned, targets: list[UUID]) -> list[Notification]:
+    def from_ticket_assigned(event: TicketAssigned, targets: list[UUID]) -> list[Notification]:
+        action = "назначен" if event.old_assignee is None else "переназначен"
+
         return [
             Notification(
                 user_id=target,
-                title="Тикет был переназначен",
-                message=(f"Тикет #{event.number} «{event.title}» был переназначен."),  
-        
-                type=NotificationType.TICKET_REASSIGNED,
+                title=f"Тикет {action}",
+                message=f"Тикет #{event.number} «{event.title}» был {action}.",
+                type=NotificationType.TICKET_ASSIGNED,
                 data={
                     "ticket_id": f"{event.ticket_id}",
                     "ticket_number": event.number,
                     "title": event.title,
-                    "reassigned_by": f"{event.reassigned_by}",
-                    "new_assignee_id": f"{event.new_assignee_id}",
-                    "old_assignee_id": f"{event.old_assignee_id}",
+                    "assigned_by": f"{event.assigned_by}",
+                    "assignee_id": f"{event.assignee_id}",
+                    "old_assignee": None
+                    if event.old_assignee is None
+                    else f"{event.old_assignee}",
                 },
             )
             for target in targets

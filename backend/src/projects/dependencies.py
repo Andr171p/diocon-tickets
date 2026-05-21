@@ -7,6 +7,7 @@ from .domain.repos import MembershipRepository, ProjectRepository
 from .domain.services import ProjectAccessService
 from .infra.repos import SqlMembershipRepository, SqlProjectRepository
 from .services import ProjectService
+from ..iam.dependencies import UserRepoDep
 
 
 def get_project_repo(session: SessionDep) -> SqlProjectRepository:
@@ -29,12 +30,14 @@ def get_project_service(
         session: SessionDep,
         project_repo: ProjectRepoDep,
         membership_repo: MembershipRepoDep,
+        user_repo: UserRepoDep,
         event_publisher: EventPublisherDep,
 ) -> ProjectService:
     return ProjectService(
         session=session,
         project_repo=project_repo,
         membership_repo=membership_repo,
+        user_repo=user_repo,
         event_publisher=event_publisher,
     )
 

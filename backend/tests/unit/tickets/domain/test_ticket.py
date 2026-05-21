@@ -8,7 +8,7 @@ from src.shared.domain.exceptions import InvalidStateError, InvariantViolationEr
 from src.tickets.domain.constants import ALLOWED_TRANSITIONS
 from src.tickets.domain.entities import Ticket
 from src.tickets.domain.vo import Tag, TicketNumber, TicketPriority, TicketStatus
-from src.tickets.domain.events import TicketReassigned
+from src.tickets.domain.events import TicketAssigned
 
 # ====================== Fixtures ======================
 
@@ -306,9 +306,9 @@ class TestAssignTo:
         assert ticket_in_open.history[-1].action == "assigned"
         assert ticket_in_open.updated_at > old_updated_at
 
-    def test_reassign_ticket_registers_ticket_reassigned_event(self, ticket_in_open, support_agent_id):
+    def test_reassign_ticket_registers_ticket_assigned_event(self, ticket_in_open, support_agent_id):
         """
-        Проверка доменного события переназначения тикета
+        Проверка доменного события назначения тикета
         notifications потом смогут отправлять уведеомленмя инициатору, новуму и старому исполнителю
         """
 
@@ -339,13 +339,13 @@ class TestAssignTo:
 
         event = events[0]
 
-        assert isinstance(event, TicketReassigned)
+        assert isinstance(event, TicketAssigned)
         assert event.ticket_id == ticket_in_open.id
         assert event.number == f"{ticket_in_open.number}"
         assert event.title == ticket_in_open.title
-        assert event.reassigned_by == support_agent_id
-        assert event.new_assignee_id == second_assignee_id
-        assert event.old_assignee_id == first_assignee_id
+        assert event.assigned_by == support_agent_id
+        assert event.assignee_id == second_assignee_id
+        assert event.old_assignee == first_assignee_id
 
 
     def test_assign_same_user_do_nothing(self, ticket_in_open, support_agent_id):

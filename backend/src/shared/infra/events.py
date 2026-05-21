@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable
 
 from faststream.rabbit import RabbitBroker
 
-from ...tickets.domain.events import TicketCreated, TicketReassigned
+from ...tickets.domain.events import TicketAssigned, TicketCreated
 from ..domain.events import Event
 
 logger = logging.getLogger(__name__)
@@ -103,7 +103,7 @@ class EventBus:
 # Маппинг доменных событий к топикам в которых они будут обработаны (очереди)
 EVENT_TOPIC_MAP: dict[type[Event], str] = {
     TicketCreated: "tickets.created",
-    TicketReassigned: "tickets.reassigned",
+    TicketAssigned: "tickets.assigned",
 }
 
 

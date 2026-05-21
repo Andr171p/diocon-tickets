@@ -3,7 +3,7 @@ from typing import Annotated
 from faststream import Depends
 from faststream.rabbit import RabbitRouter
 
-from ...tickets.domain.events import TicketCreated, TicketReassigned
+from ...tickets.domain.events import TicketAssigned, TicketCreated
 from ..dependencies import get_notification_service, get_target_resolver
 from ..factories import NotificationFactory
 from ..resolvers import TargetResolver
@@ -23,20 +23,20 @@ async def on_ticket_created(
     for notification in notifications:
         await service.notify(notification)
 
-@router.subscriber("tickets.reassigned")
-async def on_ticket_reassigned(
-        event: TicketReassigned,
+@router.subscriber("tickets.assigned")
+async def on_ticket_assigned(
+        event: TicketAssigned,
         target_resolver: Annotated[TargetResolver, Depends(get_target_resolver)],
         service: Annotated[NotificationService, Depends(get_notification_service)],
 ) -> None:
     
     """
-    обрабатываем событие переназначения тикета: находим получателей,
+    обрабатываем событие назначения тикета: находим получателей,
     создаём уведолмение и передаём их в NotificationService
     """
 
     targets = await target_resolver.get_targets(event)
-    notifications = NotificationFactory.from_ticket_reassigned(event, targets)
+    notifications = NotificationFactory.from_ticket_assigned(event, targets)
 
     for notification in notifications:
         await service.notify(notification)

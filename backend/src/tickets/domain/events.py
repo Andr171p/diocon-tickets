@@ -27,27 +27,11 @@ class TicketAssigned(Event):
     """Тикет назначен"""
 
     ticket_id: UUID
+    number: str
+    title: str
     assignee_id: UUID
     assigned_by: UUID
     old_assignee: UUID | None = None
-
-
-@dataclass(frozen=True, kw_only=True)
-class TicketReassigned(Event):
-    """Тикет был переназначен с одного испольнителя на другого"""
-
-    ticket_id: UUID
-    number: str
-    title: str
-
-    # пользователь, который выполнил переназначение
-    reassigned_by: UUID
-
-    # ноывый испольнитель тикета
-    new_assignee_id: UUID
-
-    # предыдущий исполнитель тикета
-    old_assignee_id: UUID
 
 
 @dataclass(frozen=True, kw_only=True)

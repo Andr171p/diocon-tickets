@@ -5,10 +5,10 @@ from fastapi import Depends
 from ..iam.dependencies import UserRepoDep
 from ..shared.dependencies import SessionDep, get_mail_sender
 from ..tickets.dependencies import ProjectRepoDep
-from ..tickets.domain.events import TicketCreated, TicketReassigned
+from ..tickets.domain.events import TicketAssigned, TicketCreated
 from .channels import EmailChannel, NotificationChannel
 from .domain.repos import NotificationRepository, PreferenceRepository
-from .policies import TicketCreatedPolicy, TicketReassignedPolicy
+from .policies import TicketAssignedPolicy, TicketCreatedPolicy
 from .resolvers import ChannelResolver, TargetResolver
 from .services import NotificationService
 
@@ -23,7 +23,7 @@ def get_target_resolver(
         TicketCreated, TicketCreatedPolicy(project_repo, user_repo),
     )
     target_resolver.registry_policy(
-        TicketReassigned, TicketReassignedPolicy(),
+        TicketAssigned, TicketAssignedPolicy(),
     )
     
     return target_resolver

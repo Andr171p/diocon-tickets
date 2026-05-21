@@ -18,7 +18,6 @@ from ..events import (
     TicketAssigned,
     TicketCreated,
     TicketPriorityChanged,
-    TicketReassigned,
 )
 from ..vo import (
     Tag,
@@ -271,29 +270,17 @@ class Ticket(AggregateRoot):
             description="Тикет назначен пользователю",
         )
 
-        # если старого исполнителя не было, тогда это первое назначение тикета
-        if old_assignee is None:
-            self.register_event(
-                TicketAssigned(
-                    ticket_id=self.id,
-                    assignee_id=assignee_id,
-                    assigned_by=assigned_by,
-                    old_assignee=None,
-                )
+        # 5. Назначение тикета
+        self.register_event(
+            TicketAssigned(
+                ticket_id=self.id,
+                number=f"{self.number}",
+                title=self.title,
+                assignee_id=assignee_id,
+                assigned_by=assigned_by,
+                old_assignee=old_assignee,
             )
-        
-        # если старый испольнитель уже был, это переназначение тикета
-        else:
-            self.register_event(
-                TicketReassigned(
-                    ticket_id=self.id,
-                    number=f"{self.number}",
-                    title=self.title,
-                    reassigned_by=assigned_by,
-                    new_assignee_id=assignee_id,
-                    old_assignee_id=old_assignee,
-                )
-            )
+        )
 
     def change_status(self, new_status: TicketStatus, changed_by: UUID) -> None:
         """Изменение статуса тикета"""

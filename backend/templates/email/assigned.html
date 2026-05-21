@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% if old_assignee %}Тикет переназначен{% else %}Тикет назначен{% endif %}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap');
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f5f5f6;
+      color: #111111;
+      font-family: 'Open Sans', Arial, Helvetica, sans-serif;
+      line-height: 1.5;
+    }
+
+    table {
+      border-collapse: collapse;
+    }
+
+    .page {
+      width: 100%;
+      background: #f5f5f6;
+      padding: 40px 16px;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .glass {
+      overflow: hidden;
+      background: #ffffff;
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.72)),
+        rgba(255, 255, 255, 0.86);
+      border-radius: 20px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    .inner {
+      padding: 32px;
+    }
+
+    .brand {
+      color: rgba(17, 17, 17, 0.48);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .status-pill {
+      display: inline-block;
+      margin-top: 18px;
+      padding: 7px 12px;
+      color: #991b1b;
+      font-size: 13px;
+      font-weight: 700;
+      background: rgba(153, 27, 27, 0.10);
+      border: 1px solid rgba(185, 28, 28, 0.22);
+      border-radius: 999px;
+    }
+
+    h1 {
+      margin: 18px 0 12px;
+      color: #111111;
+      font-size: 30px;
+      line-height: 1.18;
+      font-weight: 800;
+    }
+
+    .lead {
+      margin: 0 0 26px;
+      color: rgb(0, 0, 0);
+      font-size: 16px;
+    }
+
+    .details {
+      width: 100%;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.70);
+      border: 1px solid rgba(17, 17, 17, 0.08);
+      border-radius: 16px;
+    }
+
+    .detail-row {
+      border-bottom: 1px solid rgba(17, 17, 17, 0.07);
+    }
+
+    .detail-row:last-child {
+      border-bottom: 0;
+    }
+
+    .label {
+      width: 35%;
+      padding: 14px 16px;
+      color: rgb(0, 0, 0);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      vertical-align: top;
+    }
+
+    .value {
+      padding: 14px 16px;
+      color: #111111;
+      font-size: 14px;
+      vertical-align: top;
+      word-break: break-word;
+    }
+
+    .ticket-number {
+      color: #991b1b;
+      font-weight: 800;
+    }
+
+    .note {
+      margin: 24px 0 0;
+      padding: 16px;
+      color: rgba(17, 17, 17, 0.68);
+      font-size: 14px;
+      background: rgba(153, 27, 27, 0.07);
+      border: 1px solid rgba(153, 27, 27, 0.16);
+      border-radius: 14px;
+    }
+
+    .footer {
+      padding: 22px 8px 0;
+      color: rgba(17, 17, 17, 0.46);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    @media screen and (max-width: 520px) {
+      .page {
+        padding: 24px 10px;
+      }
+
+      .inner {
+        padding: 24px 18px;
+      }
+
+      h1 {
+        font-size: 25px;
+      }
+
+      .label,
+      .value {
+        display: block;
+        width: auto;
+        padding: 12px 14px;
+      }
+
+      .label {
+        padding-bottom: 2px;
+      }
+
+      .value {
+        padding-top: 2px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <table role="presentation" class="page" width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center">
+        <table role="presentation" class="shell" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td class="glass">
+              <div class="inner">
+                <div class="brand">Система тикетов</div>
+                <div class="status-pill">
+                  {% if old_assignee %}Переназначение{% else %}Назначение{% endif %}
+                </div>
+
+                <h1>{% if old_assignee %}Тикет переназначен{% else %}Тикет назначен{% endif %}</h1>
+
+                <p class="lead">
+                  {% if old_assignee %}
+                    У тикета изменился исполнитель. Ниже указаны детали переназначения.
+                  {% else %}
+                    Тикет назначен исполнителю. Ниже указаны основные детали назначения.
+                  {% endif %}
+                </p>
+
+                <table role="presentation" class="details" width="100%" cellpadding="0" cellspacing="0">
+                  <tr class="detail-row">
+                    <td class="label">Номер</td>
+                    <td class="value ticket-number">#{{ ticket_number }}</td>
+                  </tr>
+                  <tr class="detail-row">
+                    <td class="label">Тикет</td>
+                    <td class="value">{{ title }}</td>
+                  </tr>
+                  <tr class="detail-row">
+                    <td class="label">Новый исполнитель</td>
+                    <td class="value">{{ assignee_id }}</td>
+                  </tr>
+                  <tr class="detail-row">
+                    <td class="label">Назначил</td>
+                    <td class="value">{{ assigned_by }}</td>
+                  </tr>
+                  {% if old_assignee %}
+                  <tr class="detail-row">
+                    <td class="label">Старый исполнитель</td>
+                    <td class="value">{{ old_assignee }}</td>
+                  </tr>
+                  {% endif %}
+                </table>
+
+                <div class="note">
+                  Это системное уведомление. Если действие ожидаемо, дополнительных шагов не требуется.
+                </div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="footer">
+              С уважением,<br>
+              Команда {{ app_name | default("ДИО-Консалт") }}<br>
+              <a href="mailto:{{ support_email | default('diocon.support@mail.ru') }}">{{ support_email | default("diocon.support@mail.ru") }}</a><br><br>
+              Уведомление сформировано автоматически. Пожалуйста, не отвечайте на это письмо.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

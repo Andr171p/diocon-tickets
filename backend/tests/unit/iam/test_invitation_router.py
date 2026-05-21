@@ -65,7 +65,7 @@ class TestInvitationRouter:
         }
 
     @pytest.mark.asyncio
-    async def test_get_invitation_returns_response(self, mock_invitation_repo):
+    async def test_get_invitation_returns_response(self, fake_invitation_repo):
         """
         Проверяем GET-handler приглашения по id: он нужен, чтобы роутер читал
         приглашение из репозитория и отдавал наружу response-схему.
@@ -76,9 +76,9 @@ class TestInvitationRouter:
             email="invitee@example.com",
             assigned_role=UserRole.SUPPORT_AGENT,
         )
-        await mock_invitation_repo.create(invitation)
+        await fake_invitation_repo.create(invitation)
 
-        response = await get_invitation(invitation.id, repository=mock_invitation_repo)
+        response = await get_invitation(invitation.id, repository=fake_invitation_repo)
 
         assert response.id == invitation.id
         assert response.email == invitation.email
@@ -86,7 +86,7 @@ class TestInvitationRouter:
         assert response.is_used == invitation.is_used
 
     @pytest.mark.asyncio
-    async def test_get_invitation_raises_not_found(self, mock_invitation_repo):
+    async def test_get_invitation_raises_not_found(self, fake_invitation_repo):
         """
         Проверяем GET-handler приглашения по id: он нужен, чтобы отсутствующее
         приглашение превращалось в понятную NotFoundError.
@@ -95,10 +95,10 @@ class TestInvitationRouter:
         invitation_id = uuid4()
 
         with pytest.raises(NotFoundError, match=f"Invitation with ID {invitation_id} not found"):
-            await get_invitation(invitation_id, repository=mock_invitation_repo)
+            await get_invitation(invitation_id, repository=fake_invitation_repo)
 
     @pytest.mark.asyncio
-    async def test_get_invitations_returns_page(self, mock_invitation_repo):
+    async def test_get_invitations_returns_page(self, fake_invitation_repo):
         """
         Проверяем list-handler приглашений: он нужен, чтобы роутер возвращал
         страницу response-объектов и сохранял данные пагинации.
@@ -114,12 +114,12 @@ class TestInvitationRouter:
             email="second@example.com",
             assigned_role=UserRole.SUPPORT_MANAGER,
         )
-        await mock_invitation_repo.create(first_invitation)
-        await mock_invitation_repo.create(second_invitation)
+        await fake_invitation_repo.create(first_invitation)
+        await fake_invitation_repo.create(second_invitation)
 
         page = await get_invitations(
             params=PageParams(page=1, size=10),
-            repository=mock_invitation_repo,
+            repository=fake_invitation_repo,
         )
 
         assert page.total_items == EXPECTED_INVITATIONS_COUNT
