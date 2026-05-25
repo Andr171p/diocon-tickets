@@ -122,20 +122,26 @@ class Task(Entity):
                 f"Invalid status transition from {self.status} to {new_status}"
             )
 
-        # 2. Обновление статуса
+        # 2. Задача не может быть в работе без назначенного исполнителя
+        if new_status == TaskStatus.IN_PROGRESS and self.assignee_id is None:
+            raise InvariantViolationError(
+                "Task cannot be in 'IN_PROGRESS' status without an assignee"
+            )
+
+        # 3. Обновление статуса
         old_status = self.status
         self.status = new_status
         self.updated_at = current_datetime()
 
-        # 3. Если исполнитель приступил к работе, то установить время начала
+        # 4. Если исполнитель приступил к работе, то установить время начала
         if new_status == TaskStatus.IN_PROGRESS and self.started_at is None:
             self.started_at = current_datetime()
 
-        # 4. Если задача завершена, то установка времени завершения
+        # 5. Если задача завершена, то установка времени завершения
         if new_status == TaskStatus.DONE and self.completed_at is None:
             self.completed_at = current_datetime()
 
-        # 5. Регистрация доменного события
+        # 6. Регистрация доменного события
         self.register_event(
             TaskStatusMoved(
                 task_id=self.id,

@@ -21,7 +21,7 @@ event_bus = EventBus()
 ws_manager = WebsocketManager()
 
 spell_checker = LanguageToolSpellChecker(
-    language=settings.language_tool.language, remote_server=settings.language_tool.remote_server
+    language=settings.language_tool.language, remote_server=settings.language_tool.url
 )
 
 SessionDep = Annotated[AsyncSession, Depends(get_db)]

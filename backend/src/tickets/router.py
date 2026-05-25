@@ -16,7 +16,7 @@ from .dependencies import (
     TicketServiceDep,
 )
 from .domain.vo import ReactionType
-from .infra.ai import predict_ticket_fields
+from .infra.ai import suggest_ticket_fields
 from .mappers import map_ticket_to_preview, map_ticket_to_response
 from .schemas import (
     CommentCreate,
@@ -338,5 +338,5 @@ async def get_comment_reactions(
     response_model=PredictionResponse,
     summary="Определение приоритета и генерация тегов"
 )
-async def predict_for_ticket(data: TicketPredict) -> PredictionResponse:
-    return await predict_ticket_fields(data)
+async def suggest_for_ticket(data: TicketPredict) -> PredictionResponse:
+    return await suggest_ticket_fields(data)
