@@ -32,6 +32,24 @@ class TicketStatus(StrEnum):
     CANCELED = "Отменён"
 
 
+class TicketType(StrEnum):
+    """Тип заявки/тикета"""
+
+    # Клиентские
+    INCIDENT = "Инцидент"
+    SERVICE_REQUEST = "Запрос на услугу"
+    QUESTION = "Консультация"
+    COMPLAINT = "Жалоба"
+
+    # Внутренние
+    TASK = "Задача"
+    PROBLEM = "Проблема"
+    CHANGE = "Запрос на изменение"
+    IMPROVEMENT = "Улучшение"
+
+    OTHER = "Прочее"
+
+
 class Priority(StrEnum):
     """Приоритет для Work Item"""
 

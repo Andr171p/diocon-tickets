@@ -20,6 +20,7 @@ def map_ticket_to_preview(ticket: Ticket) -> TicketPreview:
         reporter_id=ticket.reporter_id,
         number=f"{ticket.number}",
         title=ticket.title,
+        type=ticket.type,
         status=ticket.status,
         priority=ticket.priority,
     )
@@ -88,6 +89,7 @@ def map_ticket_to_response(ticket: Ticket) -> TicketResponse:
         number=f"{ticket.number}",
         title=ticket.title,
         description=ticket.description,
+        type=ticket.type,
         status=ticket.status,
         priority=ticket.priority,
         assignee_id=ticket.assignee_id,

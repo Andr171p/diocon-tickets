@@ -7,7 +7,7 @@ from ...media.domain.entities import Attachment
 from ...shared.domain.entities import Entity
 from ...shared.domain.exceptions import InvalidStateError, InvariantViolationError
 from ...shared.utils.time import current_datetime
-from ...tickets.domain.vo import Priority
+from ...tickets.domain.vo import Priority, Tag
 from .constants import ALLOWED_ASSIGN_STATUSES, ALLOWED_EDIT_STATUSES, ALLOWED_TRANSITIONS
 from .events import TaskArchived, TaskAssigned, TaskCreated, TaskReviewRequested, TaskStatusMoved
 from .vo import StoryPoints, TaskNumber, TaskStatus
@@ -44,6 +44,9 @@ class Task(Entity):
     completed_at: datetime | None = None
 
     created_by: UUID
+
+    # Навигация и поиск
+    tags: set[Tag] = field(default_factory=set)
 
     attachments: list[Attachment] = field(default_factory=list)
 

@@ -7,6 +7,7 @@ from datetime import date, datetime
 from uuid import UUID
 
 from sqlalchemy import Date, DateTime, Enum, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ...core.database import Base
@@ -38,6 +39,8 @@ class TaskOrm(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_by: Mapped[UUID]
+
+    tags: Mapped[list[dict[str, str]]] = mapped_column(JSONB)
 
     attachments: Mapped[list["AttachmentOrm"]] = relationship(
         primaryjoin=(

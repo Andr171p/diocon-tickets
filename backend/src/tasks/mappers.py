@@ -1,4 +1,5 @@
 from ..media.mappers import map_attachment_to_response
+from ..tickets.schemas import Tag
 from .domain.entities import Task
 from .domain.repos import TaskView
 from .schemas import TaskResponse, TaskViewResponse
@@ -25,6 +26,7 @@ def map_task_to_response(task: Task) -> TaskResponse:
         started_at=task.started_at,
         completed_at=task.completed_at,
         created_by=task.created_by,
+        tags=[Tag(name=tag.name, color=tag.color) for tag in task.tags],
         attachments=[map_attachment_to_response(attachment) for attachment in task.attachments],
     )
 
@@ -43,4 +45,5 @@ def map_task_view_to_response(task: TaskView) -> TaskViewResponse:
         story_points=task.story_points,
         project_id=task.project_id,
         ticket_id=task.ticket_id,
+        tags=[Tag(name=tag.name, color=tag.color) for tag in task.tags],
     )

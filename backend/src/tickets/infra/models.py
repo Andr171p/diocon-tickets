@@ -12,7 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ...core.database import Base
 from ...iam.domain.vo import UserRole
-from ..domain.vo import CommentType, ReactionType, Priority, TicketStatus
+from ..domain.vo import CommentType, Priority, ReactionType, TicketStatus, TicketType
 
 
 class TicketOrm(Base):
@@ -27,6 +27,7 @@ class TicketOrm(Base):
     number: Mapped[str] = mapped_column(String(25), unique=True)
     title: Mapped[str]
     description: Mapped[str] = mapped_column(TEXT)
+    ticket_type: Mapped[TicketType] = mapped_column(Enum(TicketType))
     status: Mapped[TicketStatus] = mapped_column(Enum(TicketStatus))
     priority: Mapped[Priority] = mapped_column(Enum(Priority))
     assignee_id: Mapped[UUID | None] = mapped_column(nullable=True)

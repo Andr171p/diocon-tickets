@@ -1,14 +1,17 @@
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from ...media.infra.repo import AttachmentMapper
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
+from ...shared.schemas import Page, Pagination
+from ...shared.utils.time import current_datetime
+from ...tickets.domain.vo import Priority, Tag
 from ..domain.entities import Task
 from ..domain.repos import TaskView
-from ..domain.vo import StoryPoints, TaskNumber
+from ..domain.vo import StoryPoints, TaskNumber, TaskStatus
 from .models import TaskOrm, TaskSequence
 
 
@@ -38,6 +41,7 @@ class TaskMapper(ModelMapper[Task, TaskOrm]):
             started_at=model.started_at,
             completed_at=model.completed_at,
             created_by=model.created_by,
+            tags={Tag(name=tag["name"], color=tag["color"]) for tag in model.tags},
             attachments=[
                 AttachmentMapper.to_entity(attachment) for attachment in model.attachments
             ],
@@ -68,6 +72,7 @@ class TaskMapper(ModelMapper[Task, TaskOrm]):
             started_at=entity.started_at,
             completed_at=entity.completed_at,
             created_by=entity.created_by,
+            tags=[{"name": tag.name, "color": tag.color} for tag in entity.tags],
         )
 
     @staticmethod
@@ -85,6 +90,7 @@ class TaskMapper(ModelMapper[Task, TaskOrm]):
             story_points=Decimal(model.story_points),
             project_id=model.project_id,
             ticket_id=model.ticket_id,
+            tags={Tag(name=tag["name"], color=tag["color"]) for tag in model.tags},
         )
 
 
@@ -115,3 +121,70 @@ class SqlTaskRepository(SqlAlchemyRepository[Task, TaskOrm]):
         result = await self.session.execute(stmt)
 
         return result.scalar_one()
+
+    async def get_grouped_by_status(
+            self,
+            pagination: Pagination,
+            *,
+            project_id: UUID | None = None,
+            ticket_id: UUID | None = None,
+            assignee_id: UUID | None = None,
+            # Дополнительные фильтры
+            priorities: list[Priority] | None = None,
+            overdue_only: bool = False,
+    ) -> dict[TaskStatus, Page[TaskView]]:
+        # Общие условия фильтрации (исключаем удалённые задачи)
+        conditions = [self.model.deleted_at.is_(None)]
+
+        # Применение фильтра по проекту
+        if project_id is None:
+            conditions.append(self.model.project_id.is_(None))
+        else:
+            conditions.append(self.model.project_id == project_id)
+
+        # Остальные фильтры
+        if ticket_id is not None:
+            conditions.append(self.model.ticket_id == ticket_id)
+
+        if assignee_id is not None:
+            conditions.append(self.model.assignee_id == assignee_id)
+
+        if priorities is not None:
+            conditions.append(self.model.status.in_(priorities))
+
+        if overdue_only:
+            now = current_datetime()
+            conditions.append(
+                self.model.due_date < now,
+                self.model.status.notin_([TaskStatus.DONE, TaskStatus.CANCELLED])
+            )
+
+        # Пагинация задач для каждого статуса
+        grouped: dict[TaskStatus, Page[TaskView]] = {}
+
+        for status in TaskStatus:
+            # Базовый запрос для получения задач
+            stmt = select(self.model).where(and_(*conditions), self.model.status == status)
+
+            # Подсчёт общего количества задач в статусе
+            count_stmt = select(func.count()).select_from(stmt.subquery())
+            total_items = await self.session.scalar(count_stmt)
+
+            # Запрос для пагинации
+            stmt = (
+                stmt
+                .order_by(self.model.priority.desc(), self.model.created_at.desc())
+                .offset(pagination.offset)
+                .limit(pagination.size)
+            )
+            results = await self.session.execute(stmt)
+            models = results.scalars().all()
+
+            grouped[status] = Page.create(
+                items=[self.model_mapper.to_view(model) for model in models],
+                total_items=total_items,
+                page=pagination.page,
+                size=pagination.size,
+            )
+
+        return grouped

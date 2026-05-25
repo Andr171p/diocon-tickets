@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, NonNegativeFloat, NonNegativeInt
 from ..media.schemas import AttachmentResponse
 from ..shared.schemas import Page
 from ..tickets.domain.vo import Priority
+from ..tickets.schemas import Tag
 from .domain.vo import TaskStatus
 
 NewStatus = Annotated[
@@ -71,6 +72,7 @@ class TaskResponse(TaskBase):
     started_at: datetime | None = Field(None, description="Дата начала выполнения задачи")
     completed_at: datetime | None = Field(None, description="Дата завершения задачи")
     created_by: UUID = Field(..., description="Пользователь создавший задачу")
+    tag: list[Tag] = Field(default_factory=list, description="Теги для маркировки и поиска")
     attachments: list[AttachmentResponse] = Field(
         default_factory=list, description="Медиа контент приложенный к задаче"
     )
@@ -124,6 +126,7 @@ class TaskViewResponse(BaseModel):
 
     ticket_id: UUID | None = Field(None, description="Тикет на основе которого создана задача")
     project_id: UUID | None = Field(None, description="Проект в рамках которого создана задача")
+    tag: list[Tag] = Field(default_factory=list, description="Теги для маркировки и поиска")
 
 
 # ============================== Канбан доски ==============================
