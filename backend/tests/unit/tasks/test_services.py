@@ -13,7 +13,7 @@ from src.tasks.domain.vo import TaskStatus
 from src.tasks.schemas import TaskCreate
 from src.tasks.services import TaskService
 from src.tickets.domain.entities import Ticket
-from src.tickets.domain.vo import TicketNumber, Priority
+from src.tickets.domain.vo import Priority, TicketNumber
 
 from .helpers import make_task
 

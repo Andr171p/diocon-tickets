@@ -1,4 +1,4 @@
-from typing import Annotated, Any
+from typing import Annotated
 
 from uuid import UUID
 
@@ -46,9 +46,7 @@ router = APIRouter(prefix="/tickets", tags=["Тикеты"])
 async def create_ticket(
         current_user: CurrentUserDep, data: TicketCreate, service: TicketServiceDep
 ) -> TicketResponse:
-    return await service.create(
-        data, created_by=current_user.user_id, created_by_role=current_user.role
-    )
+    return await service.create(data, current_user)
 
 
 @router.get(
@@ -62,7 +60,7 @@ async def get_my_tickets(
         current_user: CurrentUserDep,
         params: PaginationDep,
         repository: TicketRepoDep,
-) -> Page[dict[str, Any]]:
+) -> Page[TicketPreview]:
     page = await repository.get_by_reporter(current_user.user_id, params)
     return page.to_response(map_ticket_to_preview)
 
@@ -134,8 +132,7 @@ async def assign_ticket(
     return await service.assign_to(
         ticket_id=ticket_id,
         assignee_id=data.assignee_id,
-        assigned_by=current_user.user_id,
-        assigned_by_role=current_user.role,
+        current_user=current_user,
     )
 
 
@@ -159,8 +156,7 @@ async def change_ticket_status(
     return await service.change_status(
         ticket_id=ticket_id,
         new_status=data.status,
-        changed_by=current_user.user_id,
-        changed_by_role=current_user.role,
+        current_user=current_user,
     )
 
 
@@ -174,11 +170,7 @@ async def change_ticket_status(
 async def delete_ticket(
         ticket_id: UUID, current_user: CurrentUserDep, service: TicketServiceDep
 ) -> TicketResponse:
-    return await service.archive(
-        ticket_id=ticket_id,
-        archived_by=current_user.user_id,
-        archived_by_role=current_user.role,
-    )
+    return await service.archive(ticket_id=ticket_id, current_user=current_user)
 
 
 @router.get(
