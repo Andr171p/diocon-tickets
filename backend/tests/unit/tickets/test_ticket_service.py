@@ -13,7 +13,7 @@ from src.projects.domain.services import ProjectAccessService
 from src.projects.domain.vo import ProjectRole
 from src.shared.domain.exceptions import NotFoundError
 from src.tickets.domain.entities import Ticket
-from src.tickets.domain.vo import TicketNumber, TicketPriority, TicketStatus
+from src.tickets.domain.vo import TicketNumber, Priority, TicketStatus
 from src.tickets.schemas import TicketCreate, TicketEdit, TicketResponse
 from src.tickets.services import TicketService
 
@@ -100,7 +100,7 @@ async def ticket_in_open(fake_ticket_repo, counterparty_id):
         title="Test ticket",
         description="Opened ticket",
         status=TicketStatus.OPEN,
-        priority=TicketPriority.MEDIUM,
+        priority=Priority.MEDIUM,
         reporter_id=uuid4(),
         created_by=uuid4(),
         created_by_role=UserRole.CUSTOMER,
@@ -117,7 +117,7 @@ async def opened_ticket_in_project(fake_ticket_repo, created_project):
         title="Test ticket",
         description="Opened ticket",
         status=TicketStatus.OPEN,
-        priority=TicketPriority.MEDIUM,
+        priority=Priority.MEDIUM,
         reporter_id=uuid4(),
         created_by=uuid4(),
         created_by_role=UserRole.CUSTOMER,
@@ -189,7 +189,7 @@ class TestCreate:
         data = TicketCreate(
             title="Test ticket",
             description="This ticket created for test",
-            priority=TicketPriority.MEDIUM,
+            priority=Priority.MEDIUM,
             reporter_id=current_support_agent.user_id,
         )
         response = await ticket_service.create(data, current_support_agent)
@@ -223,7 +223,7 @@ class TestCreate:
         data = TicketCreate(
             title="Test ticket",
             description="This ticket created for test",
-            priority=TicketPriority.MEDIUM,
+            priority=Priority.MEDIUM,
             project_id=created_project.id,
             reporter_id=current_support_agent.user_id,
         )
@@ -244,7 +244,7 @@ class TestCreate:
         data = TicketCreate(
             title="Test ticket",
             description="This ticket created for test",
-            priority=TicketPriority.MEDIUM,
+            priority=Priority.MEDIUM,
             counterparty_id=created_counterparty.id,
             reporter_id=current_customer.user_id,
         )
@@ -264,7 +264,7 @@ class TestCreate:
         data = TicketCreate(
             title="Test ticket",
             description="This ticket created for test",
-            priority=TicketPriority.MEDIUM,
+            priority=Priority.MEDIUM,
             project_id=created_project.id,
             reporter_id=current_support_agent.user_id,
         )
@@ -283,7 +283,7 @@ class TestCreate:
         data = TicketCreate(
             title="Test ticket",
             description="This ticket created for test",
-            priority=TicketPriority.MEDIUM,
+            priority=Priority.MEDIUM,
             project_id=uuid4(),
             reporter_id=uuid4(),
         )
@@ -302,7 +302,7 @@ class TestCreate:
         data = TicketCreate(
             title="Test ticket",
             description="This ticket created for test",
-            priority=TicketPriority.MEDIUM,
+            priority=Priority.MEDIUM,
             counterparty_id=uuid4(),
             reporter_id=uuid4(),
         )

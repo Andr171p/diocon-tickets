@@ -3,7 +3,7 @@ from uuid import UUID
 from ...iam.domain.entities import User
 from ...products.domain.entities import SoftwareProduct
 from ...shared.domain.repo import Repository
-from ...shared.schemas import Page, PageParams
+from ...shared.schemas import Page, Pagination
 from .entities import Counterparty
 from .vo import Inn
 
@@ -25,7 +25,7 @@ class CounterpartyRepository(Repository[Counterparty]):
         Принимает ID головного контрагента и возвращает плоский список.
         """
 
-    async def get_customers(self, counterparty_id: UUID, params: PageParams) -> Page[User]:
+    async def get_customers(self, counterparty_id: UUID, params: Pagination) -> Page[User]:
         """Получение клиентов контрагента"""
 
     async def link_product(self, counterparty_id: UUID, product_id: UUID) -> None:
@@ -34,7 +34,7 @@ class CounterpartyRepository(Repository[Counterparty]):
         """
 
     async def get_products(
-            self, counterparty_id: UUID, params: PageParams
+            self, counterparty_id: UUID, params: Pagination
     ) -> Page[SoftwareProduct]:
         """
         Получение программных продуктов, которые используются контрагентом

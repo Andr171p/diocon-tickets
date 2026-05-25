@@ -15,6 +15,7 @@ from src.iam.infra.models import InvitationOrm, UserOrm
 from src.media.infra.models import AttachmentOrm
 from src.products.infra.models import SoftwareProductOrm
 from src.projects.infra.models import MembershipOrm, ProjectOrm
+from src.tasks.infra.models import TaskOrm, TaskSequence
 from src.tickets.infra.models import (
     CommentOrm,
     TicketHistoryEntryOrm,

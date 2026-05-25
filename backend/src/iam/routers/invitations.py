@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 
-from ...shared.dependencies import PageParamsDep
+from ...shared.dependencies import PaginationDep
 from ...shared.domain.exceptions import NotFoundError
 from ...shared.schemas import Page
 from ..dependencies import (
@@ -66,7 +66,7 @@ async def get_invitation(
     summary="Получение всех приглашений",
 )
 async def get_invitations(
-        params: PageParamsDep, repository: InvitationRepository = Depends(get_invitation_repo)
+        params: PaginationDep, repository: InvitationRepository = Depends(get_invitation_repo)
 ) -> Page[InvitationResponse]:
     page = await repository.paginate(params)
     return page.to_response(map_invitation_to_response)

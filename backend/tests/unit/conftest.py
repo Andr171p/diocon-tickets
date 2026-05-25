@@ -8,8 +8,10 @@ from src.iam.domain.repos import InvitationRepository, TokenBlacklist, UserRepos
 from src.notifications.domain.repos import NotificationRepository, PreferenceRepository
 from src.products.domain.repo import ProductRepository
 from src.projects.domain.repos import MembershipRepository, ProjectRepository
+from src.projects.domain.services import ProjectAccessService
 from src.shared.domain.events import EventPublisher
 from src.shared.infra.events import EventBus
+from src.tasks.domain.repos import TaskRepository
 from src.tickets.domain.repos import (
     CommentRepository,
     ReactionRepository,
@@ -26,6 +28,7 @@ from .in_memory_repos import (
     InMemoryProductRepository,
     InMemoryProjectRepository,
     InMemoryReactionRepository,
+    InMemoryTaskRepository,
     InMemoryTicketRepository,
     InMemoryTokenBlacklist,
     InMemoryUserRepository,
@@ -93,8 +96,18 @@ def fake_product_repo() -> ProductRepository:
 
 
 @pytest.fixture
+def fake_task_repo() -> TaskRepository:
+    return InMemoryTaskRepository()
+
+
+@pytest.fixture
 def event_publisher() -> EventPublisher:
     return EventBus(max_queue_size=10)
+
+
+@pytest.fixture
+def fake_project_access_service(fake_membership_repo) -> ProjectAccessService:
+    return ProjectAccessService(fake_membership_repo)
 
 
 @pytest.fixture

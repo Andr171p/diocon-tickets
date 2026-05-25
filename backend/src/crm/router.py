@@ -10,7 +10,7 @@ from ..iam.mappers import map_user_to_response
 from ..iam.schemas import UserResponse
 from ..products.mappers import map_product_to_response
 from ..products.schemas import ProductResponse
-from ..shared.dependencies import PageParamsDep
+from ..shared.dependencies import PaginationDep
 from ..shared.domain.exceptions import NotFoundError
 from ..shared.schemas import Page
 from .dependencies import CounterpartyRepoDep, CounterpartyServiceDep
@@ -75,7 +75,7 @@ async def add_branch(
     summary="Получение списка контрагентов",
 )
 async def get_counterparties(
-        params: PageParamsDep, repository: CounterpartyRepoDep
+        params: PaginationDep, repository: CounterpartyRepoDep
 ) -> dict[str, Any]:
     page = await repository.paginate(params)
     return page.to_response(map_counterparty_to_response)
@@ -114,7 +114,7 @@ async def add_contact_person(
     description="Доступно с ролью `customer_admin` и выше",
 )
 async def get_counterparty_customers(
-        counterparty_id: UUID, params: PageParamsDep, repository: CounterpartyRepoDep
+        counterparty_id: UUID, params: PaginationDep, repository: CounterpartyRepoDep
 ) -> Page[dict[str, Any]]:
     page = await repository.get_customers(counterparty_id, params)
     return page.to_response(map_user_to_response)
@@ -146,7 +146,7 @@ async def link_counterparty_product(
 )
 async def get_counterparty_products(
         counterparty_id: UUID,
-        pagination: PageParamsDep,
+        pagination: PaginationDep,
         repository: CounterpartyRepoDep
 ) -> Page[ProductResponse]:
     page = await repository.get_products(counterparty_id, pagination)

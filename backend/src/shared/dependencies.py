@@ -13,7 +13,7 @@ from .infra.events import EventBus
 from .infra.mail import SmtpMailSender
 from .infra.rate_limiter import IdentifierFunc, RateLimiter, ip_identifier
 from .infra.websocket import WebsocketManager
-from .schemas import PageParams
+from .schemas import Pagination
 
 event_bus = EventBus()
 
@@ -22,7 +22,7 @@ ws_manager = WebsocketManager()
 SessionDep = Annotated[AsyncSession, Depends(get_db)]
 
 
-def get_page_params(
+def get_pagination(
     page: Annotated[
         PositiveInt,
         Query(
@@ -40,11 +40,11 @@ def get_page_params(
             examples=[20],
         ),
     ] = 10,
-) -> PageParams:
-    return PageParams(page=page, size=size)
+) -> Pagination:
+    return Pagination(page=page, size=size)
 
 
-PageParamsDep = Annotated[PageParams, Depends(get_page_params)]
+PaginationDep = Annotated[Pagination, Depends(get_pagination)]
 
 
 def get_event_publisher() -> EventPublisher:

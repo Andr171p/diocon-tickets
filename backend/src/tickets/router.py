@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends, Query, status
 
 from ..iam.dependencies import CurrentUserDep, get_current_user
-from ..shared.dependencies import PageParamsDep
+from ..shared.dependencies import PaginationDep
 from ..shared.domain.exceptions import NotFoundError
 from ..shared.schemas import Page
 from .dependencies import (
@@ -60,7 +60,7 @@ async def create_ticket(
 )
 async def get_my_tickets(
         current_user: CurrentUserDep,
-        params: PageParamsDep,
+        params: PaginationDep,
         repository: TicketRepoDep,
 ) -> Page[dict[str, Any]]:
     page = await repository.get_by_reporter(current_user.user_id, params)
@@ -80,7 +80,7 @@ async def get_my_tickets(
     }
 )
 async def get_tickets(
-        params: PageParamsDep,
+        params: PaginationDep,
         filters: TicketFiltersDep,
         repository: TicketRepoDep,
 ) -> Page[TicketPreview]:
@@ -189,7 +189,7 @@ async def delete_ticket(
 )
 async def get_ticket_comments(
         ticket_id: UUID,
-        pagination: PageParamsDep,
+        pagination: PaginationDep,
         current_user: CurrentUserDep,
         service: CommentServiceDep,
         include_internal: Annotated[
@@ -212,7 +212,7 @@ async def get_ticket_comments(
 )
 async def get_comment_replies(
         comment_id: UUID,
-        pagination: PageParamsDep,
+        pagination: PaginationDep,
         current_user: CurrentUserDep,
         service: CommentServiceDep,
         include_internal: Annotated[

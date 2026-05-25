@@ -8,7 +8,7 @@ from ...products.domain.entities import SoftwareProduct
 from ...products.infra.models import SoftwareProductOrm
 from ...products.infra.repo import SoftwareProductMapper
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
-from ...shared.schemas import Page, PageParams
+from ...shared.schemas import Page, Pagination
 from ..domain.entities import Counterparty
 from ..domain.vo import ContactPerson, Inn, Kpp, Okpo, Phone
 from .models import CounterpartyOrm, CounterpartyProductOrm
@@ -125,7 +125,7 @@ class SqlCounterpartyRepository(SqlAlchemyRepository[Counterparty, CounterpartyO
         models = results.scalars().all()
         return [self.model_mapper.to_entity(model) for model in models]
 
-    async def get_customers(self, counterparty_id: UUID, params: PageParams) -> Page[User]:
+    async def get_customers(self, counterparty_id: UUID, params: Pagination) -> Page[User]:
         from ...iam.infra.models import UserOrm
         from ...iam.infra.repos import UserMapper
 
@@ -153,7 +153,7 @@ class SqlCounterpartyRepository(SqlAlchemyRepository[Counterparty, CounterpartyO
         )
 
     async def get_products(
-            self, counterparty_id: UUID, pagination: PageParams,
+            self, counterparty_id: UUID, pagination: Pagination,
     ) -> Page[SoftwareProduct]:
         # 1. Базовый запрос на получение программный продуктов
         stmt = (

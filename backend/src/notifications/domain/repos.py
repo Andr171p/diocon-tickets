@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from ...shared.domain.repo import Repository
-from ...shared.schemas import Page, PageParams
+from ...shared.schemas import Page, Pagination
 from .entities import Notification, UserPreference
 from .vo import NotificationType
 
@@ -12,7 +12,7 @@ class NotificationRepository(Repository[Notification]):
         """Количество непрочитанных уведомлений пользователя"""
 
     async def get_by_user(
-            self, user_id: UUID, pagination: PageParams, unread_only: bool = False
+            self, user_id: UUID, pagination: Pagination, unread_only: bool = False
     ) -> Page[Notification]:
         """Получение уведомлений пользователя"""
 

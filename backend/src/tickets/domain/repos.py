@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from ...shared.domain.repo import Repository
-from ...shared.schemas import Page, PageParams
+from ...shared.schemas import Page, Pagination
 from ..schemas import TicketFilter
 from .entities import Comment, Reaction, Ticket
 from .vo import ReactionType
@@ -19,7 +19,7 @@ class TicketRepository(Repository[Ticket]):
 
     @override
     async def paginate(
-            self, params: PageParams, filters: TicketFilter | None = None
+            self, params: Pagination, filters: TicketFilter | None = None
     ) -> Page[Ticket]:
         """Фильтрация тикетов"""
 
@@ -34,7 +34,7 @@ class TicketRepository(Repository[Ticket]):
          - Принадлежащие контрагенту (указан контрагент, проект не указан)
         """
 
-    async def get_by_reporter(self, reporter_id: UUID, params: PageParams) -> Page[Ticket]:
+    async def get_by_reporter(self, reporter_id: UUID, params: Pagination) -> Page[Ticket]:
         """Получение тикетов по его инициатору"""
 
 
@@ -43,7 +43,7 @@ class CommentRepository(Repository[Comment]):
     async def get_by_ticket(
             self,
             ticket_id: UUID,
-            pagination: PageParams,
+            pagination: Pagination,
             *,
             user_id: UUID | None = None,
             include_notes: bool = False,
@@ -56,7 +56,7 @@ class CommentRepository(Repository[Comment]):
     async def get_replies(
         self,
         parent_comment_id: UUID,
-        pagination: PageParams,
+        pagination: Pagination,
         *,
         user_id: UUID | None = None,
         include_notes: bool = False,

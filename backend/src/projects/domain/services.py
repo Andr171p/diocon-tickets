@@ -390,3 +390,24 @@ class ProjectAccessService:
             )
 
         return PermissionResult(True)
+
+    async def can_view_tasks(
+            self, project_id: UUID, user_id: UUID, user_role: UserRole
+    ) -> PermissionResult:
+        """Может ли участник проекта просматривать задачи"""
+
+        if user_role == UserRole.ADMIN:
+            return PermissionResult(True)
+
+        # Проверка членства в проекте
+        membership = await self.membership_repo.find(project_id, user_id)
+        if membership is None or membership.is_deleted:
+            return PermissionResult(False, "Your not member of this project")
+
+        # Только участники с роль CONTRIBUTOR и выше могут просматривать задачи
+        if membership.project_role in {ProjectRole.CUSTOMER, ProjectRole.CUSTOMER_MANAGER}:
+            return PermissionResult(
+                False, "Only members with role CONTRIBUTOR or above can view tasks"
+            )
+
+        return PermissionResult(True)

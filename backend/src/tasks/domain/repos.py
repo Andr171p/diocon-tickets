@@ -1,8 +1,35 @@
+from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from ...shared.domain.repo import Repository
+from ...shared.schemas import Page, Pagination
+from ...tickets.domain.vo import Priority
 from .entities import Task
-from .vo import TaskNumber
+from .vo import TaskNumber, TaskStatus
+
+
+@dataclass(frozen=True)
+class TaskView:
+    """
+    Модель представления задачи (лёгкая модель для чтения)
+    """
+
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    number: TaskNumber
+    title: str
+    status: TaskStatus
+    priority: Priority
+    assignee_id: UUID | None = None
+    due_date: datetime | None = None
+    story_points: Decimal | None = None
+
+    project_id: UUID | None = None
+    ticket_id: UUID | None = None
 
 
 class TaskRepository(Repository[Task]):
@@ -19,4 +46,20 @@ class TaskRepository(Repository[Task]):
          - Получение количества задач привязанных к тикету (передан ticket_id)
          - Получение количества внутренних задач (ticket_id = None),
           только те задачи, которые не принадлежат тикету
+        """
+
+    async def get_grouped_by_status(
+            self,
+            pagination: Pagination,
+            *,
+            project_id: UUID | None = None,
+            ticket_id: UUID | None = None,
+            assignee_id: UUID | None = None,
+            # Дополнительные фильтры
+            priorities: list[Priority] | None = None,
+            overdue_only: bool = False,
+    ) -> dict[TaskStatus, Page[TaskView]]:
+        """
+        Группировка задач по статусам.
+        Возвращает облегченные модели представления задач.
         """

@@ -6,7 +6,7 @@ from src.iam.domain.exceptions import PermissionDeniedError
 from src.iam.domain.vo import UserRole
 from src.iam.schemas import CurrentUser
 from src.shared.domain.exceptions import NotFoundError
-from src.shared.schemas import PageParams
+from src.shared.schemas import Pagination
 from src.tickets.domain.entities import Comment, Reaction, Ticket
 from src.tickets.domain.vo import CommentType, ReactionType, TicketNumber
 from src.tickets.schemas import CommentCreate
@@ -446,7 +446,7 @@ class TestGetComments:
 
         response = await comment_service.get_comments(
             ticket_id=created_ticket.id,
-            pagination=PageParams(page=1, size=5),
+            pagination=Pagination(page=1, size=5),
             current_user=current_support_user,
             include_internal=True,
         )
@@ -473,7 +473,7 @@ class TestGetComments:
         with pytest.raises(PermissionDeniedError):
             await comment_service.get_comments(
                 ticket_id=created_ticket.id,
-                pagination=PageParams(page=1, size=5),
+                pagination=Pagination(page=1, size=5),
                 current_user=current_customer_user,
                 include_internal=True,
             )

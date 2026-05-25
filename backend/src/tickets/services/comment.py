@@ -8,7 +8,7 @@ from ...iam.domain.vo import UserRole
 from ...iam.schemas import CurrentUser
 from ...shared.domain.events import EventPublisher
 from ...shared.domain.exceptions import NotFoundError
-from ...shared.schemas import Page, PageParams
+from ...shared.schemas import Page, Pagination
 from ..domain.entities import Comment, Ticket
 from ..domain.repos import CommentRepository, ReactionRepository, TicketRepository
 from ..domain.services import can_access_ticket, can_comment_ticket
@@ -249,7 +249,7 @@ class CommentService:
     async def get_comments(
             self,
             ticket_id: UUID,
-            pagination: PageParams,
+            pagination: Pagination,
             current_user: CurrentUser,
             include_internal: bool = False,
     ) -> Page[CommentWithReactionsResponse]:
@@ -299,7 +299,7 @@ class CommentService:
     async def get_comment_replies(
             self,
             comment_id: UUID,
-            pagination: PageParams,
+            pagination: Pagination,
             current_user: CurrentUser,
             include_internal: bool = False,
     ) -> Page[CommentWithReactionsResponse]:

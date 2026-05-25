@@ -1,13 +1,16 @@
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from ...media.infra.repo import AttachmentMapper
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
+from ...shared.schemas import Page, Pagination
 from ..domain.entities import Task
-from ..domain.vo import StoryPoints, TaskNumber
-from .models import TaskOrm
+from ..domain.repos import TaskView
+from ..domain.vo import StoryPoints, TaskNumber, TaskStatus
+from .models import TaskOrm, TaskSequence
 
 
 class TaskMapper(ModelMapper[Task, TaskOrm]):
@@ -64,13 +67,30 @@ class TaskMapper(ModelMapper[Task, TaskOrm]):
             created_by=entity.created_by,
         )
 
+    @staticmethod
+    def to_view(model: TaskOrm) -> TaskView:
+        return TaskView(
+            id=model.id,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            number=TaskNumber(model.number),
+            title=model.title,
+            status=model.status,
+            priority=model.priority,
+            assignee_id=model.assignee_id,
+            due_date=model.due_date,
+            story_points=Decimal(model.story_points),
+            project_id=model.project_id,
+            ticket_id=model.ticket_id,
+        )
+
 
 class SqlTaskRepository(SqlAlchemyRepository[Task, TaskOrm]):
     model = TaskOrm
     model_mapper = TaskMapper
 
     async def get_by_number(self, number: TaskNumber) -> Task | None:
-        stmt = select(self.model).where(self.model.number == number)
+        stmt = select(self.model).where(self.model.number == number.value)
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
         return None if model is None else self.model_mapper.to_entity(model)
@@ -78,27 +98,61 @@ class SqlTaskRepository(SqlAlchemyRepository[Task, TaskOrm]):
     async def get_next_sequence(
             self, ticket_id: UUID | None = None, project_id: UUID | None = None
     ) -> int:
-        conditions = []
+        # Атомарная операция для получения последовательности
+        stmt = (
+            pg_insert(TaskSequence)
+            .values(project_id=project_id, ticket_id=ticket_id, last_number=1)
+            .on_conflict_do_update(
+                constraint="uq_task_sequences",
+                set_={"last_number": TaskSequence.last_number + 1},
+            )
+            .returning(TaskSequence.last_number)
+        )
 
-        # 1. Применение фильтров в зависимости от переданного пространства имён
+        result = await self.session.execute(stmt)
+
+        return result.scalar_one()
+
+    async def read_views(
+            self,
+            pagination: Pagination,
+            *,
+            status: TaskStatus | None = None,
+            project_id: UUID | None = None,
+            ticket_id: UUID | None = None,
+            assignee_id: UUID | None = None,
+    ) -> Page[TaskView]:
+        # 1. Базовый запрос
+        stmt = select(self.model).where(self.model.deleted_at.is_not(None))
+
+        # 2. Применение фильтров
+        if status is not None:
+            stmt = stmt.where(self.model.status == status)
+        if project_id is not None:
+            stmt = stmt.where(self.model.project_id == project_id)
         if ticket_id is not None:
-            conditions.append(self.model.ticket_id == ticket_id)
-            if project_id is not None:
-                conditions.append(self.model.project_id == project_id)
-        elif project_id is not None and ticket_id is None:
-            conditions.extend((
-                self.model.project_id == project_id, self.model.ticket_id.is_(None),
-            ))
-        else:
-            conditions.extend((
-                self.model.project_id.is_(None), self.model.ticket_id.is_(None),
-            ))
+            stmt = stmt.where(self.model.ticket_id == ticket_id)
+        if assignee_id is not None:
+            stmt = stmt.where(self.model.assignee_id == assignee_id)
 
-        # 2. Запрос с применением фильтров
-        stmt = select(func.count()).select_from(self.model).where(and_(*conditions))
+        # 3. Получение общего количества относительно применённых фильтров
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total_items = await self.session.scalar(count_stmt)
+        if total_items == 0:
+            return Page.create([], total_items, pagination.page, pagination.size)
 
-        # 3. Выполнение запроса с блокировкой для предотвращения race condition
-        stmt = stmt.with_for_update()
-        result = await self.session.scalar(stmt) or 0
+        # 4. Получение указанной страницы
+        stmt = (
+            stmt.order_by(self.model.created_at.desc())
+            .offset(pagination.offset)
+            .limit(pagination.size)
+        )
+        results = await self.session.execute(stmt)
+        models = results.scalars().all()
 
-        return int(result) + 1
+        return Page.create(
+            items=[self.model_mapper.to_view(model) for model in models],
+            total_items=total_items,
+            page=pagination.page,
+            size=pagination.size,
+        )

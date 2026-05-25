@@ -32,8 +32,8 @@ class TicketStatus(StrEnum):
     CANCELED = "Отменён"
 
 
-class TicketPriority(StrEnum):
-    """Приоритет тикета"""
+class Priority(StrEnum):
+    """Приоритет для Work Item"""
 
     LOW = "Низкий"
     MEDIUM = "Средний"

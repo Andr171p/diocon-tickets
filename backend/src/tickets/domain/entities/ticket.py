@@ -22,7 +22,7 @@ from ..events import (
 from ..vo import (
     Tag,
     TicketNumber,
-    TicketPriority,
+    Priority,
     TicketStatus,
 )
 
@@ -61,7 +61,7 @@ class Ticket(AggregateRoot):
     title: str
     description: str
     status: TicketStatus
-    priority: TicketPriority
+    priority: Priority
     assignee_id: UUID | None = None
     closed_at: datetime | None = None
 
@@ -92,7 +92,7 @@ class Ticket(AggregateRoot):
         created_by_role: UserRole,
         title: str,
         description: str | None = None,
-        priority: TicketPriority = TicketPriority.MEDIUM,
+        priority: Priority = Priority.MEDIUM,
         project_id: UUID | None = None,
         counterparty_id: UUID | None = None,
         product_id: UUID | None = None,
@@ -149,7 +149,7 @@ class Ticket(AggregateRoot):
             edited_by: UUID,
             title: str | None = None,
             description: str | None = None,
-            priority: TicketPriority | None = None,
+            priority: Priority | None = None,
             tags: list[Tag] | None = None
     ) -> None:
         """Редактирование тикета"""

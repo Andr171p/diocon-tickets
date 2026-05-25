@@ -8,40 +8,9 @@ from src.shared.utils.time import current_datetime
 from src.tasks.domain.constants import ALLOWED_EDIT_STATUSES
 from src.tasks.domain.entities import Task
 from src.tasks.domain.vo import StoryPoints, TaskNumber, TaskStatus
-from src.tickets.domain.vo import TicketPriority
+from src.tickets.domain.vo import Priority
 
-
-def make_task(*, status: TaskStatus = TaskStatus.BACKLOG, **overrides) -> Task:
-    """Фабрика для создания задач"""
-
-    assignee_id = overrides.pop("assignee_id", None)
-    completed_at = overrides.pop("completed_at", None)
-
-    if status == TaskStatus.IN_PROGRESS and assignee_id is None:
-        assignee_id = uuid4()
-    if status == TaskStatus.DONE and completed_at is None:
-        completed_at = current_datetime()
-
-    return Task(
-        id=overrides.pop("id", uuid4()),
-        number=overrides.pop("number", TaskNumber("TEST-26-00000001-001")),
-        title=overrides.pop("title", "Test task"),
-        description=overrides.pop("description", None),
-        status=status,
-        priority=overrides.pop("priority", TicketPriority.MEDIUM),
-        assignee_id=assignee_id,
-        reviewer_id=overrides.pop("reviewer_id", None),
-        estimated_hours=overrides.pop("estimated_hours", None),
-        actual_hours=overrides.pop("actual_hours", Decimal(0)),
-        due_date=overrides.pop("due_date", None),
-        started_at=overrides.pop("started_at", None),
-        completed_at=completed_at,
-        created_by=overrides.pop("created_by", uuid4()),
-        created_at=overrides.pop("created_at", current_datetime()),
-        updated_at=overrides.pop("updated_at", current_datetime()),
-        deleted_at=overrides.pop("deleted_at", None),
-        **overrides,
-    )
+from .helpers import make_task
 
 
 @pytest.fixture
@@ -80,7 +49,7 @@ class TestTaskInvariants:
                 number=task_number,
                 title="Test task",
                 status=TaskStatus.IN_PROGRESS,
-                priority=TicketPriority.MEDIUM,
+                priority=Priority.MEDIUM,
                 assignee_id=None,
                 created_by=uuid4(),
             )
@@ -97,7 +66,7 @@ class TestTaskInvariants:
                 number=task_number,
                 title="Test task",
                 status=TaskStatus.DONE,
-                priority=TicketPriority.MEDIUM,
+                priority=Priority.MEDIUM,
                 completed_at=None,
                 created_by=uuid4(),
             )
@@ -121,7 +90,7 @@ class TestTaskCreate:
         assert task.status == TaskStatus.BACKLOG
         assert task.title == "Test task"
         assert task.description == "Test task description"
-        assert task.priority == TicketPriority.MEDIUM
+        assert task.priority == Priority.MEDIUM
 
     def test_create_with_all_fields(self, task_number):
         """
@@ -137,7 +106,7 @@ class TestTaskCreate:
             title="Test task",
             created_by=uuid4(),
             description="Test task description",
-            priority=TicketPriority.HIGH,
+            priority=Priority.HIGH,
             ticket_id=ticket_id,
             project_id=project_id,
             due_date=due_date,
@@ -146,7 +115,7 @@ class TestTaskCreate:
 
         assert task.ticket_id == ticket_id
         assert task.project_id == project_id
-        assert task.priority == TicketPriority.HIGH
+        assert task.priority == Priority.HIGH
         assert task.estimated_hours == Decimal("3.5")
         assert task.due_date == due_date
 
@@ -296,7 +265,7 @@ class TestTaskEdit:
         task.edit(
             title=" New title ",
             description="New description ",
-            priority=TicketPriority.LOW,
+            priority=Priority.LOW,
             story_points=3,
             estimated_hours=Decimal(8),
             due_date=new_due_date,
@@ -304,7 +273,7 @@ class TestTaskEdit:
 
         assert task.title == "New title"
         assert task.description == "New description"
-        assert task.priority == TicketPriority.LOW
+        assert task.priority == Priority.LOW
         assert task.story_points == StoryPoints(3)
         assert task.estimated_hours == Decimal(8)
         assert task.due_date == new_due_date
@@ -364,12 +333,12 @@ class TestTaskIncrementActualHours:
         task = make_task()
         original_updated_at = task.updated_at
         actual_hours = Decimal("2.5")
-        task.increment_actual_hours(actual_hours)
+        task.add_actual_hours(actual_hours)
 
         assert task.actual_hours == actual_hours
         assert task.updated_at > original_updated_at
 
-        task.increment_actual_hours(Decimal("1.3"))
+        task.add_actual_hours(Decimal("1.3"))
         assert task.actual_hours == Decimal("3.8")
 
     def test_add_negative_failed(self):
@@ -380,7 +349,7 @@ class TestTaskIncrementActualHours:
         task = make_task()
 
         with pytest.raises(ValueError, match="Hours must be positive"):
-            task.increment_actual_hours(Decimal("-1.1"))
+            task.add_actual_hours(Decimal("-1.1"))
 
     def test_add_to_deleted_task_failed(self):
         """
@@ -390,7 +359,7 @@ class TestTaskIncrementActualHours:
         task = make_task(deleted_at=current_datetime())
 
         with pytest.raises(InvalidStateError, match="Cannot add hours to archived task"):
-            task.increment_actual_hours(Decimal("1.1"))
+            task.add_actual_hours(Decimal("1.1"))
 
 
 class TestTaskRequestReview:

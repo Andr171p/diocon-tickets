@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import and_, exists, or_, select
 
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
-from ...shared.schemas import Page, PageParams
+from ...shared.schemas import Page, Pagination
 from ..domain.entities import Membership, Project
 from ..domain.vo import ProjectKey, ProjectRole
 from .models import MembershipOrm, ProjectOrm
@@ -97,7 +97,7 @@ class SqlProjectRepository(SqlAlchemyRepository[Project, ProjectOrm]):
     async def get_by_user_membership(
         self,
         user_id: UUID,
-        pagination: PageParams,
+        pagination: Pagination,
         owner_only: bool = False,
     ) -> Page[Project]:
         # 1. Базовый запрос + проверка наличия членства в проекте
@@ -126,7 +126,7 @@ class SqlMembershipRepository(SqlAlchemyRepository[Membership, MembershipOrm]):
     @override
     async def paginate(
             self,
-            pagination: PageParams,
+            pagination: Pagination,
             project_id: UUID | None = None,
             include_project_roles: list[ProjectRole] | None = None,
     ) -> Page[Membership]:

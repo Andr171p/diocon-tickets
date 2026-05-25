@@ -11,7 +11,7 @@ from ..iam.domain.vo import UserRole
 from ..projects.dependencies import ProjectAccessServiceDep, ProjectRepoDep
 from ..shared.dependencies import EventPublisherDep, SessionDep
 from .domain.repos import CommentRepository, ReactionRepository, TicketRepository
-from .domain.vo import TicketPriority, TicketStatus
+from .domain.vo import Priority, TicketStatus
 from .infra.repos import SqlCommentRepository, SqlReactionRepository, SqlTicketRepository
 from .schemas import TicketFilter
 from .services import CommentService, ReactionService, TicketService
@@ -109,7 +109,7 @@ def get_ticket_filters(
             Query(..., description="По статусу")
         ] = None,
         priority: Annotated[
-            TicketPriority | None,
+            Priority | None,
             Query(..., description="По приоритету")
         ] = None,
         # Дополнительные фильтры

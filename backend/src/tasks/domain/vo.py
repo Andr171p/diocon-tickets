@@ -67,7 +67,7 @@ class TaskNumber(ValueObject):
     SEQUENCE_LENGTH: ClassVar[int] = 3
     INTERNAL_PREFIX: ClassVar[str] = "TASK"  # для задач без тикета
     NUMBER_PARTS: ClassVar[int] = 2
-    MAX_LENGTH: ClassVar[int] = 20
+    MAX_LENGTH: ClassVar[int] = 30
 
     def __post_init__(self) -> None:
         if not self.value.strip() or not self.is_valid_format(self.value):
@@ -110,11 +110,11 @@ class TaskNumber(ValueObject):
 
         sequence_str = f"{sequence:0{cls.SEQUENCE_LENGTH}d}"
 
-        # 2. Определение префикса
-        if project_key is not None:
-            prefix = f"{project_key}"
-        elif ticket_number is not None:
+        # 2. Префикс выбирается по приоритету: тикет > проект > внутренний
+        if ticket_number is not None:
             prefix = f"{ticket_number}"
+        elif project_key is not None:
+            prefix = f"{project_key}"
         else:
             prefix = cls.INTERNAL_PREFIX
 

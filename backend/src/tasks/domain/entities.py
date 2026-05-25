@@ -7,7 +7,7 @@ from ...media.domain.entities import Attachment
 from ...shared.domain.entities import Entity
 from ...shared.domain.exceptions import InvalidStateError, InvariantViolationError
 from ...shared.utils.time import current_datetime
-from ...tickets.domain.vo import TicketPriority
+from ...tickets.domain.vo import Priority
 from .constants import ALLOWED_ASSIGN_STATUSES, ALLOWED_EDIT_STATUSES, ALLOWED_TRANSITIONS
 from .events import TaskArchived, TaskAssigned, TaskCreated, TaskReviewRequested, TaskStatusMoved
 from .vo import StoryPoints, TaskNumber, TaskStatus
@@ -27,7 +27,7 @@ class Task(Entity):
     title: str
     description: str | None = None
     status: TaskStatus
-    priority: TicketPriority
+    priority: Priority
     story_points: StoryPoints | None = None
 
     # Исполнитель и ответственный
@@ -73,7 +73,7 @@ class Task(Entity):
             title: str,
             created_by: UUID,
             description: str | None = None,
-            priority: TicketPriority = TicketPriority.MEDIUM,
+            priority: Priority = Priority.MEDIUM,
             ticket_id: UUID | None = None,
             project_id: UUID | None = None,
             due_date: date | None = None,
@@ -176,7 +176,7 @@ class Task(Entity):
             *,
             title: str | None = None,
             description: str | None = None,
-            priority: TicketPriority | None = None,
+            priority: Priority | None = None,
             story_points: int | None = None,
             estimated_hours: Decimal | None = None,
             due_date: date | None = None,
@@ -238,7 +238,7 @@ class Task(Entity):
         if is_edited:
             self.updated_at = current_datetime()
 
-    def increment_actual_hours(self, hours: Decimal) -> None:
+    def add_actual_hours(self, hours: Decimal) -> None:
         """Добавление факта затраченных часов"""
 
         if hours <= 0:

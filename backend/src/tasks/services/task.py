@@ -2,28 +2,29 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..iam.domain.exceptions import PermissionDeniedError
-from ..iam.domain.repos import UserRepository
-from ..iam.schemas import CurrentUser
-from ..projects.domain.repos import ProjectRepository
-from ..projects.domain.services import ProjectAccessService
-from ..shared.domain.events import EventPublisher
-from ..shared.domain.exceptions import InvalidStateError, NotFoundError
-from ..tickets.domain.entities import Ticket
-from ..tickets.domain.repos import TicketRepository
-from .domain.entities import Task
-from .domain.repos import TaskRepository
-from .domain.services import (
+from ...iam.domain.exceptions import PermissionDeniedError
+from ...iam.domain.repos import UserRepository
+from ...iam.schemas import CurrentUser
+from ...projects.domain.repos import ProjectRepository
+from ...projects.domain.services import ProjectAccessService
+from ...shared.domain.events import EventPublisher
+from ...shared.domain.exceptions import InvalidStateError, NotFoundError
+from ...tasks.domain.acl import (
     can_archive_task,
     can_assign_task,
     can_create_task,
     can_edit_task,
     can_move_status,
+    can_request_review,
     can_review_task,
 )
-from .domain.vo import TaskNumber, TaskStatus
-from .mappers import map_task_to_response
-from .schemas import TaskCreate, TaskEdit, TaskResponse, TaskReview
+from ...tasks.domain.entities import Task
+from ...tasks.domain.repos import TaskRepository
+from ...tasks.domain.vo import TaskNumber, TaskStatus
+from ...tasks.mappers import map_task_to_response
+from ...tasks.schemas import TaskCreate, TaskEdit, TaskResponse, TaskReview
+from ...tickets.domain.entities import Ticket
+from ...tickets.domain.repos import TicketRepository
 
 
 class TaskService:
@@ -50,7 +51,7 @@ class TaskService:
             data: TaskCreate, ticket: Ticket | None = None
     ) -> UUID | None:
         """
-        Разрешение проекта для создания задачи
+        Определение правильного ID проекта для привязи к задаче
         """
 
         project_id = data.project_id
@@ -85,10 +86,14 @@ class TaskService:
         project_id = self._resolve_project_id(data, ticket)
 
         # 4. Проверка проекта на существование + авторизация
+        project_key = None
+
         if project_id is not None:
             project = await self.project_repo.read(project_id)
             if project is None:
                 raise NotFoundError(f"Project with ID {project_id} not found")
+
+            project_key = project.key
 
             # 4.1. Проверка прав на создание проекта
             permission = await self.project_access_service.can_create_task(
@@ -101,10 +106,11 @@ class TaskService:
 
         # 5. Создание задачи с уникальным номером
         sequence = await self.task_repo.get_next_sequence(
-            ticket_id=ticket.id, project_id=project_id
+            ticket_id=None if ticket is None else ticket.id, project_id=project_id
         )
         task_number = TaskNumber.create(
             ticket_number=None if ticket is None else ticket.number,
+            project_key=project_key,
             sequence=sequence,
         )
 
@@ -226,6 +232,42 @@ class TaskService:
         await self.session.commit()
 
         # 5. Публикация доменных событий
+        for event in task.collect_events():
+            await self.event_publisher.publish(event)
+
+        return map_task_to_response(task)
+
+    async def request_review(
+            self, task_id: UUID, reviewer_id: UUID, current_user: CurrentUser
+    ) -> TaskResponse:
+        """Запросить ревью задачи"""
+
+        # 1. Получение и проверка задачи на существование
+        task = await self.task_repo.read(task_id)
+        if task is None:
+            raise NotFoundError(f"Task with ID {task_id} not found")
+
+        # 2. Получение и проверка га существование указанного проверяющего задачи
+        reviewer = await self.user_repo.read(reviewer_id)
+        if reviewer is None or reviewer.is_deleted:
+            raise NotFoundError(f"Reviewer with ID {reviewer_id} not found")
+
+        # 2. Проверка прав на запрос ревью задачи
+        permission = can_request_review(
+            task=task,
+            reviewer_role=reviewer.role,
+            user_id=current_user.user_id,
+            user_role=current_user.role,
+        )
+        if not permission.allowed:
+            raise PermissionDeniedError(permission.reason)
+
+        # 3. Запрос ревью и обновление состояния задачи
+        task.request_review(reviewer_id=reviewer_id, requested_by=current_user.user_id)
+        await self.task_repo.upsert(task)
+        await self.session.commit()
+
+        # 4. Публикация доменных событий
         for event in task.collect_events():
             await self.event_publisher.publish(event)
 
