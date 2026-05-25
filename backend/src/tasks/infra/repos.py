@@ -1,15 +1,14 @@
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from ...media.infra.repo import AttachmentMapper
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
-from ...shared.schemas import Page, Pagination
 from ..domain.entities import Task
 from ..domain.repos import TaskView
-from ..domain.vo import StoryPoints, TaskNumber, TaskStatus
+from ..domain.vo import StoryPoints, TaskNumber
 from .models import TaskOrm, TaskSequence
 
 
@@ -28,11 +27,13 @@ class TaskMapper(ModelMapper[Task, TaskOrm]):
             description=model.description,
             status=model.status,
             priority=model.priority,
-            story_points=StoryPoints(model.story_points),
+            story_points=None if model.story_points is None else StoryPoints(model.story_points),
             assignee_id=model.assignee_id,
             reviewer_id=model.reviewer_id,
-            estimated_hours=Decimal(model.estimated_hours),
-            actual_hours=Decimal(model.actual_hours),
+            estimated_hours=(
+                None if model.estimated_hours is None else Decimal(model.estimated_hours)
+            ),
+            actual_hours=None if model.actual_hours is None else Decimal(model.actual_hours),
             due_date=model.due_date,
             started_at=model.started_at,
             completed_at=model.completed_at,
@@ -56,10 +57,12 @@ class TaskMapper(ModelMapper[Task, TaskOrm]):
             description=entity.description,
             status=entity.status,
             priority=entity.priority,
-            story_points=entity.story_points.value,
+            story_points=None if entity.story_points is None else entity.story_points.value,
             assignee_id=entity.assignee_id,
             reviewer_id=entity.reviewer_id,
-            estimated_hours=float(entity.estimated_hours),
+            estimated_hours=(
+                None if entity.estimated_hours is None else float(entity.estimated_hours)
+            ),
             actual_hours=float(entity.actual_hours),
             due_date=entity.due_date,
             started_at=entity.started_at,
@@ -112,47 +115,3 @@ class SqlTaskRepository(SqlAlchemyRepository[Task, TaskOrm]):
         result = await self.session.execute(stmt)
 
         return result.scalar_one()
-
-    async def read_views(
-            self,
-            pagination: Pagination,
-            *,
-            status: TaskStatus | None = None,
-            project_id: UUID | None = None,
-            ticket_id: UUID | None = None,
-            assignee_id: UUID | None = None,
-    ) -> Page[TaskView]:
-        # 1. Базовый запрос
-        stmt = select(self.model).where(self.model.deleted_at.is_not(None))
-
-        # 2. Применение фильтров
-        if status is not None:
-            stmt = stmt.where(self.model.status == status)
-        if project_id is not None:
-            stmt = stmt.where(self.model.project_id == project_id)
-        if ticket_id is not None:
-            stmt = stmt.where(self.model.ticket_id == ticket_id)
-        if assignee_id is not None:
-            stmt = stmt.where(self.model.assignee_id == assignee_id)
-
-        # 3. Получение общего количества относительно применённых фильтров
-        count_stmt = select(func.count()).select_from(stmt.subquery())
-        total_items = await self.session.scalar(count_stmt)
-        if total_items == 0:
-            return Page.create([], total_items, pagination.page, pagination.size)
-
-        # 4. Получение указанной страницы
-        stmt = (
-            stmt.order_by(self.model.created_at.desc())
-            .offset(pagination.offset)
-            .limit(pagination.size)
-        )
-        results = await self.session.execute(stmt)
-        models = results.scalars().all()
-
-        return Page.create(
-            items=[self.model_mapper.to_view(model) for model in models],
-            total_items=total_items,
-            page=pagination.page,
-            size=pagination.size,
-        )
