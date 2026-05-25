@@ -21,6 +21,7 @@ from src.proofreading.router import router as proofreading_router
 from src.shared.domain.exceptions import AppError
 from src.shared.infra.middlewares import LoggingMiddleware
 from src.shared.utils.cli import run_cli_command
+from src.tasks.router import router as task_router
 from src.tickets.router import router as tickets_router
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,7 @@ router.include_router(tickets_router)
 router.include_router(proofreading_router)
 router.include_router(product_router)
 router.include_router(project_router)
+router.include_router(task_router)
 
 app.include_router(router)
 
