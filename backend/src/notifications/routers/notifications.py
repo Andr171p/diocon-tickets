@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query, status
 
 from ...iam.dependencies import CurrentUserDep
-from ...shared.dependencies import PageParamsDep
+from ...shared.dependencies import PaginationDep
 from ...shared.schemas import Page
 from ..dependencies import NotificationRepoDep, NotificationServiceDep
 from ..mappers import map_notification_to_response
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/notifications", tags=["Уведомления"])
 async def get_my_notifications(
         current_user: CurrentUserDep,
         repository: NotificationRepoDep,
-        pagination: PageParamsDep,
+        pagination: PaginationDep,
         unread_only: Annotated[
             bool, Query(..., description="Учитывать только непрочитанные")
         ] = False,

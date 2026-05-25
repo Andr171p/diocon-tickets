@@ -3,7 +3,7 @@ from typing import Protocol, override
 from uuid import UUID
 
 from ...shared.domain.repo import Repository
-from ...shared.schemas import Page, PageParams
+from ...shared.schemas import Page, Pagination
 from ..domain.vo import UserRole
 from .entities import Invitation, User
 
@@ -12,7 +12,7 @@ class UserRepository(Repository[User]):
 
     @override
     async def paginate(
-            self, params: PageParams, include_roles: list[UserRole] | None = None
+            self, params: Pagination, include_roles: list[UserRole] | None = None
     ) -> Page[User]:
         """
         Переопределённая пагинация с фильтром по ролям

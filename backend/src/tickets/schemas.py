@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, NonNegativeFloat, NonNegativeInt
 
 from ..iam.domain.vo import UserRole
 from ..media.schemas import AttachmentResponse
-from .domain.vo import CommentType, ReactionType, TicketPriority, TicketStatus
+from .domain.vo import CommentType, ReactionType, Priority, TicketStatus
 
 
 class CommentResponse(BaseModel):
@@ -75,7 +75,7 @@ class TicketBase(BaseModel):
     reporter_id: UUID = Field(..., description="ID пользователя - инициатора")
     title: str = Field(..., description="Заголовок")
     description: str = Field(..., description="Описание проблемы")
-    priority: TicketPriority = Field(
+    priority: Priority = Field(
         ..., description="Приоритет выполнения (чем выше приоритет, тем быстрее время реакции)",
     )
     project_id: UUID | None = Field(
@@ -103,7 +103,7 @@ class TicketPreview(BaseModel):
     number: str = Field(..., description="Номер тикета", examples=["РОМ-26-00012456"])
     title: str = Field(..., description="Заголовок тикета")
     status: TicketStatus = Field(..., description="Текущий статус")
-    priority: TicketPriority = Field(..., description="Приоритет")
+    priority: Priority = Field(..., description="Приоритет")
 
 
 class TicketResponse(TicketBase):
@@ -149,8 +149,8 @@ class TicketCreate(TicketBase):
     Используется для задач, связанных с конкретным проектом разработки.
     """
 
-    priority: TicketPriority = Field(
-        TicketPriority.MEDIUM,
+    priority: Priority = Field(
+        Priority.MEDIUM,
         description="Приоритет выполнения (чем выше приоритет, тем быстрее время реакции)"
     )
 
@@ -164,7 +164,7 @@ class TicketFilter(BaseModel):
     project_id: UUID | None = Field(None, description="По проекту")
     counterparty_id: UUID | None = Field(None, description="По контрагенту")
     status: TicketStatus | None = Field(None, description="По статусу")
-    priority: TicketPriority | None = Field(None, description="По приоритету")
+    priority: Priority | None = Field(None, description="По приоритету")
 
     # Дополнительные фильтры
     tags: list[str] | None = Field(None, description="По тегам")
@@ -191,7 +191,7 @@ class TicketEdit(BaseModel):
 
     title: str | None = Field(None, description="Заголовок")
     description: str | None = Field(None, description="Описание")
-    priority: TicketPriority | None = Field(None, description="Приоритет")
+    priority: Priority | None = Field(None, description="Приоритет")
     tags: list[Tag] | None = Field(None, description="Теги")
 
 
@@ -214,7 +214,7 @@ class PredictionConfidence(BaseModel):
 class PredictionResponse(BaseModel):
     """API схема ответа с определённым приоритетом и сгенерированными тегами"""
 
-    suggested_priority: TicketPriority = Field(..., description="Предложенный приоритет")
+    suggested_priority: Priority = Field(..., description="Предложенный приоритет")
     suggested_tags: list[Tag] = Field(
         default_factory=list, min_length=1, max_length=10, description="Предложенные теги"
     )

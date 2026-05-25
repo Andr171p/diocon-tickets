@@ -9,11 +9,14 @@ from src.iam.domain.entities import Invitation, User
 from src.iam.domain.vo import UserRole
 from src.notifications.domain.entities import Notification, UserPreference
 from src.notifications.domain.vo import NotificationType
+from src.products.domain.entities import SoftwareProduct
 from src.projects.domain.entities import Membership, Project
 from src.projects.domain.vo import ProjectKey, ProjectRole
 from src.shared.infra.repos import InMemoryRepository
-from src.shared.schemas import Page, PageParams
+from src.shared.schemas import Page, Pagination
 from src.shared.utils.time import current_datetime
+from src.tasks.domain.entities import Task
+from src.tasks.domain.vo import TaskNumber
 from src.tickets.domain.entities import Comment, Reaction, Ticket
 from src.tickets.domain.repos import ReactionStats
 from src.tickets.domain.vo import CommentType, ReactionType
@@ -40,7 +43,7 @@ class InMemoryUserRepository(InMemoryRepository[User]):
 
     @override
     async def paginate(
-            self, params: PageParams, include_roles: list[UserRole] | None = None
+            self, params: Pagination, include_roles: list[UserRole] | None = None
     ) -> Page[User]:
         all_users = list(self.data.values())
 
@@ -117,7 +120,7 @@ class InMemoryMembershipRepository(InMemoryRepository[Membership]):
     @override
     async def paginate(
             self,
-            pagination: PageParams,
+            pagination: Pagination,
             project_id: UUID | None = None,
             include_project_roles: list[ProjectRole] | None = None,
     ) -> Page[Membership]:
@@ -202,7 +205,7 @@ class InMemoryCommentRepository(InMemoryRepository[Comment]):
     async def get_by_ticket(
             self,
             ticket_id: UUID,
-            pagination: PageParams,
+            pagination: Pagination,
             *,
             user_id: UUID | None = None,
             include_notes: bool = False,
@@ -226,7 +229,7 @@ class InMemoryCommentRepository(InMemoryRepository[Comment]):
     async def get_replies(
             self,
             parent_comment_id: UUID,
-            pagination: PageParams,
+            pagination: Pagination,
             *,
             user_id: UUID | None = None,
             include_notes: bool = False,
@@ -263,7 +266,7 @@ class InMemoryCommentRepository(InMemoryRepository[Comment]):
         )
 
     @staticmethod
-    def _paginate_list(items: list[Comment], params: PageParams) -> Page[Comment]:
+    def _paginate_list(items: list[Comment], params: Pagination) -> Page[Comment]:
         total = len(items)
         start = (params.page - 1) * params.size
         end = start + params.size
@@ -305,7 +308,7 @@ class InMemoryNotificationRepository(InMemoryRepository[Notification]):
         )
 
     async def get_by_user(
-            self, user_id: UUID, pagination: PageParams, unread_only: bool = False
+            self, user_id: UUID, pagination: Pagination, unread_only: bool = False
     ) -> Page[Notification]:
         user_notifications = [
             notification
@@ -372,5 +375,30 @@ class InMemoryReactionRepository(InMemoryRepository[Reaction]):
         return ReactionStats(counts=counts, user_reactions=user_reactions)
 
 
-class InMemoryProductRepository(InMemoryRepository):
+class InMemoryProductRepository(InMemoryRepository[SoftwareProduct]):
     ...
+
+
+class InMemoryTaskRepository(InMemoryRepository[Task]):
+    def __init__(self) -> None:
+        super().__init__()
+        self.sequences: dict[tuple[UUID | None, ...], int] = {}
+
+    async def get_by_number(self, number: TaskNumber) -> Task | None:
+        for task in self.data.values():
+            if task.number == number:
+                return task
+
+        return None
+
+    async def get_next_sequence(
+        self, ticket_id: UUID | None = None, project_id: UUID | None = None
+    ) -> int:
+        key = (ticket_id, project_id)
+
+        if key not in self.sequences:
+            self.sequences[key] = 0
+
+        self.sequences[key] += 1
+
+        return self.sequences[key]

@@ -6,7 +6,7 @@ from pydantic import SecretStr
 from sqlalchemy import select
 
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
-from ...shared.schemas import Page, PageParams
+from ...shared.schemas import Page, Pagination
 from ..domain.entities import Invitation, User
 from ..domain.vo import FullName, Username, UserRole
 from .models import InvitationOrm, UserOrm
@@ -52,7 +52,7 @@ class SqlUserRepository(SqlAlchemyRepository[User, UserOrm]):
 
     @override
     async def paginate(
-            self, params: PageParams, include_roles: list[UserRole] | None = None
+            self, params: Pagination, include_roles: list[UserRole] | None = None
     ) -> Page[User]:
         stmt = select(self.model)
         if include_roles is not None:

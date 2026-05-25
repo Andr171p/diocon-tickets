@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from ...shared.dependencies import PageParamsDep
+from ...shared.dependencies import PaginationDep
 from ...shared.domain.exceptions import NotFoundError
 from ...shared.schemas import Page
 from ..dependencies import CurrentUserDep, UserRepoDep, require_role
@@ -35,7 +35,7 @@ async def get_me(current_user: CurrentUserDep, repository: UserRepoDep) -> UserR
     summary="Получение списка сотрудников поддержки",
     description="Доступно только для команды поддержки",
 )
-async def get_supports(pagination: PageParamsDep, repository: UserRepoDep) -> Page[UserResponse]:
+async def get_supports(pagination: PaginationDep, repository: UserRepoDep) -> Page[UserResponse]:
     page = await repository.paginate(pagination, include_roles=[*SUPPORT_TEAM])
     return page.to_response(map_user_to_response)
 
@@ -49,7 +49,7 @@ async def get_supports(pagination: PageParamsDep, repository: UserRepoDep) -> Pa
     description="Доступно только для команды поддержки"
 )
 async def get_users(
-        params: PageParamsDep,
+        params: PaginationDep,
         repository: UserRepoDep,
         include_roles: Annotated[
             list[UserRole] | None, Query(..., description="Фильтрация по ролям")

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 
 from ..iam.dependencies import CurrentUserDep, require_role
 from ..iam.domain.constants import SUPPORT_TEAM
-from ..shared.dependencies import PageParamsDep
+from ..shared.dependencies import PaginationDep
 from ..shared.schemas import Page
 from .dependencies import ProductFiltersDep, ProductRepoDep, ProductServiceDep
 from .domain.vo import ProductCategory
@@ -51,7 +51,7 @@ def get_product_category_attributes_schema(category: ProductCategory) -> Attribu
     summary="Получение программных продуктов",
 )
 async def get_products(
-        pagination: PageParamsDep,
+        pagination: PaginationDep,
         filters: ProductFiltersDep,
         repository: ProductRepoDep,
 ) -> Page[ProductResponse]:

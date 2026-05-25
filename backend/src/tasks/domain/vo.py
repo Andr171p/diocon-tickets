@@ -110,11 +110,11 @@ class TaskNumber(ValueObject):
 
         sequence_str = f"{sequence:0{cls.SEQUENCE_LENGTH}d}"
 
-        # 2. Определение префикса
-        if project_key is not None:
-            prefix = f"{project_key}"
-        elif ticket_number is not None:
+        # 2. Префикс выбирается по приоритету: тикет > проект > внутренний
+        if ticket_number is not None:
             prefix = f"{ticket_number}"
+        elif project_key is not None:
+            prefix = f"{project_key}"
         else:
             prefix = cls.INTERNAL_PREFIX
 

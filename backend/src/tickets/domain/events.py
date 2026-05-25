@@ -3,7 +3,7 @@ from uuid import UUID
 
 from ...iam.domain.vo import UserRole
 from ...shared.domain.events import Event
-from .vo import CommentType, ReactionType, TicketPriority
+from .vo import CommentType, ReactionType, Priority
 
 # — События для тикетов –
 
@@ -17,7 +17,7 @@ class TicketCreated(Event):
     number: str
     created_by: UUID
     reporter_id: UUID
-    priority: TicketPriority
+    priority: Priority
     project_id: UUID | None = None
     counterparty_id: UUID | None = None
 
@@ -44,8 +44,8 @@ class TicketPriorityChanged(Event):
     ticket_id: UUID
     number: str
     changed_by: UUID
-    old_priority: TicketPriority
-    new_priority: TicketPriority
+    old_priority: Priority
+    new_priority: Priority
 
 
 @dataclass(frozen=True, kw_only=True)

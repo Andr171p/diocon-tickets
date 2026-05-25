@@ -3,8 +3,19 @@ from uuid import UUID
 from fastapi import APIRouter, status
 
 from ..iam.dependencies import CurrentUserDep
-from .dependencies import TaskServiceDep
-from .schemas import AssigneeId, NewStatus, TaskCreate, TaskEdit, TaskResponse, TaskReview
+from ..shared.dependencies import PaginationDep
+from .dependencies import KanbanFiltersDep, TaskBoardServiceDep, TaskServiceDep
+from .schemas import (
+    AssigneeId,
+    KanbanBoard,
+    KanbanContextType,
+    NewStatus,
+    ReviewerId,
+    TaskCreate,
+    TaskEdit,
+    TaskResponse,
+    TaskReview,
+)
 
 router = APIRouter(prefix="/tasks", tags=["Задания сотрудникам"])
 
@@ -66,7 +77,13 @@ async def assign_task(
     response_model=TaskResponse,
     summary="Запросить ревью"
 )
-async def request_task_review(task_id: UUID) -> TaskResponse: ...
+async def request_task_review(
+        task_id: UUID,
+        reviewer_id: ReviewerId,
+        current_user: CurrentUserDep,
+        service: TaskServiceDep,
+) -> TaskResponse:
+    return await service.request_review(task_id, reviewer_id, current_user)
 
 
 @router.post(
@@ -75,7 +92,10 @@ async def request_task_review(task_id: UUID) -> TaskResponse: ...
     response_model=TaskResponse,
     summary="Провести ревью",
 )
-async def review_task(task_id: UUID, data: TaskReview) -> TaskResponse: ...
+async def review_task(
+        task_id: UUID, data: TaskReview, current_user: CurrentUserDep, service: TaskServiceDep
+) -> TaskResponse:
+    return await service.review(task_id, data, current_user)
 
 
 @router.delete(
@@ -84,4 +104,28 @@ async def review_task(task_id: UUID, data: TaskReview) -> TaskResponse: ...
     response_model=TaskResponse,
     summary="Архивировать задачу"
 )
-async def archive_task(task_id: UUID) -> TaskResponse: ...
+async def archive_task(
+        task_id: UUID, current_user: CurrentUserDep, service: TaskServiceDep
+) -> TaskResponse:
+    return await service.archive(task_id, current_user)
+
+
+@router.post(
+    path="/kanban",
+    status_code=status.HTTP_200_OK,
+    response_model=KanbanBoard,
+    summary="Получить Kanban доску"
+)
+async def get_kanban_board(
+        context: KanbanContextType,
+        pagination: PaginationDep,
+        filters: KanbanFiltersDep,
+        current_user: CurrentUserDep,
+        service: TaskBoardServiceDep,
+) -> KanbanBoard:
+    return await service.get_kanban_board(
+        pagination=pagination,
+        context=context,
+        filters=filters,
+        current_user=current_user,
+    )

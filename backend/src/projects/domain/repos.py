@@ -3,7 +3,7 @@ from typing import override
 from uuid import UUID
 
 from ...shared.domain.repo import Repository
-from ...shared.schemas import Page, PageParams
+from ...shared.schemas import Page, Pagination
 from .entities import Membership, Project
 from .vo import ProjectKey, ProjectRole
 
@@ -22,7 +22,7 @@ class ProjectRepository(Repository[Project]):
     async def get_by_user_membership(
             self,
             user_id: UUID,
-            pagination: PageParams,
+            pagination: Pagination,
             owner_only: bool = False,
     ) -> Page[Project]:
         """
@@ -35,7 +35,7 @@ class MembershipRepository(Repository[Membership]):
     @override
     async def paginate(
             self,
-            pagination: PageParams,
+            pagination: Pagination,
             project_id: UUID | None = None,
             include_project_roles: list[ProjectRole] | None = None,
     ) -> Page[Membership]: ...

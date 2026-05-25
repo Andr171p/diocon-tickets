@@ -2,7 +2,7 @@ from typing import Protocol
 
 from uuid import UUID
 
-from ..schemas import Page, PageParams
+from ..schemas import Page, Pagination
 from .entities import Entity
 
 
@@ -12,7 +12,7 @@ class Repository[EntityT: Entity](Protocol):
 
     async def read(self, uid: UUID) -> EntityT | None: ...
 
-    async def paginate(self, params: PageParams) -> Page[EntityT]: ...
+    async def paginate(self, params: Pagination) -> Page[EntityT]: ...
 
     async def update(self, uid: UUID, **kwargs) -> EntityT: ...
 

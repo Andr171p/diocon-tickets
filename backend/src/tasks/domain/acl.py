@@ -107,11 +107,21 @@ def can_assign_task(
     return PermissionResult(True)
 
 
-def can_request_review(task: Task, user_id: UUID, user_role: UserRole) -> PermissionResult:
+def can_request_review(
+        task: Task, reviewer_role: UserRole, user_id: UUID, user_role: UserRole
+) -> PermissionResult:
     """Может ли пользователь запросить ревью для задачи"""
 
     if user_role in {UserRole.SUPPORT_MANAGER, UserRole.ADMIN}:
         return PermissionResult(True)
+
+    # Запросить ревью можно только у разработчиков и сотрудников поддержки
+    if reviewer_role in {
+        UserRole.CUSTOMER, UserRole.CUSTOMER_ADMIN, UserRole.ACCOUNT_MANAGER, UserRole.FINANCE
+    }:
+        return PermissionResult(
+            False, "You can request a review only from developers and support staff"
+        )
 
     # Исполнитель может запросить ревью для своей задачи
     if task.assignee_id == user_id:
@@ -141,3 +151,13 @@ def can_archive_task(task: Task, user_id: UUID, user_role: UserRole) -> Permissi
         return PermissionResult(True)
 
     return PermissionResult(False, "Only the admin or creator can archive a task")
+
+
+def can_view_tasks(user_role: UserRole) -> PermissionResult:
+    """Может ли пользователь просматривать задачи"""
+
+    # Просматривать задачи могут только внутренние сотрудники
+    if not user_role.is_internal():
+        return PermissionResult(False, "Only internal users can view tasks")
+
+    return PermissionResult(True)

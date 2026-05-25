@@ -3,7 +3,7 @@ from typing import override
 from sqlalchemy import String, cast, desc, func, select, text
 
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
-from ...shared.schemas import Page, PageParams
+from ...shared.schemas import Page, Pagination
 from ..domain.entities import SoftwareProduct
 from ..domain.vo import ProductCategory, ProductStatus
 from .models import SoftwareProductOrm
@@ -54,7 +54,7 @@ class SqlProductRepository(SqlAlchemyRepository[SoftwareProduct, SoftwareProduct
     @override
     async def paginate(
             self,
-            pagination: PageParams,
+            pagination: Pagination,
             category: ProductCategory | None = None,
             status: ProductStatus | None = None,
             search: str | None = None,

@@ -8,7 +8,7 @@ from sqlalchemy import BinaryExpression, Select, and_, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from ...shared.infra.repos import SqlAlchemyRepository
-from ...shared.schemas import Page, PageParams
+from ...shared.schemas import Page, Pagination
 from ..domain.entities import Comment, Reaction, Ticket
 from ..domain.repos import ReactionStats
 from ..domain.vo import CommentType, ReactionType
@@ -66,7 +66,7 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
                 stmt = stmt.where(condition_func(value))
         return stmt
 
-    async def _paginate(self, stmt: Select, params: PageParams) -> Page[Ticket]:
+    async def _paginate(self, stmt: Select, params: Pagination) -> Page[Ticket]:
         # 1. Получение общего количества
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total_items = await self.session.scalar(count_stmt)
@@ -91,7 +91,7 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
 
     @override
     async def paginate(
-        self, params: PageParams, filters: TicketFilter | None = None
+        self, params: Pagination, filters: TicketFilter | None = None
     ) -> Page[Ticket]:
         # 1. Базовый запрос
         stmt = select(self.model)
@@ -127,7 +127,7 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
         stmt = select(func.count()).select_from(self.model).where(and_(*conditions))
         return await self.session.scalar(stmt) or 0
 
-    async def get_by_reporter(self, reporter_id: UUID, params: PageParams) -> Page[Ticket]:
+    async def get_by_reporter(self, reporter_id: UUID, params: Pagination) -> Page[Ticket]:
         # 1. Базовый запрос
         stmt = select(self.model).where(self.model.reporter_id == reporter_id)
 
@@ -141,7 +141,7 @@ class SqlCommentRepository(SqlAlchemyRepository[Comment, CommentOrm]):
     async def get_by_ticket(
             self,
             ticket_id: UUID,
-            pagination: PageParams,
+            pagination: Pagination,
             *,
             user_id: UUID | None = None,
             include_notes: bool = False,
@@ -178,7 +178,7 @@ class SqlCommentRepository(SqlAlchemyRepository[Comment, CommentOrm]):
     async def get_replies(
             self,
             parent_comment_id: UUID,
-            pagination: PageParams,
+            pagination: Pagination,
             *,
             user_id: UUID | None = None,
             include_notes: bool = False,

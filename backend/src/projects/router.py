@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Path, Query, status
 
 from ..iam.dependencies import CurrentUserDep, get_current_user, require_role
 from ..iam.domain.constants import SUPPORT_MANAGER_OR_ABOVE
-from ..shared.dependencies import PageParamsDep
+from ..shared.dependencies import PaginationDep
 from ..shared.domain.exceptions import NotFoundError
 from ..shared.schemas import Page
 from .dependencies import ProjectRepoDep, ProjectServiceDep
@@ -73,7 +73,7 @@ async def create_project(
 )
 async def get_my_projects(
         current_user: CurrentUserDep,
-        pagination: PageParamsDep,
+        pagination: PaginationDep,
         repository: ProjectRepoDep,
         owner_only: Annotated[
             bool, Query(..., description="Учитывать только те, где пользователь владелец")
@@ -106,7 +106,7 @@ async def get_project(project_id: UUID, repository: ProjectRepoDep) -> ProjectRe
     dependencies=[Depends(require_role(*SUPPORT_MANAGER_OR_ABOVE))],
     summary="Получение всех проектов"
 )
-async def get_projects(params: PageParamsDep, repository: ProjectRepoDep) -> Page[dict[str, Any]]:
+async def get_projects(params: PaginationDep, repository: ProjectRepoDep) -> Page[dict[str, Any]]:
     page = await repository.paginate(params)
     return page.to_response(map_project_to_response)
 

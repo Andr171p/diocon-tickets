@@ -1,14 +1,16 @@
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Query
 
 from ..iam.dependencies import UserRepoDep
 from ..projects.dependencies import ProjectAccessServiceDep, ProjectRepoDep
 from ..shared.dependencies import SessionDep
 from ..tickets.dependencies import TicketRepoDep
+from ..tickets.domain.vo import Priority
 from .domain.repos import TaskRepository
 from .infra.repos import SqlTaskRepository
-from .services import TaskService
+from .schemas import KanbanFilters
+from .services import TaskBoardService, TaskService
 
 
 def get_task_repo(session: SessionDep) -> SqlTaskRepository:
@@ -36,4 +38,23 @@ def get_task_service(
     )
 
 
+def get_task_board_service(
+        task_repo: TaskRepoDep, project_access_service: ProjectAccessServiceDep
+) -> TaskBoardService:
+    return TaskBoardService(task_repo=task_repo, project_access_service=project_access_service)
+
+
 TaskServiceDep = Annotated[TaskService, Depends(get_task_service)]
+TaskBoardServiceDep = Annotated[TaskBoardService, Depends(get_task_board_service)]
+
+
+def get_kanban_filters(
+        priorities: Annotated[
+            list[Priority] | None, Query(..., description="По приоритету")
+        ] = None,
+        overdue_only: Annotated[bool, Query(..., description="Только просроченные")] = False,
+) -> KanbanFilters:
+    return KanbanFilters(priorities=priorities, overdue_only=overdue_only)
+
+
+KanbanFiltersDep = Annotated[KanbanFilters, Depends(get_kanban_filters)]

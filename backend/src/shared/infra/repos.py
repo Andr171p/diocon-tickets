@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...core.database import Base
 from ..domain.entities import Entity
 from ..domain.exceptions import NotFoundError
-from ..schemas import Page, PageParams
+from ..schemas import Page, Pagination
 from ..utils.time import current_datetime
 
 
@@ -41,7 +41,7 @@ class SqlAlchemyRepository[EntityT: Entity, ModelT: Base]:
         model = result.scalar_one_or_none()
         return None if model is None else self.model_mapper.to_entity(model)
 
-    async def paginate(self, params: PageParams) -> Page[EntityT]:
+    async def paginate(self, params: Pagination) -> Page[EntityT]:
 
         # 1. Основной запрос для получения данных
         stmt = select(self.model).order_by(self.model.created_at.desc())
@@ -69,7 +69,7 @@ class SqlAlchemyRepository[EntityT: Entity, ModelT: Base]:
             size=params.size,
         )
 
-    async def _paginate(self, stmt: Select, params: PageParams) -> Page[EntityT]:
+    async def _paginate(self, stmt: Select, params: Pagination) -> Page[EntityT]:
         # 1. Получение общего количества
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total_items = await self.session.scalar(count_stmt)
@@ -123,7 +123,7 @@ class InMemoryRepository[EntityT: Entity]:
     async def read(self, uid: UUID) -> EntityT | None:
         return self.data.get(uid)
 
-    async def paginate(self, params: PageParams) -> Page[EntityT]:
+    async def paginate(self, params: Pagination) -> Page[EntityT]:
         items = list(self.data.values())
         return Page(
             page=params.page,

@@ -26,3 +26,14 @@ ALLOWED_ASSIGN_STATUSES: set[TaskStatus] = {
     TaskStatus.BLOCKED,
     TaskStatus.REVIEW,
 }
+
+# Маппинг статусов задач в русские представления для UI
+TASK_STATUS_LABEL_MAP: dict[TaskStatus, str] = {
+    TaskStatus.BACKLOG: "В резерве",
+    TaskStatus.TODO: "Готово к выполнению",
+    TaskStatus.IN_PROGRESS: "В работе",
+    TaskStatus.REVIEW: "На проверке",
+    TaskStatus.BLOCKED: "Приостановлено",
+    TaskStatus.DONE: "Выполнено",
+    TaskStatus.CANCELLED: "Отменено",
+}

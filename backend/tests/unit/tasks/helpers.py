@@ -4,7 +4,7 @@ from uuid import uuid4
 from src.shared.utils.time import current_datetime
 from src.tasks.domain.entities import Task
 from src.tasks.domain.vo import TaskNumber, TaskStatus
-from src.tickets.domain.vo import TicketPriority
+from src.tickets.domain.vo import Priority
 
 
 def make_task(*, status: TaskStatus = TaskStatus.BACKLOG, **overrides) -> Task:
@@ -24,7 +24,7 @@ def make_task(*, status: TaskStatus = TaskStatus.BACKLOG, **overrides) -> Task:
         title=overrides.pop("title", "Test task"),
         description=overrides.pop("description", None),
         status=status,
-        priority=overrides.pop("priority", TicketPriority.MEDIUM),
+        priority=overrides.pop("priority", Priority.MEDIUM),
         assignee_id=assignee_id,
         reviewer_id=overrides.pop("reviewer_id", None),
         estimated_hours=overrides.pop("estimated_hours", None),

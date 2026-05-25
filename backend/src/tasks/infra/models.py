@@ -6,11 +6,11 @@ if TYPE_CHECKING:
 from datetime import date, datetime
 from uuid import UUID
 
-from sqlalchemy import Date, DateTime, Enum
+from sqlalchemy import Date, DateTime, Enum, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ...core.database import Base
-from ...tickets.domain.vo import TicketPriority
+from ...tickets.domain.vo import Priority
 from ..domain.vo import TaskStatus
 
 
@@ -24,7 +24,7 @@ class TaskOrm(Base):
     title: Mapped[str]
     description: Mapped[str | None] = mapped_column(nullable=True)
     status: Mapped[TaskStatus] = mapped_column(Enum(TaskStatus))
-    priority: Mapped[TicketPriority] = mapped_column(Enum(TicketPriority))
+    priority: Mapped[Priority] = mapped_column(Enum(Priority))
     story_points: Mapped[int | None] = mapped_column(nullable=True)
 
     assignee_id: Mapped[UUID | None] = mapped_column(nullable=True)
@@ -45,4 +45,16 @@ class TaskOrm(Base):
             "foreign(AttachmentOrm.owner_id)==TaskOrm.id)"
         ),
         viewonly=True,
+    )
+
+
+class TaskSequence(Base):
+    __tablename__ = "tasks_sequences"
+
+    project_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    ticket_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    last_number: Mapped[int]
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "ticket_id", name="uq_task_sequences"),
     )

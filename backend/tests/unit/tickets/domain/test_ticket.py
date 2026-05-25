@@ -7,7 +7,7 @@ from src.iam.domain.vo import UserRole
 from src.shared.domain.exceptions import InvalidStateError, InvariantViolationError
 from src.tickets.domain.constants import ALLOWED_TRANSITIONS
 from src.tickets.domain.entities import Ticket
-from src.tickets.domain.vo import Tag, TicketNumber, TicketPriority, TicketStatus
+from src.tickets.domain.vo import Tag, TicketNumber, Priority, TicketStatus
 
 # ====================== Fixtures ======================
 
@@ -66,7 +66,7 @@ def ticket_in_new(reporter_id, support_agent_id, ticket_number):
         created_by_role=UserRole.SUPPORT_AGENT,
         title="Тестовый тикет",
         description="Описание",
-        priority=TicketPriority.MEDIUM,
+        priority=Priority.MEDIUM,
         counterparty_id=uuid.uuid4(),
     )
 
@@ -80,7 +80,7 @@ def ticket_in_pending_approval(reporter_id, ticket_number):
         created_by_role=UserRole.CUSTOMER,
         title="Тестовый тикет от клиента",
         description="Описание",
-        priority=TicketPriority.HIGH,
+        priority=Priority.HIGH,
         counterparty_id=uuid.uuid4(),
     )
 
@@ -94,7 +94,7 @@ def ticket_in_open(reporter_id, support_agent_id, ticket_number):
         created_by_role=UserRole.SUPPORT_AGENT,
         title="Тестовый тикет",
         description="Описание",
-        priority=TicketPriority.MEDIUM,
+        priority=Priority.MEDIUM,
         counterparty_id=uuid.uuid4(),
     )
     ticket.status = TicketStatus.OPEN
@@ -110,7 +110,7 @@ def ticket_in_progress(reporter_id, support_agent_id, ticket_number):
         created_by_role=UserRole.SUPPORT_AGENT,
         title="Тестовый тикет",
         description="Описание",
-        priority=TicketPriority.HIGH,
+        priority=Priority.HIGH,
         counterparty_id=uuid.uuid4(),
     )
     ticket.status = TicketStatus.IN_PROGRESS
@@ -207,7 +207,7 @@ class TestChangeStatus:
                 title="Transition test",
                 description="",
                 status=status,
-                priority=TicketPriority.MEDIUM,
+                priority=Priority.MEDIUM,
                 tags=[],
                 attachments=[],
                 history=[],
@@ -378,13 +378,13 @@ class TestEdit:
             edited_by=creator_id,
             title="New title",
             description="New description",
-            priority=TicketPriority.HIGH,
+            priority=Priority.HIGH,
             tags=new_tags,
         )
 
         assert ticket.title == "New title"
         assert ticket.description == "New description"
-        assert ticket.priority == TicketPriority.HIGH
+        assert ticket.priority == Priority.HIGH
         assert ticket.tags == new_tags
 
         history_entry = ticket.history[-1]
@@ -402,7 +402,7 @@ class TestEdit:
             edited_by=reporter_id,
             title="Initial ticket",
             description="Initial description",
-            priority=TicketPriority.MEDIUM,
+            priority=Priority.MEDIUM,
             tags=[Tag(name="bug"), Tag(name="feature")],
         )
 

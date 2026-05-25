@@ -11,7 +11,7 @@ from src.notifications.policies import TicketCreatedPolicy
 from src.projects.domain.entities import Membership, Project
 from src.projects.domain.vo import ProjectRole, ProjectStatus
 from src.tickets.domain.events import TicketCreated
-from src.tickets.domain.vo import ProjectKey, TicketPriority
+from src.tickets.domain.vo import ProjectKey, Priority
 
 fake = Faker("ru_RU")
 
@@ -31,7 +31,7 @@ def sample_ticket_created_event():
         title="Не работает оплата",
         reporter_id=uuid4(),
         created_by=uuid4(),
-        priority=TicketPriority.HIGH,
+        priority=Priority.HIGH,
         counterparty_id=None,
         project_id=None,
     )
