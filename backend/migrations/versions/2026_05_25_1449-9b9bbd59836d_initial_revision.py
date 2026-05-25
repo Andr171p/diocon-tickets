@@ -1,8 +1,8 @@
 """Initial revision
 
-Revision ID: 98095580b0ed
+Revision ID: 9b9bbd59836d
 Revises: 
-Create Date: 2026-05-25 10:40:19.382952
+Create Date: 2026-05-25 14:49:41.762135
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '98095580b0ed'
+revision: str = '9b9bbd59836d'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -113,6 +113,7 @@ def upgrade() -> None:
     sa.Column('started_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('created_by', sa.Uuid(), nullable=False),
+    sa.Column('tags', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
@@ -201,6 +202,7 @@ def upgrade() -> None:
     sa.Column('number', sa.String(length=25), nullable=False),
     sa.Column('title', sa.String(), nullable=False),
     sa.Column('description', sa.TEXT(), nullable=False),
+    sa.Column('ticket_type', sa.Enum('INCIDENT', 'SERVICE_REQUEST', 'QUESTION', 'COMPLAINT', 'TASK', 'PROBLEM', 'CHANGE', 'IMPROVEMENT', 'OTHER', name='tickettype'), nullable=False),
     sa.Column('status', sa.Enum('NEW', 'PENDING_APPROVAL', 'OPEN', 'IN_PROGRESS', 'WAITING', 'RESOLVED', 'CLOSED', 'REOPENED', 'REJECTED', 'CANCELED', name='ticketstatus'), nullable=False),
     sa.Column('priority', sa.Enum('LOW', 'MEDIUM', 'HIGH', 'CRITICAL', name='priority'), nullable=False),
     sa.Column('assignee_id', sa.Uuid(), nullable=True),
