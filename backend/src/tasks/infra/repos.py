@@ -87,7 +87,7 @@ class TaskMapper(ModelMapper[Task, TaskOrm]):
             priority=model.priority,
             assignee_id=model.assignee_id,
             due_date=model.due_date,
-            story_points=Decimal(model.story_points),
+            story_points=None if model.story_points is None else Decimal(model.story_points),
             project_id=model.project_id,
             ticket_id=model.ticket_id,
             tags={Tag(name=tag["name"], color=tag["color"]) for tag in model.tags},
