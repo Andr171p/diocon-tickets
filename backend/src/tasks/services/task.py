@@ -25,6 +25,7 @@ from ...tasks.mappers import map_task_to_response
 from ...tasks.schemas import TaskCreate, TaskEdit, TaskResponse, TaskReview
 from ...tickets.domain.entities import Ticket
 from ...tickets.domain.repos import TicketRepository
+from ...tickets.domain.vo import Tag
 
 
 class TaskService:
@@ -124,6 +125,7 @@ class TaskService:
             project_id=project_id,
             ticket_id=data.ticket_id,
             created_by=current_user.user_id,
+            tags=[Tag(name=tag.name, color=tag.color) for tag in data.tags]
         )
         if data.mark_as_todo:
             task.move_to(new_status=TaskStatus.TODO, moved_by=current_user.user_id)

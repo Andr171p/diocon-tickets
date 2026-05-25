@@ -81,6 +81,7 @@ class Task(Entity):
             project_id: UUID | None = None,
             due_date: date | None = None,
             estimated_hours: Decimal | None = None,
+            tags: list[Tag] | None = None,
     ) -> "Task":
         """Создание задачи"""
 
@@ -97,6 +98,7 @@ class Task(Entity):
             due_date=due_date,
             estimated_hours=None if estimated_hours is None else Decimal(estimated_hours),
             created_by=created_by,
+            tags={} if tags is None else set(tags),
         )
 
         # Регистрация доменного объекта

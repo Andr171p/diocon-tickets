@@ -47,6 +47,7 @@ class TaskBase(BaseModel):
         None, description="Предварительная оценка трудозатрат в часах"
     )
     due_date: date | None = Field(None, description="Срок выполнения (deadline)")
+    tags: list[Tag] = Field(default_factory=list, description="Теги для маркировки и поиска")
 
 
 class TaskCreate(TaskBase):
@@ -72,7 +73,6 @@ class TaskResponse(TaskBase):
     started_at: datetime | None = Field(None, description="Дата начала выполнения задачи")
     completed_at: datetime | None = Field(None, description="Дата завершения задачи")
     created_by: UUID = Field(..., description="Пользователь создавший задачу")
-    tag: list[Tag] = Field(default_factory=list, description="Теги для маркировки и поиска")
     attachments: list[AttachmentResponse] = Field(
         default_factory=list, description="Медиа контент приложенный к задаче"
     )
