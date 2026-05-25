@@ -1,8 +1,8 @@
 """Initial revision
 
-Revision ID: 7b4a3734a94d
+Revision ID: 98095580b0ed
 Revises: 
-Create Date: 2026-04-30 15:21:14.904181
+Create Date: 2026-05-25 10:40:19.382952
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '7b4a3734a94d'
+revision: str = '98095580b0ed'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -64,7 +64,7 @@ def upgrade() -> None:
     sa.Column('email', sa.String(), nullable=False),
     sa.Column('token', sa.String(), nullable=False),
     sa.Column('invited_by', sa.Uuid(), nullable=False),
-    sa.Column('assigned_role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'ADMIN', name='userrole'), nullable=False),
+    sa.Column('assigned_role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'DEVELOPER', 'ACCOUNT_MANAGER', 'FINANCE', 'ADMIN', name='userrole'), nullable=False),
     sa.Column('counterparty_id', sa.Uuid(), nullable=True),
     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('used_at', sa.DateTime(timezone=True), nullable=True),
@@ -96,10 +96,56 @@ def upgrade() -> None:
     op.create_index('ix_software_products_active', 'software_products', ['category', 'name'], unique=False, postgresql_where=sa.text("status = 'ACTIVE'"))
     op.create_index('ix_software_products_attributes', 'software_products', ['attributes'], unique=False, postgresql_using='gin')
     op.create_index('ix_software_products_search', 'software_products', ['search_vector'], unique=False, postgresql_using='gin')
+    op.create_table('tasks',
+    sa.Column('ticket_id', sa.Uuid(), nullable=True),
+    sa.Column('project_id', sa.Uuid(), nullable=True),
+    sa.Column('number', sa.String(), nullable=False),
+    sa.Column('title', sa.String(), nullable=False),
+    sa.Column('description', sa.String(), nullable=True),
+    sa.Column('status', sa.Enum('BACKLOG', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'REVIEW', 'DONE', 'CANCELLED', name='taskstatus'), nullable=False),
+    sa.Column('priority', sa.Enum('LOW', 'MEDIUM', 'HIGH', 'CRITICAL', name='priority'), nullable=False),
+    sa.Column('story_points', sa.Integer(), nullable=True),
+    sa.Column('assignee_id', sa.Uuid(), nullable=True),
+    sa.Column('reviewer_id', sa.Uuid(), nullable=True),
+    sa.Column('estimated_hours', sa.Float(), nullable=True),
+    sa.Column('actual_hours', sa.Float(), nullable=False),
+    sa.Column('due_date', sa.Date(), nullable=True),
+    sa.Column('started_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('created_by', sa.Uuid(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('number')
+    )
+    op.create_table('tasks_sequences',
+    sa.Column('project_id', sa.Uuid(), nullable=True),
+    sa.Column('ticket_id', sa.Uuid(), nullable=True),
+    sa.Column('last_number', sa.Integer(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('project_id', 'ticket_id', name='uq_task_sequences')
+    )
+    op.create_table('counterparty_products',
+    sa.Column('counterparty_id', sa.Uuid(), nullable=False),
+    sa.Column('product_id', sa.Uuid(), nullable=False),
+    sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['counterparty_id'], ['counterparties.id'], ),
+    sa.ForeignKeyConstraint(['product_id'], ['software_products.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('projects',
     sa.Column('name', sa.String(), nullable=False),
     sa.Column('key', sa.String(), nullable=False),
-    sa.Column('description', sa.String(), nullable=True),
+    sa.Column('description', sa.TEXT(), nullable=True),
     sa.Column('counterparty_id', sa.Uuid(), nullable=True),
     sa.Column('status', sa.Enum('ACTIVE', 'ON_HOLD', 'ARCHIVED', 'COMPLETED', name='projectstatus'), nullable=False),
     sa.Column('owner_id', sa.Uuid(), nullable=False),
@@ -112,12 +158,13 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('key')
     )
+    op.create_index('ix_project_key', 'projects', ['key'], unique=False)
     op.create_table('users',
     sa.Column('email', sa.String(), nullable=False),
     sa.Column('username', sa.String(), nullable=True),
     sa.Column('full_name', sa.String(), nullable=True),
     sa.Column('avatar_url', sa.String(), nullable=True),
-    sa.Column('role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'ADMIN', name='userrole'), nullable=False),
+    sa.Column('role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'DEVELOPER', 'ACCOUNT_MANAGER', 'FINANCE', 'ADMIN', name='userrole'), nullable=False),
     sa.Column('counterparty_id', sa.Uuid(), nullable=True),
     sa.Column('password_hash', sa.String(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
@@ -133,29 +180,30 @@ def upgrade() -> None:
     op.create_table('project_memberships',
     sa.Column('project_id', sa.Uuid(), nullable=False),
     sa.Column('user_id', sa.Uuid(), nullable=False),
-    sa.Column('project_role', sa.Enum('OWNER', 'MANAGER', 'MEMBER', 'VIEWER', 'CUSTOMER', 'CUSTOMER_ADMIN', name='projectrole'), nullable=False),
+    sa.Column('project_role', sa.Enum('OWNER', 'MANAGER', 'CONTRIBUTOR', 'VIEWER', 'CUSTOMER', 'CUSTOMER_MANAGER', name='projectrole'), nullable=False),
     sa.Column('added_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('added_by', sa.Uuid(), nullable=False),
-    sa.Column('removed_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('project_id', 'user_id', name='uq_membership')
     )
     op.create_table('tickets',
     sa.Column('project_id', sa.Uuid(), nullable=True),
     sa.Column('counterparty_id', sa.Uuid(), nullable=True),
-    sa.Column('created_by_role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'ADMIN', name='userrole'), nullable=False),
+    sa.Column('product_id', sa.Uuid(), nullable=True),
+    sa.Column('created_by_role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'DEVELOPER', 'ACCOUNT_MANAGER', 'FINANCE', 'ADMIN', name='userrole'), nullable=False),
     sa.Column('created_by', sa.Uuid(), nullable=False),
     sa.Column('reporter_id', sa.Uuid(), nullable=False),
     sa.Column('number', sa.String(length=25), nullable=False),
     sa.Column('title', sa.String(), nullable=False),
     sa.Column('description', sa.TEXT(), nullable=False),
     sa.Column('status', sa.Enum('NEW', 'PENDING_APPROVAL', 'OPEN', 'IN_PROGRESS', 'WAITING', 'RESOLVED', 'CLOSED', 'REOPENED', 'REJECTED', 'CANCELED', name='ticketstatus'), nullable=False),
-    sa.Column('priority', sa.Enum('LOW', 'MEDIUM', 'HIGH', 'CRITICAL', name='ticketpriority'), nullable=False),
-    sa.Column('assigned_to', sa.Uuid(), nullable=True),
+    sa.Column('priority', sa.Enum('LOW', 'MEDIUM', 'HIGH', 'CRITICAL', name='priority'), nullable=False),
+    sa.Column('assignee_id', sa.Uuid(), nullable=True),
     sa.Column('closed_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('tags', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('search_vector', postgresql.TSVECTOR(), sa.Computed("to_tsvector('russian', coalesce(title, '') || ' ' || coalesce(description, ''))", persisted=True), nullable=True),
@@ -172,7 +220,7 @@ def upgrade() -> None:
     sa.Column('ticket_id', sa.Uuid(), nullable=False),
     sa.Column('parent_comment_id', sa.Uuid(), nullable=True),
     sa.Column('author_id', sa.Uuid(), nullable=False),
-    sa.Column('author_role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'ADMIN', name='userrole'), nullable=False),
+    sa.Column('author_role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'DEVELOPER', 'ACCOUNT_MANAGER', 'FINANCE', 'ADMIN', name='userrole'), nullable=False),
     sa.Column('text', sa.TEXT(), nullable=False),
     sa.Column('comment_type', sa.Enum('PUBLIC', 'INTERNAL', 'NOTE', name='commenttype'), nullable=False),
     sa.Column('reply_count', sa.Integer(), nullable=False),
@@ -229,7 +277,11 @@ def downgrade() -> None:
     op.drop_table('tickets')
     op.drop_table('project_memberships')
     op.drop_table('users')
+    op.drop_index('ix_project_key', table_name='projects')
     op.drop_table('projects')
+    op.drop_table('counterparty_products')
+    op.drop_table('tasks_sequences')
+    op.drop_table('tasks')
     op.drop_index('ix_software_products_search', table_name='software_products', postgresql_using='gin')
     op.drop_index('ix_software_products_attributes', table_name='software_products', postgresql_using='gin')
     op.drop_index('ix_software_products_active', table_name='software_products', postgresql_where=sa.text("status = 'ACTIVE'"))
