@@ -21,6 +21,7 @@ class LLMConfig:
     max_tokens: int | None = None
 
 
+# Подготовленные конфиги моделей
 YANDEX_GPT_CONFIG = LLMConfig(
     provider="yandex-cloud",
     model_name=settings.yandex_cloud.yandexgpt_rc,
