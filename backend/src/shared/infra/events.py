@@ -1,3 +1,5 @@
+from typing import TypeVar
+
 import asyncio
 import logging
 from collections import defaultdict
@@ -5,10 +7,11 @@ from collections.abc import Awaitable, Callable
 
 from faststream.rabbit import RabbitBroker
 
-from ...tickets.domain.events import TicketCreated
 from ..domain.events import Event
 
 logger = logging.getLogger(__name__)
+
+EventT = TypeVar("EventT", bound=Event)
 
 
 class EventBus:
@@ -25,7 +28,7 @@ class EventBus:
 
         self._handlers[event_type].append(handler)
 
-    async def publish(self, event: Event) -> None:
+    async def publish(self, event: EventT) -> None:
         """Публикация события (добавление в очередь)"""
 
         try:
@@ -100,18 +103,15 @@ class EventBus:
         logger.info("EventBus stopped")
 
 
-# Маппинг доменных событий к топикам в которых они будут обработаны (очереди)
-EVENT_TOPIC_MAP: dict[type[Event], str] = {
-    TicketCreated: "tickets.create"
-}
-
-
 class FastStreamEventPublisher:
-    def __init__(self, broker: RabbitBroker) -> None:
+    def __init__(
+            self, broker: RabbitBroker, event_topic_map: dict[type[Event], str]
+    ) -> None:
         self.broker = broker
+        self.event_topic_map = event_topic_map
 
-    async def publish(self, event: Event) -> None:
-        topic = EVENT_TOPIC_MAP.get(type(event))
+    async def publish(self, event: EventT) -> None:
+        topic = self.event_topic_map.get(type(event))
         if topic is None:
             logger.warning(
                 "Domain event `%s` was not handled! No such topic registered.",

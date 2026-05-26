@@ -12,7 +12,7 @@ from ..services import NotificationService
 router = RabbitRouter()
 
 
-@router.subscriber("tickets.created")
+@router.subscriber("tickets.create")
 async def on_ticket_created(
         event: TicketCreated,
         target_resolver: Annotated[TargetResolver, Depends(get_target_resolver)],

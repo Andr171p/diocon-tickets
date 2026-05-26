@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Новый тикет #{{ ticket_number }} — {{ app_name }}</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background: #f4f4f4;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      padding: 32px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .ticket-number {
+      display: inline-block;
+      background: #e3f2fd;
+      color: #1565c0;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .btn {
+      display: inline-block;
+      background: #0066cc;
+      color: white;
+      padding: 14px 28px;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: bold;
+      margin: 20px 0;
+    }
+    .footer {
+      margin-top: 40px;
+      font-size: 12px;
+      color: #777;
+      text-align: center;
+    }
+    .highlight {
+      background: #f9f9f9;
+      padding: 12px 16px;
+      border-left: 4px solid #0066cc;
+      margin: 16px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Новый тикет создан</h1>
+
+    <p>Здравствуйте!</p>
+
+    <p>В системе зарегистрирован новый тикет <span class="ticket-number">#{{ ticket_number }}</span></p>
+
+    <div class="highlight">
+      <strong>{{ ticket_title }}</strong>
+    </div>
+
+    <p>Тикет успешно создан и поступил в работу.</p>
+
+    <p>Вы можете ознакомиться с ним и добавить комментарий, если у вас есть дополнительная информация.</p>
+
+    <p style="text-align: center;">
+      <a href="{{ ticket_url }}" class="btn">Перейти к тикету →</a>
+    </p>
+
+    <p>Если это уведомление пришло вам по ошибке — просто проигнорируйте его.</p>
+
+    <div class="footer">
+      С уважением,<br>
+      Команда {{ app_name }}<br>
+      <a href="mailto:{{ support_email }}">{{ support_email }}</a>
+    </div>
+  </div>
+</body>
+</html>

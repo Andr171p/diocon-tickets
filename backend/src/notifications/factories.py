@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from ..core.settings import settings
 from ..tickets.domain.events import TicketCreated
 from .domain.entities import Notification
 from .domain.vo import NotificationType
@@ -19,7 +20,9 @@ class NotificationFactory:
                 data={
                     "ticket_id": f"{event.ticket_id}",
                     "ticket_number": event.number,
-                    "title": event.title,
+                    "ticket_title": event.title,
+                    "ticket_url": f"{settings.frontend_url}/tickets/{event.number}",
+                    "support_email": settings.mail.support_email,
                 }
             ) for target in targets
         ]

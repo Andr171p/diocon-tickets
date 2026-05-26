@@ -15,6 +15,7 @@ from src.core.settings import settings
 from src.crm.router import router as counterparty_router
 from src.iam.routers import router as iam_router
 from src.media.router import router as media_router
+from src.notifications.routers import router as notification_router
 from src.products.router import router as product_router
 from src.projects.router import router as project_router
 from src.shared.domain.exceptions import AppError
@@ -66,6 +67,7 @@ router.include_router(shared_router)
 router.include_router(product_router)
 router.include_router(project_router)
 router.include_router(task_router)
+router.include_router(notification_router)
 
 app.include_router(router)
 
