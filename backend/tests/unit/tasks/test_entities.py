@@ -137,7 +137,7 @@ class TestTaskMoveTo:
         Успешный перевод задачи к разрешённому статусу
         """
 
-        task = make_task(status=current_status)
+        task = make_task(status=current_status, assignee_id=uuid4())
         task.move_to(new_status, moved_by=uuid4())
 
         assert task.status == new_status
@@ -166,7 +166,7 @@ class TestTaskMoveTo:
         При переводе в рабочее состояние должно устанавливаться время начала задачи
         """
 
-        task = make_task(status=TaskStatus.TODO)
+        task = make_task(status=TaskStatus.TODO, assignee_id=uuid4())
         assert task.started_at is None
 
         task.move_to(new_status=TaskStatus.IN_PROGRESS, moved_by=uuid4())
@@ -177,7 +177,7 @@ class TestTaskMoveTo:
         Время начала задачи не должно переписываться при переводе в заново рабочий статус
         """
 
-        task = make_task(status=TaskStatus.BLOCKED)
+        task = make_task(status=TaskStatus.BLOCKED, assignee_id=uuid4())
         original_start = current_datetime()
         task.started_at = original_start
 
@@ -194,6 +194,17 @@ class TestTaskMoveTo:
 
         task.move_to(new_status=TaskStatus.DONE, moved_by=uuid4())
         assert task.completed_at is not None
+
+    def test_move_to_in_progress_without_assignee_failed(self):
+        """
+        Нельзя ставить задачу в работе без исполнителя
+        """
+
+        task = Task.create(number=TaskNumber("TASK-001"), title="Test task", created_by=uuid4())
+        task.move_to(TaskStatus.TODO, moved_by=uuid4())
+
+        with pytest.raises(InvariantViolationError):
+            task.move_to(TaskStatus.IN_PROGRESS, moved_by=uuid4())
 
 
 class TestTaskAssignTo:

@@ -12,12 +12,17 @@ from .domain.exceptions import RateLimitExceededError
 from .infra.events import EventBus
 from .infra.mail import SmtpMailSender
 from .infra.rate_limiter import IdentifierFunc, RateLimiter, ip_identifier
+from .infra.spell_checker import LanguageToolSpellChecker, SpellChecker
 from .infra.websocket import WebsocketManager
 from .schemas import Pagination
 
 event_bus = EventBus()
 
 ws_manager = WebsocketManager()
+
+spell_checker = LanguageToolSpellChecker(
+    language=settings.language_tool.language, remote_server=settings.language_tool.url
+)
 
 SessionDep = Annotated[AsyncSession, Depends(get_db)]
 
@@ -47,11 +52,18 @@ def get_pagination(
 PaginationDep = Annotated[Pagination, Depends(get_pagination)]
 
 
-def get_event_publisher() -> EventPublisher:
+def get_event_publisher() -> EventBus:
     return event_bus
 
 
 EventPublisherDep = Annotated[EventPublisher, Depends(get_event_publisher)]
+
+
+def get_spell_checker() -> SpellChecker:
+    return spell_checker
+
+
+SpellCheckerDep = Annotated[SpellChecker, Depends(get_spell_checker)]
 
 
 def get_mail_sender() -> SmtpMailSender:

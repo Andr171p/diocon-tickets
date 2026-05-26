@@ -7,7 +7,7 @@ from ...media.domain.entities import Attachment
 from ...shared.domain.entities import Entity
 from ...shared.domain.exceptions import InvalidStateError, InvariantViolationError
 from ...shared.utils.time import current_datetime
-from ...tickets.domain.vo import Priority
+from ...tickets.domain.vo import Priority, Tag
 from .constants import ALLOWED_ASSIGN_STATUSES, ALLOWED_EDIT_STATUSES, ALLOWED_TRANSITIONS
 from .events import TaskArchived, TaskAssigned, TaskCreated, TaskReviewRequested, TaskStatusMoved
 from .vo import StoryPoints, TaskNumber, TaskStatus
@@ -45,6 +45,9 @@ class Task(Entity):
 
     created_by: UUID
 
+    # Навигация и поиск
+    tags: set[Tag] = field(default_factory=set)
+
     attachments: list[Attachment] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -78,6 +81,7 @@ class Task(Entity):
             project_id: UUID | None = None,
             due_date: date | None = None,
             estimated_hours: Decimal | None = None,
+            tags: list[Tag] | None = None,
     ) -> "Task":
         """Создание задачи"""
 
@@ -94,6 +98,7 @@ class Task(Entity):
             due_date=due_date,
             estimated_hours=None if estimated_hours is None else Decimal(estimated_hours),
             created_by=created_by,
+            tags={} if tags is None else set(tags),
         )
 
         # Регистрация доменного объекта
@@ -117,20 +122,26 @@ class Task(Entity):
                 f"Invalid status transition from {self.status} to {new_status}"
             )
 
-        # 2. Обновление статуса
+        # 2. Задача не может быть в работе без назначенного исполнителя
+        if new_status == TaskStatus.IN_PROGRESS and self.assignee_id is None:
+            raise InvariantViolationError(
+                "Task cannot be in 'IN_PROGRESS' status without an assignee"
+            )
+
+        # 3. Обновление статуса
         old_status = self.status
         self.status = new_status
         self.updated_at = current_datetime()
 
-        # 3. Если исполнитель приступил к работе, то установить время начала
+        # 4. Если исполнитель приступил к работе, то установить время начала
         if new_status == TaskStatus.IN_PROGRESS and self.started_at is None:
             self.started_at = current_datetime()
 
-        # 4. Если задача завершена, то установка времени завершения
+        # 5. Если задача завершена, то установка времени завершения
         if new_status == TaskStatus.DONE and self.completed_at is None:
             self.completed_at = current_datetime()
 
-        # 5. Регистрация доменного события
+        # 6. Регистрация доменного события
         self.register_event(
             TaskStatusMoved(
                 task_id=self.id,

@@ -17,9 +17,9 @@ from src.iam.routers import router as iam_router
 from src.media.router import router as media_router
 from src.products.router import router as product_router
 from src.projects.router import router as project_router
-from src.proofreading.router import router as proofreading_router
 from src.shared.domain.exceptions import AppError
 from src.shared.infra.middlewares import LoggingMiddleware
+from src.shared.router import router as shared_router
 from src.shared.utils.cli import run_cli_command
 from src.tasks.router import router as task_router
 from src.tickets.router import router as tickets_router
@@ -62,7 +62,7 @@ router.include_router(iam_router)
 router.include_router(counterparty_router)
 router.include_router(media_router)
 router.include_router(tickets_router)
-router.include_router(proofreading_router)
+router.include_router(shared_router)
 router.include_router(product_router)
 router.include_router(project_router)
 router.include_router(task_router)

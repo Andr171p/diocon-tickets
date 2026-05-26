@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from ..iam.dependencies import UserRepoDep
 from ..shared.dependencies import EventPublisherDep, SessionDep
 from .domain.repos import MembershipRepository, ProjectRepository
 from .domain.services import ProjectAccessService

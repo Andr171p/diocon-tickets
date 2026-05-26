@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, NonNegativeFloat, NonNegativeInt
 
 from ..iam.domain.vo import UserRole
 from ..media.schemas import AttachmentResponse
-from .domain.vo import CommentType, ReactionType, Priority, TicketStatus
+from .domain.vo import CommentType, Priority, ReactionType, TicketStatus, TicketType
 
 
 class CommentResponse(BaseModel):
@@ -75,6 +75,7 @@ class TicketBase(BaseModel):
     reporter_id: UUID = Field(..., description="ID пользователя - инициатора")
     title: str = Field(..., description="Заголовок")
     description: str = Field(..., description="Описание проблемы")
+    type: TicketType = Field(..., description="Вид тикета")
     priority: Priority = Field(
         ..., description="Приоритет выполнения (чем выше приоритет, тем быстрее время реакции)",
     )
@@ -102,6 +103,7 @@ class TicketPreview(BaseModel):
     reporter_id: UUID = Field(..., description="ID пользователя - инициатора")
     number: str = Field(..., description="Номер тикета", examples=["РОМ-26-00012456"])
     title: str = Field(..., description="Заголовок тикета")
+    type: TicketType = Field(..., description="Тип заявки")
     status: TicketStatus = Field(..., description="Текущий статус")
     priority: Priority = Field(..., description="Приоритет")
 

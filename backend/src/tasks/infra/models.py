@@ -7,6 +7,7 @@ from datetime import date, datetime
 from uuid import UUID
 
 from sqlalchemy import Date, DateTime, Enum, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ...core.database import Base
@@ -39,11 +40,14 @@ class TaskOrm(Base):
 
     created_by: Mapped[UUID]
 
+    tags: Mapped[list[dict[str, str]]] = mapped_column(JSONB)
+
     attachments: Mapped[list["AttachmentOrm"]] = relationship(
         primaryjoin=(
             "and_(AttachmentOrm.owner_type=='task', "
             "foreign(AttachmentOrm.owner_id)==TaskOrm.id)"
         ),
+        lazy="selectin",
         viewonly=True,
     )
 
@@ -56,5 +60,7 @@ class TaskSequence(Base):
     last_number: Mapped[int]
 
     __table_args__ = (
-        UniqueConstraint("project_id", "ticket_id", name="uq_task_sequences"),
+        UniqueConstraint(
+            "project_id", "ticket_id", name="uq_task_sequences", postgresql_nulls_not_distinct=True
+        ),
     )

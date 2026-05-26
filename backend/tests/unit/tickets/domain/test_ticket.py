@@ -8,7 +8,7 @@ from src.shared.domain.exceptions import InvalidStateError, InvariantViolationEr
 from src.tickets.domain.constants import ALLOWED_TRANSITIONS
 from src.tickets.domain.events import TicketAssigned
 from src.tickets.domain.entities import Ticket
-from src.tickets.domain.vo import Tag, TicketNumber, Priority, TicketStatus
+from src.tickets.domain.vo import Priority, Tag, TicketNumber, TicketStatus, TicketType
 
 # ====================== Fixtures ======================
 
@@ -207,6 +207,7 @@ class TestChangeStatus:
                 number=TicketNumber("TEST-26-00000001"),
                 title="Transition test",
                 description="",
+                type=TicketType.SERVICE_REQUEST,
                 status=status,
                 priority=Priority.MEDIUM,
                 tags=[],

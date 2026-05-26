@@ -20,10 +20,11 @@ from ..events import (
     TicketPriorityChanged,
 )
 from ..vo import (
+    Priority,
     Tag,
     TicketNumber,
-    Priority,
     TicketStatus,
+    TicketType,
 )
 
 
@@ -60,6 +61,7 @@ class Ticket(AggregateRoot):
     number: TicketNumber
     title: str
     description: str
+    type: TicketType
     status: TicketStatus
     priority: Priority
     assignee_id: UUID | None = None
@@ -92,6 +94,7 @@ class Ticket(AggregateRoot):
         created_by_role: UserRole,
         title: str,
         description: str | None = None,
+        ticket_type: TicketType = TicketType.SERVICE_REQUEST,
         priority: Priority = Priority.MEDIUM,
         project_id: UUID | None = None,
         counterparty_id: UUID | None = None,
@@ -113,6 +116,7 @@ class Ticket(AggregateRoot):
             number=ticket_number,
             title=title,
             description=description,
+            type=ticket_type,
             priority=priority,
             status=initial_status,
             project_id=project_id,

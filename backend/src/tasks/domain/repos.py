@@ -1,11 +1,11 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
 from ...shared.domain.repo import Repository
 from ...shared.schemas import Page, Pagination
-from ...tickets.domain.vo import Priority
+from ...tickets.domain.vo import Priority, Tag
 from .entities import Task
 from .vo import TaskNumber, TaskStatus
 
@@ -30,6 +30,8 @@ class TaskView:
 
     project_id: UUID | None = None
     ticket_id: UUID | None = None
+
+    tags: set[Tag] = field(default_factory=set)
 
 
 class TaskRepository(Repository[Task]):
@@ -61,5 +63,7 @@ class TaskRepository(Repository[Task]):
     ) -> dict[TaskStatus, Page[TaskView]]:
         """
         Группировка задач по статусам.
+        Учитывает переданное пространство имён, если project_id is None -
+        вернуться все строке где project_id равен None.
         Возвращает облегченные модели представления задач.
         """

@@ -12,7 +12,13 @@ from ..shared.schemas import Page
 from .dependencies import ProjectRepoDep, ProjectServiceDep
 from .domain.services import generate_project_key
 from .mappers import map_project_to_response
-from .schemas import KeyCheckResult, MemberCreate, MembershipResponse, ProjectCreate, ProjectResponse
+from .schemas import (
+    KeyCheckResult,
+    MemberCreate,
+    MembershipResponse,
+    ProjectCreate,
+    ProjectResponse,
+)
 
 router = APIRouter(prefix="/projects", tags=["Проекты"])
 
@@ -55,7 +61,7 @@ async def check_project_key(key: str, service: ProjectServiceDep) -> KeyCheckRes
 async def create_project(
         current_user: CurrentUserDep, data: ProjectCreate, service: ProjectServiceDep
 ) -> ProjectResponse:
-    return await service.create(data, current_user=current_user)
+    return await service.create(data, current_user)
 
 
 @router.get(

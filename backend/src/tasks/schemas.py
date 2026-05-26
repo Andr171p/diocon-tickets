@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, NonNegativeFloat, NonNegativeInt
 from ..media.schemas import AttachmentResponse
 from ..shared.schemas import Page
 from ..tickets.domain.vo import Priority
+from ..tickets.schemas import Tag
 from .domain.vo import TaskStatus
 
 NewStatus = Annotated[
@@ -46,6 +47,7 @@ class TaskBase(BaseModel):
         None, description="Предварительная оценка трудозатрат в часах"
     )
     due_date: date | None = Field(None, description="Срок выполнения (deadline)")
+    tags: list[Tag] = Field(default_factory=list, description="Теги для маркировки и поиска")
 
 
 class TaskCreate(TaskBase):
@@ -124,6 +126,7 @@ class TaskViewResponse(BaseModel):
 
     ticket_id: UUID | None = Field(None, description="Тикет на основе которого создана задача")
     project_id: UUID | None = Field(None, description="Проект в рамках которого создана задача")
+    tag: list[Tag] = Field(default_factory=list, description="Теги для маркировки и поиска")
 
 
 # ============================== Канбан доски ==============================
