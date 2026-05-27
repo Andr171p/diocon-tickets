@@ -26,11 +26,11 @@ class SSEManager:
             self.local_queues[user_id].add(queue)
 
         logger.info(
-            "SSE connected for user %s | Total connections: %d",
-            user_id, list(self.local_queues[user_id])
+            "SSE connected for user %s | Total connections: %s",
+            user_id, len(self.local_queues[user_id])
         )
 
-    async def disconnect(self, user_id: UUID, queue: asyncio.Queue):
+    async def disconnect(self, user_id: UUID, queue: asyncio.Queue[Any]):
         """Отключение клиента"""
 
         async with self._lock:
@@ -40,7 +40,7 @@ class SSEManager:
 
         logger.info("SSE disconnected for user %s", user_id)
 
-    async def send_to_user(self, user_id: UUID, message: dict[str, Any]) -> None:
+    async def send_to_user(self, user_id: UUID, message: Any) -> None:
         """Отправка сообщения подключенному пользователю"""
 
         # 1. Проверка есть ли у пользователя локальное соединение

@@ -4,9 +4,10 @@ import asyncio
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Request, status
-from fastapi.sse import EventSourceResponse
-from faststream.rabbit import RabbitQueue, RabbitRouter
+from fastapi import Query, Request, status
+from faststream.rabbit import RabbitQueue
+from faststream.rabbit.fastapi import RabbitRouter
+from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
 from ...iam.dependencies import CurrentUserDep
 from ...shared.dependencies import PaginationDep, sse_manager
@@ -17,9 +18,7 @@ from ..schemas import NotificationResponse, UnreadCountOut
 
 logger = logging.getLogger(__name__)
 
-mq_router = RabbitRouter()
-
-router = APIRouter(prefix="/notifications", tags=["Уведомления"])
+router = RabbitRouter(prefix="/notifications", tags=["Уведомления"])
 
 
 @router.get(
@@ -66,12 +65,12 @@ async def mark_as_read(
     return await service.mark_as_read(notification_id, read_by=current_user.user_id)
 
 
-@mq_router.subscriber(
-    queue=RabbitQueue("notifications.sse", auto_delete=True),
+@router.subscriber(
+    queue=RabbitQueue("notifications.sse", durable=True, exclusive=False),
     description="Отправка уведомления в локальную очередь"
 )
-async def handle_notification(message: NotificationResponse):
-    await sse_manager.send_to_user(message.user_id, message.model_dump())
+async def handle_notification(notification: NotificationResponse) -> None:
+    await sse_manager.send_to_user(notification.user_id, notification)
 
 
 @router.get(
@@ -98,9 +97,11 @@ async def notification_stream(
             for notification in unread_notifications.items:
                 payload = {
                     "type": "notification",
-                    "notification": map_notification_to_response(notification).model_dump_json(),
+                    "notification": map_notification_to_response(
+                        notification
+                    ).model_dump(mode="json"),
                 }
-                yield {"data": payload}
+                yield ServerSentEvent(data=payload)
 
             # 2. Основной цикл прослушивания очереди
             while True:
@@ -111,13 +112,17 @@ async def notification_stream(
                 try:
                     # Ожидание сообщения из очереди
                     message = await asyncio.wait_for(queue.get(), timeout=25.0)
-                    yield {"data": message.model_dump_json()}
+                    payload = {
+                        "type": "notification",
+                        "notification": message.model_dump(mode="json")
+                    }
+                    yield ServerSentEvent(data=payload)
                 except TimeoutError:
                     # Heartbeat - для удержания соединения
-                    yield {"comment": "ping"}
+                    yield ServerSentEvent(comment="ping")
 
         finally:
             # Всегда отключаем пользователя при завершении
             await sse_manager.disconnect(current_user.user_id, queue)
 
-    return EventSourceResponse(event_generator())
+    return EventSourceResponse(event_generator(), ping=20)

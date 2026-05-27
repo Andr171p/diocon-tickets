@@ -4,8 +4,8 @@ from fastapi import Depends
 
 from ..core.broker import broker
 from ..iam.dependencies import UserRepoDep
+from ..projects.dependencies import MembershipRepoDep
 from ..shared.dependencies import SessionDep, get_mail_sender
-from ..tickets.dependencies import ProjectRepoDep
 from ..tickets.domain.events import TicketCreated
 from .channels import EmailChannel, InAppChannel, NotificationChannel
 from .domain.repos import NotificationRepository, PreferenceRepository
@@ -17,11 +17,11 @@ from .services import NotificationService
 
 def get_target_resolver(
         user_repo: UserRepoDep,
-        project_repo: ProjectRepoDep
+        project_membership_repo: MembershipRepoDep,
 ) -> TargetResolver:
     target_resolver = TargetResolver()
     target_resolver.registry_policy(
-        TicketCreated, TicketCreatedPolicy(project_repo, user_repo),
+        TicketCreated, TicketCreatedPolicy(project_membership_repo, user_repo),
     )
     return target_resolver
 
