@@ -36,7 +36,7 @@ def get_counterparty_filters(
         ] = None,
         inn: Annotated[str | None, Query(..., description="ИНН контрагента")] = None,
 ) -> CounterpartyFilters:
-    return CounterpartyFilters(query=query, email=email, inn=Inn(inn))
+    return CounterpartyFilters(query=query, email=email, inn=None if inn is None else Inn(inn))
 
 
 CounterpartyFiltersDep = Annotated[CounterpartyFilters, Depends(get_counterparty_filters)]
