@@ -70,7 +70,7 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
             filters: TicketFilters | None = None,
     ) -> Page[Ticket]:
         # 1. Базовый запрос
-        stmt = select(self.model).options(selectinload(self.model.attachments))
+        stmt = select(self.model)
 
         # 2. Фильтрация с учётом области видимости
         if scopes.reporter_id is not None:
@@ -97,6 +97,30 @@ class SqlTicketRepository(SqlAlchemyRepository[Ticket, TicketOrm]):
             stmt = self._apply_filters(stmt, filters)
 
         return await self._paginate(stmt, pagination)
+
+    @override
+    async def _paginate(self, stmt: Select, pagination: Pagination) -> Page[Ticket]:
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total_items = await self.session.scalar(count_stmt)
+        if total_items == 0:
+            return Page.create([], total_items, pagination.page, pagination.size)
+
+        # 2. Получение страницы
+        stmt = (
+            stmt
+            .order_by(self.model.created_at.desc())
+            .offset(pagination.offset)
+            .limit(pagination.size)
+        )
+        results = await self.session.execute(stmt)
+        models = results.scalars().all()
+
+        return Page.create(
+            items=[self.model_mapper.to_light(model) for model in models],
+            total_items=total_items,
+            page=pagination.page,
+            size=pagination.size,
+        )
 
     async def get_total(
             self, project_id: UUID | None = None, counterparty_id: UUID | None = None
