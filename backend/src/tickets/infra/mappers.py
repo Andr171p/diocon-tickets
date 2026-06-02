@@ -107,7 +107,7 @@ class TicketMapper(ModelMapper[Ticket, TicketOrm]):
         )
 
     @staticmethod
-    def to_preview(model: TicketOrm) -> Ticket:
+    def to_light(model: TicketOrm) -> Ticket:
         return Ticket(
             id=model.id,
             created_at=model.created_at,

@@ -84,7 +84,11 @@ async def get_tickets(
         filters: TicketFiltersDep,
         service: TicketViewServiceDep,
 ) -> Page[TicketViewResponse]:
-    return await service.get_tickets(pagination, filters, current_user)
+    return await service.get_tickets(
+        current_user=current_user,
+        pagination=pagination,
+        filters=filters,
+    )
 
 
 @router.get(
