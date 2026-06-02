@@ -20,7 +20,7 @@ from src.tickets.infra.repos import (
     SqlReactionRepository,
     SqlTicketRepository,
 )
-from src.tickets.schemas import TicketFilter
+from src.tickets.domain.repos import TicketFilters
 
 EXPECTED_LIKE_REACTIONS_COUNT = 2
 
@@ -136,8 +136,8 @@ class TestSqlTicketRepository:
         """
 
         page = await ticket_repo.paginate(
-            params=Pagination(page=1, size=10),
-            filters=TicketFilter(
+            pagination=Pagination(page=1, size=10),
+            filters=TicketFilters(
                 status=TicketStatus.NEW,
                 priority=Priority.HIGH,
                 tags=["integration"],

@@ -440,9 +440,18 @@ async def test_request_task_review_returns_task_with_reviewer(
         user_role=UserRole.SUPPORT_MANAGER,
     )
     task = make_task(
-        status=TaskStatus.IN_PROGRESS,
         assignee_id=assignee.id,
         created_by=current_support_manager.user_id,
+    )
+
+    task.move_to(
+        new_status=TaskStatus.TODO,
+        moved_by=current_support_manager.user_id,
+    )
+
+    task.move_to(
+        new_status=TaskStatus.IN_PROGRESS,
+        moved_by=assignee.id,
     )
 
     await user_repo.create(assignee)
@@ -483,10 +492,20 @@ async def test_review_task_approve_returns_done_task(
 
     assignee_id = uuid4()
     task = make_task(
-        status=TaskStatus.IN_PROGRESS,
         assignee_id=assignee_id,
         created_by=current_support_manager.user_id,
     )
+
+    task.move_to(
+        new_status=TaskStatus.TODO,
+        moved_by=current_support_manager.user_id,
+    )
+
+    task.move_to(
+        new_status=TaskStatus.IN_PROGRESS,
+        moved_by=current_support_manager.user_id,
+    )
+
     task.request_review(
         reviewer_id=current_support_manager.user_id,
         requested_by=assignee_id,
