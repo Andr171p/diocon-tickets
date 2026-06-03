@@ -149,3 +149,10 @@ class SqlMembershipRepository(SqlAlchemyRepository[Membership, MembershipOrm]):
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
         return None if model is None else self.model_mapper.to_entity(model)
+
+    async def get_by_user(self, user_id: UUID) -> list[Membership]:
+        stmt = select(self.model).where(
+            (self.model.user_id == user_id) & (self.model.deleted_at.is_(None))
+        )
+        results = await self.session.execute(stmt)
+        return [self.model_mapper.to_entity(model) for model in results.scalars().all()]
