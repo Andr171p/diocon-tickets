@@ -15,6 +15,16 @@ class WorklogStatus(StrEnum):
         return self == self.DRAFT
 
     def is_final(self) -> bool:
-        """"""
+        """Является ли статус финальным"""
 
         return self in {self.APPROVED, self.REJECTED}
+
+
+class TimesheetStatus(StrEnum):
+    """Статус листа учёта рабочего времени"""
+
+    DRAFT = "draft"
+    SUBMITTED = "submitted"
+    PARTIALLY_APPROVED = "partially_approved"
+    APPROVED = "approved"
+    REJECTED = "rejected"

@@ -1,13 +1,19 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from ...shared.domain.entities import Entity
+from ...shared.domain.entities import AggregateRoot, Entity
 from ...shared.domain.exceptions import InvalidStateError, InvariantViolationError
 from ...shared.utils.time import current_datetime
-from .events import WorklogApproved, WorklogCreated, WorklogRejected, WorklogSubmitted
-from .vo import WorklogStatus
+from .events import (
+    TimesheetSubmitted,
+    WorklogApproved,
+    WorklogCreated,
+    WorklogRejected,
+    WorklogSubmitted,
+)
+from .vo import TimesheetStatus, WorklogStatus
 
 
 @dataclass(kw_only=True)
@@ -16,6 +22,8 @@ class Worklog(Entity):
     Запись о фактически затраченном времени.
     Может относиться к задаче или тикету.
     """
+
+    timesheet_id: UUID | None = None
 
     ticket_id: UUID | None = None
     task_id: UUID | None = None
@@ -26,6 +34,7 @@ class Worklog(Entity):
     description: str | None = None
 
     status: WorklogStatus
+
     approved_by: UUID | None = None
     approved_at: datetime | None = None
     rejection_reason: str | None = None
@@ -40,7 +49,7 @@ class Worklog(Entity):
             raise InvariantViolationError("Worklog must be linked to a ticket or task")
 
     @classmethod
-    def log(
+    def log_time(
             cls,
             user_id: UUID,
             hours_spent: Decimal,
@@ -68,7 +77,7 @@ class Worklog(Entity):
                 ticket_id=ticket_id,
                 task_id=task_id,
                 user_id=user_id,
-                hours_spent=float(hours_spent),
+                hours_spent=hours_spent,
                 entry_date=entry_date,
             )
         )
@@ -114,7 +123,7 @@ class Worklog(Entity):
                 ticket_id=self.ticket_id,
                 task_id=self.task_id,
                 user_id=self.user_id,
-                hours_spent=float(self.hours_spent),
+                hours_spent=self.hours_spent,
                 entry_date=self.entry_date,
                 approved_by=approved_by,
             )
@@ -132,8 +141,9 @@ class Worklog(Entity):
 
         self.register_event(
             WorklogRejected(
-                time_entry_id=self.id,
+                worklog_id=self.id,
                 rejected_by=rejected_by,
+                hours_spent=self.hours_spent,
                 reason=reason,
             )
         )
@@ -169,3 +179,184 @@ class Worklog(Entity):
 
         if is_edited:
             self.updated_at = current_datetime()
+
+    def assign_to_timesheet(self, timesheet_id: UUID) -> None:
+        """Привязать запись к ЛУРВ"""
+
+        if self.timesheet_id is not None:
+            raise InvariantViolationError(
+                f"Worklog is already assigned to timesheet with ID - '{self.timesheet_id}'"
+            )
+
+        self.timesheet_id = timesheet_id
+        self.updated_at = current_datetime()
+
+
+@dataclass(kw_only=True)
+class Timesheet(AggregateRoot):
+    """
+    ЛУРВ - лист учёта рабочего времени.
+    Агрегирует фактом потраченных часов.
+    Может привязываться к проекту и контрагенту.
+    """
+
+    user_id: UUID
+    period_start: date
+    period_end: date
+
+    name: str
+
+    # Ключевые бизнес срезы (денормализация)
+    counterparty_id: UUID | None = None
+    project_id: UUID | None = None
+
+    status: TimesheetStatus
+
+    total_hours: Decimal = Decimal(0)
+    approved_hours: Decimal = Decimal(0)
+    pending_hours: Decimal = Decimal(0)  # часов на согласовании
+
+    worklog_ids: list[UUID] = field(default_factory=list)
+
+    # Аудит действий
+    submitted_at: datetime | None = None
+    approved_at: datetime | None = None
+    approved_by: UUID | None = None
+
+    def __post_init__(self) -> None:
+        # Название листа не может быть пустым
+        if not self.name.strip():
+            raise ValueError("Timesheet name cannot be empty")
+
+        # Начало периода не может быть больше его конца
+        if self.period_start > self.period_end:
+            raise InvariantViolationError("Period start cannot be after period end")
+
+    @property
+    def draft_hours(self) -> Decimal:
+        """Часов в черновике"""
+
+        return self.total_hours - self.pending_hours - self.approved_hours
+
+    @property
+    def worklogs_count(self) -> int:
+        """Количество записей в журнале о факте потраченных часов"""
+
+        return len(self.worklog_ids)
+
+    def _recalculate_status(self) -> None:
+        """Перерасчёт статуса в зависимости от текущего состояния"""
+
+        # При явном отклонении - авто-обновление запрещено
+        if self.status == TimesheetStatus.REJECTED:
+            return
+
+        if self.worklogs_count == 0:
+            self.status = TimesheetStatus.DRAFT
+            return
+
+        if self.pending_hours > 0:
+            self.status = TimesheetStatus.SUBMITTED
+
+        # Все часы согласованы - ЛУРВ согласован
+        elif self.approved_hours == self.total_hours and self.total_hours > 0:
+            self.status = TimesheetStatus.APPROVED
+
+        # Частично согласован
+        elif self.approved_hours > 0:
+            self.status = TimesheetStatus.PARTIALLY_APPROVED
+
+        else:
+            self.status = TimesheetStatus.DRAFT
+
+    @classmethod
+    def create(
+            cls,
+            user_id: UUID,
+            period_start: date,
+            period_end: date,
+            name: str,
+            counterparty_id: UUID | None = None,
+            project_id: UUID | None = None,
+    ) -> "Timesheet":
+        """Создание листа учёта рабочего времени за определённый период"""
+
+        return cls(
+            user_id=user_id,
+            period_start=period_start,
+            period_end=period_end,
+            name=name,
+            counterparty_id=counterparty_id,
+            project_id=project_id,
+        )
+
+    def add_worklog(
+            self, worklog_id: UUID, hours_spent: Decimal, worklog_status: WorklogStatus
+    ) -> None:
+        """Добавление факта потраченных часов в ЛУРВ"""
+
+        if hours_spent <= 0:
+            raise ValueError("Cannot add negative number of hours")
+
+        if worklog_id in self.worklog_ids:
+            return
+
+        self.worklog_ids.append(worklog_id)
+        self.total_hours += hours_spent
+
+        # Учитываем текущий статус записи
+        if worklog_status == WorklogStatus.SUBMITTED:
+            self.pending_hours += hours_spent
+        elif worklog_status == WorklogStatus.APPROVED:
+            self.approved_hours += hours_spent
+
+        self._recalculate_status()
+
+        self.updated_at = current_datetime()
+
+    def remove_worklog(
+            self, worklog_id: UUID, hours_spent: Decimal, worklog_status: WorklogStatus
+    ) -> None:
+        """Удаление записи о потраченных часах из ЛУРВ"""
+
+        if hours_spent <= 0:
+            raise ValueError("Cannot remove negative number of hours")
+
+        if worklog_id not in self.worklog_ids:
+            return
+
+        self.worklog_ids.remove(worklog_id)
+        self.total_hours -= hours_spent
+
+        # Учитываем текущий статус записи
+        if worklog_status == WorklogStatus.SUBMITTED:
+            self.pending_hours -= hours_spent
+        elif worklog_status == WorklogStatus.APPROVED:
+            self.approved_hours -= hours_spent
+
+        self._recalculate_status()
+
+        self.updated_at = current_datetime()
+
+    def submit(self) -> None:
+        """Отправить ЛУРВ на согласование"""
+
+        if self.status != TimesheetStatus.DRAFT:
+            raise InvalidStateError("Only DRAFT timesheet can be submitted")
+
+        if not self.worklog_ids:
+            raise InvariantViolationError(
+                "Cannot submit empty timesheet. Need at least one worklog!"
+            )
+
+        self.status = TimesheetStatus.SUBMITTED
+        self.submitted_at = current_datetime()
+
+        self.register_event(
+            TimesheetSubmitted(
+                timesheet_id=self.id,
+                user_id=self.user_id,
+                total_hours=self.total_hours,
+                submitted_at=self.submitted_at,
+            )
+        )

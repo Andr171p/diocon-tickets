@@ -96,7 +96,7 @@ async def get_tickets(
     status_code=status.HTTP_200_OK,
     response_model=TicketResponse,
     dependencies=[Depends(get_current_user)],
-    summary="Получение тикета по его ID"
+    summary="Получение тикета по его ID",
 )
 async def get_ticket(ticket_id: UUID, repository: TicketRepoDep) -> TicketResponse:
     ticket = await repository.read(ticket_id)
