@@ -15,7 +15,7 @@ def ensure_task_belongs_to_ticket(task: Task | None, ticket_id: UUID | None) -> 
         )
 
 
-def assign_worklogs_to_timesheets(timesheet: Timesheet, worklogs: list[Worklog]) -> None:
+def assign_worklogs_to_timesheet(timesheet: Timesheet, worklogs: list[Worklog]) -> None:
     """Массовое добавление записей о потраченном времени в ЛУРВ"""
 
     for worklog in worklogs:

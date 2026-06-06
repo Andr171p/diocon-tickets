@@ -8,12 +8,17 @@ from ...iam.schemas import CurrentUser
 from ...projects.domain.repos import ProjectRepository
 from ...shared.domain.events import EventPublisher
 from ...shared.domain.exceptions import NotFoundError
-from ..domain.authz import can_approve_timesheet, can_create_timesheet, can_submit_timesheet
+from ..domain.authz import (
+    can_approve_or_reject_timesheet,
+    can_create_timesheet,
+    can_submit_timesheet,
+)
 from ..domain.entities import Timesheet
 from ..domain.repos import TimesheetRepository, WorklogRepository
 from ..domain.services import (
     approve_worklogs_in_timesheet,
-    assign_worklogs_to_timesheets,
+    assign_worklogs_to_timesheet,
+    reject_worklogs_in_timesheet,
     submit_worklogs_in_timesheet,
 )
 from ..mappers import map_timesheet_to_response
@@ -82,6 +87,8 @@ class TimesheetService:
             counterparty_id=counterparty_id,
             project_id=data.project_id,
         )
+        await self.timesheet_repo.create(timesheet)
+        await self.session.flush()
 
         # 3.1. Авто-добавление логов
         if data.auto_add_worklogs:
@@ -92,11 +99,10 @@ class TimesheetService:
                 counterparty_id=counterparty_id,
                 project_id=data.project_id,
             )
-            assign_worklogs_to_timesheets(timesheet, worklogs)
+            assign_worklogs_to_timesheet(timesheet, worklogs)
 
             await self.worklog_repo.bulk_upsert(worklogs)
 
-        await self.timesheet_repo.create(timesheet)
         await self.session.commit()
 
         # 4. Публикация доенных событий
@@ -136,6 +142,10 @@ class TimesheetService:
         for event in timesheet.collect_events():
             await self.event_publisher.publish(event)
 
+        for worklog in worklogs:
+            for event in worklog.collect_events():
+                await self.event_publisher.publish(event)
+
         return map_timesheet_to_response(timesheet)
 
     async def approve(self, timesheet_id: UUID, current_user: CurrentUser) -> TimesheetResponse:
@@ -147,7 +157,11 @@ class TimesheetService:
             raise NotFoundError(f"Timesheet with ID {timesheet_id} not found")
 
         # 2. Проверка прав
-        permission = can_approve_timesheet(current_user.role)
+        permission = can_approve_or_reject_timesheet(
+            timesheet=timesheet,
+            user_id=current_user.user_id,
+            user_role=current_user.role,
+        )
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
 
@@ -157,6 +171,49 @@ class TimesheetService:
         # 4. Согласование и обновление состояния
         approve_worklogs_in_timesheet(timesheet, worklogs, approved_by=current_user.user_id)
 
+        await self.timesheet_repo.upsert(timesheet)
+        await self.worklog_repo.bulk_upsert(worklogs)
+        await self.session.commit()
+
+        # 5. Публикация доменных событий
+        for event in timesheet.collect_events():
+            await self.event_publisher.publish(event)
+
+        for worklog in worklogs:
+            for event in worklog.collect_events():
+                await self.event_publisher.publish(event)
+
+        return map_timesheet_to_response(timesheet)
+
+    async def reject(
+            self, timesheet_id: UUID, reason: str, current_user: CurrentUser
+    ) -> TimesheetResponse:
+        """Отклонение ЛУРВ с указанием причины"""
+
+        # 1. Загрузка ЛУРВ
+        timesheet = await self.timesheet_repo.read(timesheet_id)
+        if timesheet is None:
+            raise NotFoundError(f"Timesheet with ID {timesheet_id} not found")
+
+        # 2. Проверка прав
+        permission = can_approve_or_reject_timesheet(
+            timesheet=timesheet,
+            user_id=current_user.user_id,
+            user_role=current_user.role,
+        )
+        if not permission.allowed:
+            raise PermissionDeniedError(permission.reason)
+
+        # 3. Получение журнала выполненных работ
+        worklogs = await self.worklog_repo.get_by_ids(timesheet.worklog_ids)
+
+        # 4. Отклонение ЛУРВ и обновление состояния
+        reject_worklogs_in_timesheet(
+            timesheet=timesheet,
+            worklogs=worklogs,
+            rejected_by=current_user.user_id,
+            reason=reason,
+        )
         await self.timesheet_repo.upsert(timesheet)
         await self.worklog_repo.bulk_upsert(worklogs)
         await self.session.commit()

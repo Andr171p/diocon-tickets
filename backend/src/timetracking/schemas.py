@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, NonNegativeInt
 from .domain.vo import TimesheetStatus, WorklogStatus
 
 TimesheetId = Annotated[UUID, Body(..., embed=True, description="ID ЛУРВ")]
+RejectionReason = Annotated[str, Body(..., embed=True, description="Причина отклонения ЛУРВ")]
 
 
 class WorklogBase(BaseModel):

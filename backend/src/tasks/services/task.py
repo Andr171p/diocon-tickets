@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -332,3 +333,16 @@ class TaskService:
             await self.event_publisher.publish(event)
 
         return map_task_to_response(task)
+
+    async def add_actual_hours(self, task_id: UUID, hours: Decimal) -> None:
+        """Добавление фактических трудозатрат по задаче"""
+
+        # 1. Получение и проверка на существование
+        task = await self.task_repo.read(task_id)
+        if task is None:
+            raise NotFoundError(f"Task with ID {task_id} not found")
+
+        # 2. Добавление часов + обновление состояния
+        task.add_actual_hours(hours)
+        await self.task_repo.upsert(task)
+        await self.session.commit()

@@ -11,12 +11,12 @@ from ...tasks.domain.entities import Task
 from ...tasks.domain.repos import TaskRepository
 from ...tickets.domain.entities import Ticket
 from ...tickets.domain.repos import TicketRepository
-from ...timesheets.domain.authz import can_edit_worklog, can_log_time
-from ...timesheets.domain.entities import Worklog
-from ...timesheets.domain.repos import WorklogRepository
-from ...timesheets.domain.services import ensure_task_belongs_to_ticket
-from ...timesheets.mappers import map_worklog_to_response
-from ...timesheets.schemas import WorklogCreate, WorklogEdit, WorklogResponse
+from ..domain.authz import can_edit_worklog, can_log_time
+from ..domain.entities import Worklog
+from ..domain.repos import WorklogRepository
+from ..domain.services import ensure_task_belongs_to_ticket
+from ..mappers import map_worklog_to_response
+from ..schemas import WorklogCreate, WorklogEdit, WorklogResponse
 
 
 @dataclass(frozen=True)

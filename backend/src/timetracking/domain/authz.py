@@ -69,8 +69,13 @@ def can_submit_timesheet(
     return PermissionResult(True)
 
 
-def can_approve_timesheet(user_role: UserRole) -> PermissionResult:
-    """Может ли пользователь согласовывать ЛУРВ"""
+def can_approve_or_reject_timesheet(
+        timesheet: Timesheet, user_id: UUID, user_role: UserRole
+) -> PermissionResult:
+    """Может ли пользователь согласовывать/отклонять ЛУРВ"""
+
+    if timesheet.user_id == user_id:
+        return PermissionResult(False, "User cannot approve his timesheet")
 
     if user_role in {UserRole.SUPPORT_MANAGER, UserRole.ADMIN}:
         return PermissionResult(True)
