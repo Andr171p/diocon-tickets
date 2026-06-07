@@ -51,6 +51,14 @@ class WorklogRejected(Event):
     hours_spent: Decimal
     reason: str
 
+
+@dataclass(frozen=True, kw_only=True)
+class WorklogRemoved(Event):
+    """Запись удалена"""
+
+    worklog_id: UUID
+    deleted_by: UUID
+
 # =================================== События для ЛУРВ ===================================
 
 

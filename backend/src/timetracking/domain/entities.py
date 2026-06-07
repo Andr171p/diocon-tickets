@@ -13,6 +13,7 @@ from .events import (
     WorklogApproved,
     WorklogCreated,
     WorklogRejected,
+    WorklogRemoved,
     WorklogSubmitted,
 )
 from .vo import TimesheetStatus, WorklogStatus
@@ -102,6 +103,7 @@ class Worklog(Entity):
                 ticket_id=self.ticket_id,
                 task_id=self.task_id,
                 user_id=self.user_id,
+                hours_spent=self.hours_spent,
             )
         )
 
@@ -175,8 +177,8 @@ class Worklog(Entity):
             self.entry_date = entry_date
             is_edited = True
 
-        if description is not None:
-            self.description = description
+        if description is not None and description.strip():
+            self.description = description.strip()
             is_edited = True
 
         if is_edited:
@@ -192,6 +194,20 @@ class Worklog(Entity):
 
         self.timesheet_id = timesheet_id
         self.updated_at = current_datetime()
+
+    def remove(self, deleted_by: UUID) -> None:
+        """Удаление записи (Soft-delete)"""
+
+        if self.status not in {WorklogStatus.DRAFT, WorklogStatus.REJECTED}:
+            raise InvalidStateError("Can only delete DRAFT or REJECTED worklog")
+
+        # Нельзя удалять привязанную к ЛУРВ запись
+        if self.timesheet_id is not None:
+            raise InvalidStateError("Cannot delete worklog already assigned to timesheet")
+
+        self.deleted_at = current_datetime()
+
+        self.register_event(WorklogRemoved(worklog_id=self.id, deleted_by=deleted_by))
 
 
 @dataclass(kw_only=True)
@@ -233,6 +249,10 @@ class Timesheet(AggregateRoot):
         # Начало периода не может быть больше его конца
         if self.period_start > self.period_end:
             raise InvariantViolationError("Period start cannot be after period end")
+
+        # Количество часов не может быть отрицательным
+        if self.total_hours < 0 or self.approved_hours < 0 or self.pending_hours < 0:
+            raise InvariantViolationError("The number of hours cannot be negative")
 
     @property
     def draft_hours(self) -> Decimal:

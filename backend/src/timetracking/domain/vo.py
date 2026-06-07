@@ -9,11 +9,13 @@ class WorklogStatus(StrEnum):
     APPROVED = "approved"  # согласовано
     REJECTED = "rejected"  # отклонено
 
+    @property
     def is_editable(self) -> bool:
         """Можно ли редактировать запись"""
 
         return self in {self.DRAFT, self.REJECTED}
 
+    @property
     def is_final(self) -> bool:
         """Является ли статус финальным"""
 
