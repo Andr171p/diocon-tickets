@@ -1,30 +1,41 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  Building2, 
-  Mail, 
-  Bell, 
+import {
+  LayoutDashboard,
+  Ticket,
+  CheckSquare,
+  Building2,
+  UserPlus,
+  Bell,
   User,
-  Plus,
-  LogOut,
   X,
   Building,
   FolderOpen,
-  FileAxis3d
+  Package,
+  ChevronLeft,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 
 interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
 }
 
+const ROLE_LABEL: Record<string, string> = {
+  admin: 'Администратор',
+  support_manager: 'Менеджер поддержки',
+  support_agent: 'Агент поддержки',
+  executor: 'Исполнитель',
+  customer_admin: 'Админ клиента',
+  customer: 'Клиент',
+};
+
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  
+  const { count: unreadNotifications } = useUnreadNotifications();
+
   const isCustomer = user?.role === 'customer' || user?.role === 'customer_admin';
   const canInvite = ['support_agent', 'support_manager', 'executor', 'admin'].includes(user?.role || '');
 
@@ -36,157 +47,206 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     localStorage.setItem('sidebarCollapsed', isCollapsed.toString());
   }, [isCollapsed]);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
-  const getRoleLabel = (role: string) => {
-    const labels: Record<string, string> = {
-      customer: 'Клиент',
-      customer_admin: 'Админ клиента',
-      support_agent: 'Агент поддержки',
-      support_manager: 'Менеджер',
-      executor: 'Исполнитель',
-      admin: 'Администратор'
-    };
-    return labels[role] || role;
-  };
-
-  const navItems = [
+  const mainNavItems = [
     { to: '/dashboard', icon: LayoutDashboard, label: 'Главная' },
-    { to: '/tickets', icon: FileText, label: 'Заявки' },
-    ...(isCustomer 
+    { to: '/tickets', icon: Ticket, label: 'Заявки' },
+    ...(isCustomer
       ? [{ to: '/my-company', icon: Building, label: 'Моя компания' }]
       : [{ to: '/counterparties', icon: Building2, label: 'Контрагенты' }]
     ),
     { to: '/projects', icon: FolderOpen, label: 'Проекты' },
-
-    ...(canInvite ? [{ to: '/products', icon: FileAxis3d, label: 'Продукты' }] : []),
-
-    ...(canInvite ? [{ to: '/invitations', icon: Mail, label: 'Приглашения' }] : []),
-    ,
-
-    
+    ...(canInvite ? [{ to: '/products', icon: Package, label: 'Продукты' }] : []),
+    ...(canInvite ? [{ to: '/tasks', icon: CheckSquare, label: 'Задачи сотрудников' }] : []),
+    ...(canInvite ? [{ to: '/invitations', icon: UserPlus, label: 'Приглашения' }] : []),
   ];
 
-  const settingsItems = [
-    { to: '/notifications', icon: Bell, label: 'Уведомления' },
+  const accountItems = [
+    { to: '/notifications', icon: Bell, label: 'Уведомления', badge: unreadNotifications },
     { to: '/profile', icon: User, label: 'Профиль' },
   ];
 
-  const SidebarContent = () => (
-    <div className="bg-[#1c1c1c] flex flex-col h-full">
-      {/* Header */}
-      <div className="p-4 border-b border-white/10 flex items-center justify-between">
-        <NavLink to="/dashboard" className="flex items-center gap-4 flex-1 min-w-0">
-          <img 
-            src="http://80.93.62.177:8000/media/images/Logo_bez_fona_bez_teksta.width-80.height-80.png"
-            alt="ДИО-Консалт"
-            className="w-12 h-12 object-contain flex-shrink-0"
-          />
+  // ─── Nav item ───
+  const NavItem = ({ to, icon: Icon, label, badge }: {
+    to: string; icon: any; label: string; badge?: number;
+  }) => (
+    <NavLink
+      to={to}
+      onClick={onClose}
+      title={isCollapsed ? label : undefined}
+      className={({ isActive }) =>
+        `group relative flex items-center gap-3 rounded-xl text-l font-medium
+         transition-all duration-200 ${isCollapsed ? 'justify-center px-2 py-4.5 mx-auto w-11 h-11' : 'px-4 py-3.5'}
+         ${isActive
+          ? 'bg-[var(--hover-1)] '
+          : 'text-[var(--text-secondary)] hover:bg-[var(--hover-1)] hover:text-[var(--text-primary)]'
+        }`
+      }
+    >
+      {({ isActive }) => (
+        <>
+          {/* Активный индикатор слева */}
+          {isActive && !isCollapsed && (
+            <span
+              className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full
+                         bg-gradient-to-b from-[var(--accent-light)] to-[var(--accent)]"
+              style={{ boxShadow: '0 0 8px var(--accent-glow)' }}
+            />
+          )}
+
+          {/* Иконка с бейджем */}
+          <div className="relative flex-shrink-0">
+            <Icon
+              className={`w-6 h-6 transition-transform group-hover:scale-110
+                         ${isActive ? 'text-[var(--accent-light)]' : ''}`}
+            />
+            {/* Бейдж на иконке (для свёрнутого режима) */}
+            {badge != null && badge > 0 && isCollapsed && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1
+                               flex items-center justify-center rounded-full
+                               bg-[var(--accent)] text-white text-[10px] font-bold
+                               ring-2 ring-[var(--bg-primary)] animate-pulse">
+                {badge > 99 ? '99+' : badge}
+              </span>
+            )}
+          </div>
+
           {!isCollapsed && (
+            <>
+              <span className="truncate flex-1">{label}</span>
+
+              {/* Бейдж рядом с текстом (для развёрнутого режима) */}
+              {badge != null && badge > 0 && (
+                <span className="ml-auto px-2 py-0.5 min-w-[22px] text-center
+                                 rounded-full bg-[var(--accent)] text-white
+                                 text-xs font-bold animate-pulse">
+                  {badge > 99 ? '99+' : badge}
+                </span>
+              )}
+            </>
+          )}
+
+          {/* Tooltip для свёрнутого режима */}
+          {isCollapsed && (
+            <span className="pointer-events-none absolute left-full ml-3 px-2.5 py-1.5 rounded-lg
+                             bg-[var(--bg-card)] border border-[var(--border-color)]
+                             text-xs font-medium text-[var(--text-primary)] whitespace-nowrap
+                             opacity-0 group-hover:opacity-100 transition-opacity duration-150
+                             shadow-lg z-50 flex items-center gap-2">
+              {label}
+              {badge != null && badge > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-[var(--accent)] text-white text-[10px] font-bold">
+                  {badge}
+                </span>
+              )}
+            </span>
+          )}
+        </>
+      )}
+    </NavLink>
+  );
+
+  // ─── Section label ───
+  const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+    !isCollapsed ? (
+      <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+        {children}
+      </p>
+    ) : (
+      <div className="mx-auto w-8 h-px bg-[var(--border-color)] my-2" />
+    )
+  );
+
+  const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => (
+    <div className="sidebar-bg flex flex-col h-full relative">
+      {/* Header */}
+      <div className={`flex items-center border-b border-[var(--border-color)]
+                      ${isCollapsed && !isMobile ? 'p-4 justify-center' : 'p-4 justify-between gap-2'}`}>
+        <NavLink
+          to="/dashboard"
+          onClick={onClose}
+          className={`flex items-center gap-3 min-w-0 group
+                     ${isCollapsed && !isMobile ? '' : 'flex-1'}`}
+        >
+          <div className="relative flex-shrink-0">
+            <div className="absolute inset-0 bg-[var(--accent)]/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+            <img
+              src="http://80.93.62.177:8000/media/images/Logo_bez_fona_bez_teksta.width-80.height-80.png"
+              alt="ДИО-Консалт"
+              className="relative w-12 h-12 object-contain"
+            />
+          </div>
+          {(!isCollapsed || isMobile) && (
             <div className="min-w-0">
-              <h1 className="font-bold text-white text-lg truncate">ДИО-Деск</h1>
-              <p className="text-xs text-white/50">Система заявок</p>
+              <h1 className="text-[var(--text-primary)] text-2xl">ДИО Деск</h1>
             </div>
           )}
         </NavLink>
 
-        {/* Кнопка сворачивания */}
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden lg:flex items-center justify-center w-9 h-9 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0"
-        >
-          {isCollapsed ? (
-            // Когда свёрнут — показываем твой логотип (маленький)
-            <img 
-              src="http://80.93.62.177:8000/media/images/Logo_bez_fona_bez_teksta.width-80.height-80.png"
-              alt="logo"
-              className="w-7 h-7 object-contain"
-            />
-          ) : (
-            // Когда развёрнут — показываем три полоски
-            <div className="flex flex-col gap-1.5">
-              <div className="w-5 h-0.5 bg-white/70 rounded" />
-              <div className="w-5 h-0.5 bg-white/70 rounded" />
-              <div className="w-5 h-0.5 bg-white/70 rounded" />
-            </div>
-          )}
-        </button>
-
-        {/* Кнопка закрытия на мобильных */}
         {onClose && (
-          <button onClick={onClose} className="lg:hidden p-2 text-white/50 hover:text-white">
-            <X className="w-6 h-6" />
+          <button
+            onClick={onClose}
+            className="lg:hidden p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-1)] transition-colors"
+          >
+            <X className="w-5 h-5" />
           </button>
         )}
       </div>
 
-      {/* New Ticket Button */}
-      <div className="p-5">
-        <button
-          onClick={() => { navigate('/tickets/new'); onClose?.(); }}
-          className="w-full btn-primary py-4 text-base font-semibold flex items-center justify-center gap-2"
-        >
-          <Plus className="w-5 h-5 flex-shrink-0" />
-          {!isCollapsed && <span>Новая заявка</span>}
-        </button>
-      </div>
-
       {/* Navigation */}
-      <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
-        {navItems.map(item => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            onClick={onClose}
-            className={({ isActive }) =>
-              `nav-item text-base flex items-center gap-4 ${isActive ? 'nav-item-active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`
-            }
-          >
-            <item.icon className="w-6 h-6 flex-shrink-0" />
-            {!isCollapsed && <span>{item.label}</span>}
-          </NavLink>
-        ))}
+      <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-4
+                      ${isCollapsed && !isMobile ? 'px-2' : 'px-3'}`}>
+        <SectionLabel>Меню</SectionLabel>
+        <div className="space-y-1 mb-6">
+          {mainNavItems.map(item => (
+            <NavItem key={item.to} {...item} />
+          ))}
+        </div>
 
-        <div className="my-6 border-t border-white/10" />
-
-        {settingsItems.map(item => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            onClick={onClose}
-            className={({ isActive }) =>
-              `nav-item text-base flex items-center gap-4 ${isActive ? 'nav-item-active' : ''} ${isCollapsed ? 'justify-center px-2' : ''}`
-            }
-          >
-            <item.icon className="w-6 h-6 flex-shrink-0" />
-            {!isCollapsed && <span>{item.label}</span>}
-          </NavLink>
-        ))}
+        <SectionLabel>Аккаунт</SectionLabel>
+        <div className="space-y-1">
+          {accountItems.map(item => (
+            <NavItem key={item.to} {...item} />
+          ))}
+        </div>
       </nav>
-
-      
     </div>
   );
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <aside 
-        className={`hidden lg:flex flex-col h-screen sticky top-0 border-r border-white/10 transition-all duration-300 bg-[#0a0a0a]
-          ${isCollapsed ? 'w-20' : 'w-72'}`}
+      {/* Desktop */}
+      <aside
+        className={`hidden lg:flex z-40 flex-col h-screen sticky top-0 border-r border-[var(--border-color)]
+                   transition-all duration-300 sidebar-bg relative
+                   ${isCollapsed ? 'w-20' : 'w-72'}`}
       >
         <SidebarContent />
+
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          aria-label={isCollapsed ? 'Развернуть' : 'Свернуть'}
+          className="absolute top-7 -right-3 w-6 h-6 rounded-full
+                     bg-[var(--bg-card)] border border-[var(--border-color)]
+                     flex items-center justify-center
+                     text-[var(--text-muted)] hover:text-[var(--accent-light)]
+                     hover:border-[var(--accent)]/40 hover:scale-110
+                     shadow-md transition-all duration-200"
+        >
+          <ChevronLeft
+            className={`w-3.5 h-3.5 transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`}
+          />
+        </button>
       </aside>
 
-      {/* Mobile Sidebar */}
+      {/* Mobile */}
       {isOpen && (
         <>
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden" onClick={onClose} />
-          <aside className="fixed right-0 top-0 h-full w-80 bg-[#0a0a0a] border-l border-white/10 z-50 lg:hidden overflow-y-auto">
-            <SidebarContent />
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden"
+            onClick={onClose}
+          />
+          <aside className="fixed right-0 top-0 h-full w-80 sidebar-bg border-l border-[var(--border-color)] z-50 lg:hidden overflow-y-auto">
+            <SidebarContent isMobile />
           </aside>
         </>
       )}

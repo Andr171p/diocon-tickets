@@ -1,4 +1,4 @@
-// components/helpers/CommentForm.tsx
+﻿// components/helpers/CommentForm.tsx
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { User, Send, Loader2, Paperclip, X, File, CheckCircle2, WandSparkles } from 'lucide-react';
 import { attachmentsApi } from '../../api/attachments';
@@ -27,10 +27,10 @@ interface CommentFormProps {
   onSuccess?: () => void;
 }
 
-export const CommentForm = React.memo(({ 
-  message, 
-  setMessage, 
-  onSend, 
+export const CommentForm = React.memo(({
+  message,
+  setMessage,
+  onSend,
   sending,
   messageType,
   setMessageType,
@@ -94,18 +94,18 @@ export const CommentForm = React.memo(({
 
   const uploadFiles = async (commentId: string): Promise<boolean> => {
     const filesToUpload = localFiles.filter(f => f.status === 'pending');
-    
+
     if (filesToUpload.length === 0) return true;
-    
+
     setUploadingFiles(true);
-    setLocalFiles(prev => prev.map(f => 
-      filesToUpload.some(uf => uf.id === f.id) 
+    setLocalFiles(prev => prev.map(f =>
+      filesToUpload.some(uf => uf.id === f.id)
         ? { ...f, status: 'uploading' }
         : f
     ));
-    
+
     let allSuccess = true;
-    
+
     for (const fileItem of filesToUpload) {
       try {
         const attachment = await attachmentsApi.uploadAttachment(
@@ -113,7 +113,7 @@ export const CommentForm = React.memo(({
           'comment',
           commentId
         );
-        
+
         setLocalFiles(prev => prev.map(f =>
           f.id === fileItem.id
             ? { ...f, status: 'success', attachmentId: attachment.id }
@@ -129,7 +129,7 @@ export const CommentForm = React.memo(({
         allSuccess = false;
       }
     }
-    
+
     setUploadingFiles(false);
     return allSuccess;
   };
@@ -159,30 +159,30 @@ export const CommentForm = React.memo(({
   const handleSend = async () => {
     const trimmedMessage = message.trim();
     const hasFiles = localFiles.filter(f => f.status === 'pending').length > 0;
-    
+
     if ((!trimmedMessage && !hasFiles) || sending || uploadingFiles) {
       return;
     }
-    
+
     try {
       const commentId = await onSend(localFiles);
-      
+
       if (!commentId) {
         throw new Error('Не удалось создать комментарий - ID не получен');
       }
-      
+
       if (hasFiles) {
         await uploadFiles(commentId);
       }
-      
+
       setMessage('');
       setLocalFiles([]);
       setSpellCheckResult(null);
-      
+
       if (onSuccess) {
         await onSuccess();
       }
-      
+
     } catch (error) {
       console.error('Failed to send comment:', error);
     }
@@ -223,10 +223,10 @@ export const CommentForm = React.memo(({
     <div className="flex gap-3">
       <div className="flex-shrink-0">
         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-white/50 to-white/30 flex items-center justify-center">
-          <User className="w-5 h-5 text-white" />
+          <User className="w-5 h-5 text-[var(--text-primary)]" />
         </div>
       </div>
-      
+
       <div className="flex-1">
         {/* ─── Textarea с кнопкой spell check ─── */}
         <div className="relative">
@@ -238,7 +238,7 @@ export const CommentForm = React.memo(({
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
             placeholder="Написать комментарий..."
-            className="w-full px-4 py-3 pr-12 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-red-500/50 focus:bg-white/10 transition-all text-l resize-none overflow-y-auto"
+            className="w-full px-4 py-3 pr-12 bg-[var(--hover-1)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] placeholder-white/40 focus:outline-none focus:border-red-500/50 focus:bg-[var(--hover-1)] transition-all text-l resize-none overflow-y-auto"
             rows={1}
             style={{ minHeight: '56px', maxHeight: '200px' }}
           />
@@ -252,7 +252,7 @@ export const CommentForm = React.memo(({
                 relative p-2 rounded-lg transition-all duration-200 group/spell
                 ${spellCheckLoading
                   ? 'text-amber-400 bg-amber-500/10'
-                  : 'text-white/90 hover:text-amber-400 hover:bg-amber-500/10 active:scale-95'
+                  : 'text-[var(--text-primary)]/90 hover:text-amber-400 hover:bg-amber-500/10 active:scale-95'
                 }
                 disabled:opacity-30 disabled:cursor-not-allowed
               `}
@@ -264,7 +264,7 @@ export const CommentForm = React.memo(({
               )}
 
               {/* Тултип */}
-              <span className="absolute bottom-full right-0 mb-2 px-2.5 py-1.5 rounded-lg bg-[#1a1a1a] border border-white/10 shadow-xl text-l text-white/80 whitespace-nowrap opacity-0 pointer-events-none group-hover/spell:opacity-100 transition-opacity duration-150 z-10">
+              <span className="absolute bottom-full right-0 mb-2 px-2.5 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] shadow-xl text-l text-[var(--text-primary)]/80 whitespace-nowrap opacity-0 pointer-events-none group-hover/spell:opacity-100 transition-opacity duration-150 z-10">
                 Проверить текст ✨
               </span>
             </button>
@@ -284,22 +284,22 @@ export const CommentForm = React.memo(({
             />
           </div>
         )}
-        
+
         {/* ─── Список файлов ─── */}
         {localFiles.length > 0 && (
           <div className="mt-3 space-y-2">
             {localFiles.map((f) => (
-              <div key={f.id} className="flex items-center gap-3 p-2 rounded-lg bg-white/5">
+              <div key={f.id} className="flex items-center gap-3 p-2 rounded-lg bg-[var(--hover-1)]">
                 {f.preview ? (
                   <img src={f.preview} alt="" className="w-8 h-8 rounded object-cover" />
                 ) : (
-                  <div className="w-8 h-8 rounded bg-white/10 flex items-center justify-center">
-                    <File className="w-4 h-4 text-white/50" />
+                  <div className="w-8 h-8 rounded bg-[var(--hover-1)] flex items-center justify-center">
+                    <File className="w-4 h-4 text-[var(--text-primary)]/50" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-l text-white truncate">{f.file.name}</p>
-                  <p className="text-l text-white/40">{formatFileSize(f.file.size)}</p>
+                  <p className="text-l text-[var(--text-primary)] truncate">{f.file.name}</p>
+                  <p className="text-l text-[var(--text-primary)]/40">{formatFileSize(f.file.size)}</p>
                   {f.error && <p className="text-l text-red-400">{f.error}</p>}
                 </div>
                 <div className="flex items-center gap-2">
@@ -307,7 +307,7 @@ export const CommentForm = React.memo(({
                   <button
                     onClick={() => removeFile(f.id)}
                     disabled={f.status === 'uploading'}
-                    className="p-1 rounded hover:bg-white/10 text-white/50 hover:text-red-400 transition-colors disabled:opacity-50"
+                    className="p-1 rounded hover:bg-[var(--hover-1)] text-[var(--text-primary)]/50 hover:text-red-400 transition-colors disabled:opacity-50"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -316,7 +316,7 @@ export const CommentForm = React.memo(({
             ))}
           </div>
         )}
-        
+
         {/* ─── Нижняя панель ─── */}
         <div className="flex justify-between items-center mt-2">
           <div className="flex gap-2">
@@ -324,20 +324,19 @@ export const CommentForm = React.memo(({
               <button
                 type="button"
                 onClick={() => setMessageType(messageType === 'public' ? 'internal' : 'public')}
-                className={`px-3 py-1.5 rounded-lg text-l font-medium transition-colors ${
-                  messageType === 'internal'
+                className={`px-3 py-1.5 rounded-lg text-l font-medium transition-colors ${messageType === 'internal'
                     ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                    : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10'
-                }`}
+                    : 'bg-[var(--hover-1)] text-[var(--text-primary)]/60 border border-[var(--border-color)] hover:bg-[var(--hover-1)]'
+                  }`}
               >
                 {messageType === 'internal' ? 'Внутренний' : 'Публичный'}
               </button>
             )}
-            
+
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="px-3 py-1.5 rounded-lg text-l font-medium bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 transition-colors"
+              className="px-3 py-1.5 rounded-lg text-l font-medium bg-[var(--hover-1)] text-[var(--text-primary)]/60 border border-[var(--border-color)] hover:bg-[var(--hover-1)] transition-colors"
               disabled={uploadingFiles}
             >
               <Paperclip className="w-6 h-6 inline mr-1" />
@@ -351,12 +350,12 @@ export const CommentForm = React.memo(({
               className="hidden"
               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
             />
-            
-            <span className="text-l text-white/30 self-center">
+
+            <span className="text-l text-[var(--text-primary)]/30 self-center">
               Ctrl+Enter для отправки
             </span>
           </div>
-          
+
           <button
             onClick={handleSend}
             disabled={isSendDisabled}

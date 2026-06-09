@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, Loader2, Building2, CheckCircle2, User, Search, Crown, 
+  ArrowLeft, Loader2, Building2, CheckCircle2, User, Crown, 
   Sparkles, AlertCircle, CheckCircle, XCircle, ChevronDown
 } from 'lucide-react';
 import { projectsApi, counterpartiesApi, usersApi } from '../api/client';
@@ -314,17 +314,17 @@ const checkKeyAvailability = async () => {
 
   const getKeyStatusIcon = () => {
     if (keyValidating) {
-      return <Loader2 className="w-5 h-5 text-yellow-400 animate-spin" />;
+      return <Loader2 className="w-5 h-5 text-[var(--warning)] animate-spin" />;
     }
     if (!key) return null;
     if (!isValidKey(key)) {
-      return <XCircle className="w-5 h-5 text-red-400" />;
+      return <XCircle className="w-5 h-5 text-[var(--accent)]" />;
     }
     if (keyAvailability?.available) {
-      return <CheckCircle className="w-5 h-5 text-green-400" />;
+      return <CheckCircle className="w-5 h-5 text-[var(--success)]" />;
     }
     if (keyAvailability && !keyAvailability.available) {
-      return <XCircle className="w-5 h-5 text-red-400" />;
+      return <XCircle className="w-5 h-5 text-[var(--accent)]" />;
     }
     return null;
   };
@@ -335,13 +335,13 @@ const checkKeyAvailability = async () => {
       <div className="flex items-center gap-6 mb-8">
         <button
           onClick={() => navigate('/projects')}
-          className="p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+          className="p-3 rounded-xl bg-[var(--hover-1)] hover:bg-[var(--hover-1)] transition-colors"
         >
-          <ArrowLeft className="w-6 h-6 text-white" />
+          <ArrowLeft className="w-6 h-6 text-[var(--text-primary)]" />
         </button>
         <div>
-          <h1 className="text-4xl font-bold text-white">Создание проекта</h1>
-          <p className="text-white/60 mt-1">Новый проект для контрагента</p>
+          <h1 className="text-4xl font-bold text-[var(--text-primary)]">Создание проекта</h1>
+          <p className="text-[var(--text-primary)]/60 mt-1">Новый проект для контрагента</p>
         </div>
       </div>
 
@@ -349,12 +349,12 @@ const checkKeyAvailability = async () => {
 
         {/* Организация */}
         <div>
-          <label className="block text-lg font-semibold text-white mb-2">
-            Контрагент <span className="text-red-400">*</span>
+          <label className="block text-lg font-semibold text-[var(--text-primary)] mb-2">
+            Контрагент <span className="text-[var(--accent)]">*</span>
           </label>
           <div className="relative" ref={counterpartyDropdownRef}>
             <div className="relative">
-              <Building2 className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/40" />
+              <Building2 className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-primary)]/40" />
               <input
                 type="text"
                 value={search}
@@ -364,21 +364,22 @@ const checkKeyAvailability = async () => {
                 }}
                 onFocus={() => setShowDropdown(true)}
                 placeholder="Поиск контрагента..."
-                className="input-field pl-12 py-4 text-lg w-full"
+                style={{ paddingLeft: '3.5rem' }}
+                className="input-field py-4 text-lg w-full"
               />
             </div>
             
             {showDropdown && (
-              <div className="absolute z-50 mt-2 w-full bg-[#1c1c1c] border border-white/20 rounded-xl shadow-2xl max-h-80 overflow-y-auto">
+              <div className="absolute z-50 mt-2 w-full bg-[var(--bg-primary)] border border-white/20 rounded-xl shadow-2xl max-h-80 overflow-y-auto">
                 {loading ? (
                   <div className="p-8 text-center">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-white/50" />
-                    <p className="text-white/50 mt-3">Загрузка контрагнета...</p>
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-[var(--text-primary)]/50" />
+                    <p className="text-[var(--text-primary)]/50 mt-3">Загрузка контрагнета...</p>
                   </div>
                 ) : filteredCounterparties.length === 0 ? (
                   <div className="p-8 text-center">
-                    <Building2 className="w-12 h-12 mx-auto mb-3 text-white/20" />
-                    <p className="text-white/50 text-lg">Ничего не найдено</p>
+                    <Building2 className="w-12 h-12 mx-auto mb-3 text-[var(--text-primary)]/20" />
+                    <p className="text-[var(--text-primary)]/50 text-lg">Ничего не найдено</p>
                   </div>
                 ) : (
                   filteredCounterparties.map((cp) => (
@@ -390,13 +391,13 @@ const checkKeyAvailability = async () => {
                         setSearch(getCounterpartyDisplay(cp));
                         setShowDropdown(false);
                       }}
-                      className="w-full text-left p-5 hover:bg-white/10 transition-colors border-b border-white/10 last:border-0"
+                      className="w-full text-left p-5 hover:bg-[var(--hover-1)] transition-colors border-b border-white/10 last:border-0"
                     >
-                      <div className="font-semibold text-white text-base">{getCounterpartyDisplay(cp)}</div>
+                      <div className="font-semibold text-[var(--text-primary)] text-base">{getCounterpartyDisplay(cp)}</div>
                       {cp.legal_name && cp.legal_name !== cp.name && (
-                        <div className="text-sm text-white/50 mt-1">{cp.legal_name}</div>
+                        <div className="text-sm text-[var(--text-primary)]/50 mt-1">{cp.legal_name}</div>
                       )}
-                      {cp.inn && <div className="text-xs text-white/40 mt-1">ИНН: {cp.inn}</div>}
+                      {cp.inn && <div className="text-xs text-[var(--text-primary)]/40 mt-1">ИНН: {cp.inn}</div>}
                     </button>
                   ))
                 )}
@@ -404,17 +405,17 @@ const checkKeyAvailability = async () => {
             )}
           </div>
           {counterpartyId && (
-            <div className="mt-4 p-4 rounded-xl bg-green-500/10 border border-green-500/30 flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-green-400" />
-              <span className="text-white">Контрагнет выбран</span>
+            <div className="mt-4 p-4 rounded-xl bg-[var(--success)]/8 border border-green-500/30 flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-[var(--success)]" />
+              <span className="text-[var(--text-primary)]">Контрагнет выбран</span>
             </div>
           )}
         </div>
 
         {/* Название проекта с AI помощником */}
         <div>
-          <label className="block text-lg font-semibold text-white mb-2">
-            Название проекта <span className="text-red-400">*</span>
+          <label className="block text-lg font-semibold text-[var(--text-primary)] mb-2">
+            Название проекта <span className="text-[var(--accent)]">*</span>
           </label>
           <div className="relative">
             <input
@@ -427,12 +428,12 @@ const checkKeyAvailability = async () => {
             />
             {aiLoading && (
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                <Loader2 className="w-5 h-5 text-[var(--info)] animate-spin" />
               </div>
             )}
             {!aiLoading && aiSuggestion && name && (
               <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                <Sparkles className="w-5 h-5 text-purple-400" />
+                <Sparkles className="w-5 h-5 text-[var(--info)]" />
               </div>
             )}
           </div>
@@ -442,14 +443,14 @@ const checkKeyAvailability = async () => {
             <div className="mt-3 p-4 rounded-xl bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/30">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-purple-400" />
-                  <span className="text-white">Предложенный ключ:</span>
-                  <span className="text-purple-400 font-mono font-bold text-lg">{aiSuggestion}</span>
+                  <Sparkles className="w-5 h-5 text-[var(--info)]" />
+                  <span className="text-[var(--text-primary)]">Предложенный ключ:</span>
+                  <span className="text-[var(--info)] font-mono font-bold text-lg">{aiSuggestion}</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setKey(aiSuggestion)}
-                  className="px-3 py-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 text-sm transition-colors"
+                  className="px-3 py-1 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-[var(--info)] text-sm transition-colors"
                 >
                   Использовать
                 </button>
@@ -460,8 +461,8 @@ const checkKeyAvailability = async () => {
 
         {/* Ключ проекта с проверкой доступности */}
         <div>
-          <label className="block text-lg font-semibold text-white mb-2">
-            Ключ проекта <span className="text-red-400">*</span>
+          <label className="block text-lg font-semibold text-[var(--text-primary)] mb-2">
+            Ключ проекта <span className="text-[var(--accent)]">*</span>
           </label>
           <div className="relative">
             <input
@@ -478,18 +479,18 @@ const checkKeyAvailability = async () => {
             </div>
           </div>
           
-          <p className="text-white/40 text-sm mt-1">
+          <p className="text-[var(--text-primary)]/40 text-sm mt-1">
             Уникальный идентификатор проекта. 2-10 символов, начинается с буквы, только буквы, цифры или подчёркивания
           </p>
           
           {/* Ошибка валидации ключа */}
           {key && !isValidKey(key) && (
-            <div className="mt-3 p-4 rounded-xl bg-red-500/10 border border-red-500/30">
+            <div className="mt-3 p-4 rounded-xl bg-[var(--accent-soft)] border border-[var(--accent)]/15">
               <div className="flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-[var(--accent)] mt-0.5" />
                 <div>
-                  <p className="text-red-400 font-medium">Неверный формат ключа</p>
-                  <p className="text-white/70 text-sm">
+                  <p className="text-[var(--accent)] font-medium">Неверный формат ключа</p>
+                  <p className="text-[var(--text-primary)]/70 text-sm">
                     Ключ должен быть 2-10 символов, начинаться с буквы и содержать только буквы, цифры или подчёркивания
                   </p>
                 </div>
@@ -499,21 +500,21 @@ const checkKeyAvailability = async () => {
           
           {/* Статус доступности ключа */}
           {key && isValidKey(key) && keyAvailability && !keyAvailability.available && (
-            <div className="mt-3 p-4 rounded-xl bg-red-500/10 border border-red-500/30">
+            <div className="mt-3 p-4 rounded-xl bg-[var(--accent-soft)] border border-[var(--accent)]/15">
               <div className="flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-red-400 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-[var(--accent)] mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-red-400 font-medium">Ключ уже занят</p>
+                  <p className="text-[var(--accent)] font-medium">Ключ уже занят</p>
                   {keyAvailability.suggestions && keyAvailability.suggestions.length > 0 && (
                     <div className="mt-2">
-                      <p className="text-white/70 text-sm mb-2">Предлагаем альтернативы:</p>
+                      <p className="text-[var(--text-primary)]/70 text-sm mb-2">Предлагаем альтернативы:</p>
                       <div className="flex flex-wrap gap-2">
                         {keyAvailability.suggestions.slice(0, 5).map((suggestion) => (
                           <button
                             key={suggestion}
                             type="button"
                             onClick={() => applySuggestion(suggestion)}
-                            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-colors font-mono"
+                            className="px-3 py-1.5 rounded-lg bg-[var(--hover-1)] hover:bg-[var(--hover-1)] text-[var(--text-primary)] text-sm transition-colors font-mono"
                           >
                             {suggestion}
                           </button>
@@ -527,9 +528,9 @@ const checkKeyAvailability = async () => {
           )}
           
           {key && isValidKey(key) && keyAvailability?.available && (
-            <div className="mt-3 p-3 rounded-xl bg-green-500/10 border border-green-500/30 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-green-400" />
-              <span className="text-green-400 text-sm">Ключ доступен</span>
+            <div className="mt-3 p-3 rounded-xl bg-[var(--success)]/8 border border-green-500/30 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-[var(--success)]" />
+              <span className="text-[var(--success)] text-sm">Ключ доступен</span>
             </div>
           )}
         </div>
@@ -537,33 +538,33 @@ const checkKeyAvailability = async () => {
         {/* Владелец проекта (Инициатор) */}
         {counterpartyId && (
           <div>
-            <label className="block text-lg font-semibold text-white mb-2">
-              <Crown className="inline w-5 h-5 mr-2 text-yellow-400" />
-              Владелец проекта <span className="text-red-400">*</span>
+            <label className="block text-lg font-semibold text-[var(--text-primary)] mb-2">
+              <Crown className="inline w-5 h-5 mr-2 text-[var(--warning)]" />
+              Владелец проекта <span className="text-[var(--accent)]">*</span>
             </label>
             
             {/* Отображение выбранного владельца */}
             {selectedOwner && (
-              <div className="mb-3 p-4 rounded-xl bg-green-500/10 border border-green-500/30">
+              <div className="mb-3 p-4 rounded-xl bg-[var(--success)]/8 border border-green-500/30">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-[var(--success)] flex items-center justify-center">
                       {selectedOwner.id === user?.user_id ? (
-                        <User className="w-5 h-5 text-white" />
+                        <User className="w-5 h-5 text-[var(--text-primary)]" />
                       ) : (
-                        <Crown className="w-5 h-5 text-white" />
+                        <Crown className="w-5 h-5 text-[var(--text-primary)]" />
                       )}
                     </div>
                     <div>
-                      <div className="text-white font-medium">
+                      <div className="text-[var(--text-primary)] font-medium">
                         {getUserDisplayName(selectedOwner)}
                         {selectedOwner.id === user?.user_id && (
-                          <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
+                          <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-[var(--success)]/8 text-[var(--success)]">
                             Вы (владелец по умолчанию)
                           </span>
                         )}
                       </div>
-                      <div className="text-sm text-white/50">{selectedOwner.email}</div>
+                      <div className="text-sm text-[var(--text-primary)]/50">{selectedOwner.email}</div>
                     </div>
                   </div>
                   
@@ -571,7 +572,7 @@ const checkKeyAvailability = async () => {
                   <button
                     type="button"
                     onClick={() => setShowOwnerDropdown(!showOwnerDropdown)}
-                    className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-colors flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-lg bg-[var(--hover-1)] hover:bg-[var(--hover-1)] text-[var(--text-primary)] text-sm transition-colors flex items-center gap-1"
                   >
                     {showOwnerDropdown ? 'Скрыть' : 'Изменить'}
                     <ChevronDown className={`w-4 h-4 transition-transform ${showOwnerDropdown ? 'rotate-180' : ''}`} />
@@ -583,17 +584,17 @@ const checkKeyAvailability = async () => {
             {/* Выпадающий список для смены владельца */}
             {showOwnerDropdown && (
               <div className="relative" ref={ownerDropdownRef}>
-                <div className="absolute z-50 mt-0 w-full bg-[#1c1c1c] border border-white/20 rounded-xl shadow-2xl max-h-80 overflow-y-auto">
+                <div className="absolute z-50 mt-0 w-full bg-[var(--bg-primary)] border border-white/20 rounded-xl shadow-2xl max-h-80 overflow-y-auto">
                   {loadingUsers ? (
                     <div className="p-8 text-center">
-                      <Loader2 className="w-8 h-8 animate-spin mx-auto text-white/50" />
-                      <p className="text-white/50 mt-3">Загрузка пользователей...</p>
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto text-[var(--text-primary)]/50" />
+                      <p className="text-[var(--text-primary)]/50 mt-3">Загрузка пользователей...</p>
                     </div>
                   ) : users.length === 0 ? (
                     <div className="p-8 text-center">
-                      <User className="w-12 h-12 mx-auto mb-3 text-white/20" />
-                      <p className="text-white/50 text-lg">Нет пользователей</p>
-                      <p className="text-white/30 text-sm mt-1">Вы будете владельцем проекта</p>
+                      <User className="w-12 h-12 mx-auto mb-3 text-[var(--text-primary)]/20" />
+                      <p className="text-[var(--text-primary)]/50 text-lg">Нет пользователей</p>
+                      <p className="text-[var(--text-primary)]/30 text-sm mt-1">Вы будете владельцем проекта</p>
                     </div>
                   ) : (
                     users.map((u) => {
@@ -608,42 +609,42 @@ const checkKeyAvailability = async () => {
                             setSelectedOwner(u);
                             setShowOwnerDropdown(false);
                           }}
-                          className={`w-full text-left p-4 hover:bg-white/10 transition-colors border-b border-white/10 last:border-0 ${
-                            isSelected ? 'bg-green-500/10' : ''
+                          className={`w-full text-left p-4 hover:bg-[var(--hover-1)] transition-colors border-b border-white/10 last:border-0 ${
+                            isSelected ? 'bg-[var(--success)]/8' : ''
                           } ${
-                            isCurrentUser ? 'bg-gradient-to-r from-green-500/5 to-transparent' : ''
+                            isCurrentUser ? 'bg-[var(--success)]/5' : ''
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                               isCurrentUser 
-                                ? 'bg-gradient-to-br from-green-500 to-green-600'
-                                : 'bg-gradient-to-br from-yellow-500 to-yellow-600'
+                                ? 'bg-[var(--success)]'
+                                : 'bg-[var(--warning)]'
                             }`}>
                               {isCurrentUser ? (
-                                <User className="w-5 h-5 text-white" />
+                                <User className="w-5 h-5 text-[var(--text-primary)]" />
                               ) : (
-                                <Crown className="w-5 h-5 text-white" />
+                                <Crown className="w-5 h-5 text-[var(--text-primary)]" />
                               )}
                             </div>
                             <div className="flex-1">
-                              <div className="font-semibold text-white">
+                              <div className="font-semibold text-[var(--text-primary)]">
                                 {getUserDisplayName(u)}
                                 {isCurrentUser && (
-                                  <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
+                                  <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-[var(--success)]/8 text-[var(--success)]">
                                     Вы (по умолчанию)
                                   </span>
                                 )}
                                 {!isCurrentUser && u.role === 'customer_admin' && (
-                                  <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
+                                  <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-[var(--info)]">
                                     Админ
                                   </span>
                                 )}
                               </div>
-                              <div className="text-sm text-white/50">{u.email}</div>
+                              <div className="text-sm text-[var(--text-primary)]/50">{u.email}</div>
                             </div>
                             {isSelected && (
-                              <CheckCircle2 className="w-5 h-5 text-green-400" />
+                              <CheckCircle2 className="w-5 h-5 text-[var(--success)]" />
                             )}
                           </div>
                         </button>
@@ -656,7 +657,7 @@ const checkKeyAvailability = async () => {
 
             {/* Информация о владельце по умолчанию */}
             {selectedOwner && selectedOwner.id === user?.user_id && !showOwnerDropdown && (
-              <div className="mt-2 text-xs text-green-400/60">
+              <div className="mt-2 text-xs text-[var(--success)]/60">
                 Вы назначены владельцем проекта по умолчанию
               </div>
             )}
@@ -665,7 +666,7 @@ const checkKeyAvailability = async () => {
 
         {/* Описание */}
         <div>
-          <label className="block text-lg font-semibold text-white mb-2">
+          <label className="block text-lg font-semibold text-[var(--text-primary)] mb-2">
             Описание проекта
           </label>
           <textarea
@@ -682,7 +683,7 @@ const checkKeyAvailability = async () => {
           <button
             type="button"
             onClick={() => navigate('/projects')}
-            className="px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium transition-colors"
+            className="px-6 py-3 rounded-xl bg-[var(--hover-1)] hover:bg-[var(--hover-1)] text-[var(--text-primary)] font-medium transition-colors"
           >
             Отмена
           </button>

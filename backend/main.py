@@ -24,6 +24,7 @@ from src.shared.domain.exceptions import AppError
 from src.shared.infra.middlewares import LoggingMiddleware
 from src.shared.router import router as shared_router
 from src.shared.utils.cli import run_cli_command
+from src.tasks.infra.handlers import router as task_broker_router
 from src.tasks.router import router as task_router
 from src.tickets.router import router as tickets_router
 
@@ -65,6 +66,7 @@ Instrumentator(
 # Rabbit обработчики
 broker_router.include_router(notification_router)
 broker_router.include_router(notifications_broker_router)
+broker_router.include_router(task_broker_router)
 
 # HTTP роутеры
 router = APIRouter(prefix="/api/v1")

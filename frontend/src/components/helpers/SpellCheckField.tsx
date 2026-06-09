@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+﻿import { useState, useCallback } from 'react';
 import { WandSparkles, Loader2 } from 'lucide-react';
 import { proofreadingApi } from '../../api/client';
 import { SpellCheckDiff } from './SpellCheckDiff';
@@ -163,7 +163,7 @@ export function SpellCheckField({
     <div className="space-y-2">
       {/* Label + кнопка */}
       <div className="flex items-center justify-between">
-        {label && <span className="text-base font-medium text-white/80">{label}</span>}
+        {label && <span className="block text-2xl font-semibold text-[var(--text-primary)] mb-4">{label}</span>}
         <button
           type="button"
           onClick={handleCheck}

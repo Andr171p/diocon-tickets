@@ -90,6 +90,24 @@ services:
       timeout: 5s
       retries: 5
 
+  # infinity:
+  #   image: michaelf34/infinity:latest-cpu
+  #   ports:
+  #     - "7997:7997"
+  #   volumes:
+  #     - ./hf_cache:/app/.cache
+  #   environment:
+  #     - HF_HOME=/app/.cache
+  #     - INFINITY_ANONYMOUS_USAGE=0
+  #   command: >
+  #     v2
+  #     --model-id openai/clip-vit-base-patch32
+  #     --port 7997
+  #     --engine torch
+  #     --device cpu
+  #     --batch-size 64
+  #   restart: unless-stopped
+
   # text-embeddings:
   #   image: ghcr.io/huggingface/text-embeddings-inference:1.7.2
   #   pull_policy: always

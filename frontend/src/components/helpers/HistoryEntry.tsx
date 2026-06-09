@@ -1,22 +1,53 @@
-import { 
-  Clock, Image as ImageIcon, FileText, Plus, Minus, RefreshCw, 
-  UserPlus, UserMinus, Tag, Archive, MessageSquare, Edit, Trash2,
-  UserCheck, Building2, FolderOpen, CheckCircle
+import type { ReactNode } from 'react';
+import {
+  Clock,
+  Image as ImageIcon,
+  FileText,
+  Plus,
+  Minus,
+  RefreshCw,
+  UserPlus,
+  UserMinus,
+  Tag,
+  Archive,
+  MessageSquare,
+  Edit,
+  Trash2,
+  UserCheck,
+  Building2,
+  FolderOpen,
+  CheckCircle,
 } from 'lucide-react';
+
 interface HistoryEntryProps {
   entry: any;
   formatDate: (date: string) => string;
   actorNames: Map<string, string>;
 }
 
-// ─── Хелперы ──────────────────────────────────────────────────────────────────
+// ─── Хелперы ──────
 
-const MEDIA_RE = /\[\[(local-image|image):([^\]]+)\]\]/g;
+// Новый формат
+const MD_MEDIA_RE = /!\[[^\]]*\]\(media:\/\/[^)]+\)/g;
+
+// Legacy / переходные форматы
+const MD_ATTACHMENT_RE = /!\[[^\]]*\]\(attachment:[^)]+\)/g;
+const MD_LOCAL_RE = /!\[[^\]]*\]\(local:[^)]+\)/g;
+const LEGACY_IMAGE_RE = /\[\[image:[^\]]+\]\]/g;
+const LEGACY_LOCAL_IMAGE_RE = /\[\[local-image:[^\]]+\]\]/g;
+
+function countMatches(value = '', re: RegExp): number {
+  return (value.match(re) || []).length;
+}
 
 /** Убрать все токены картинок из текста */
 function stripMedia(value = ''): string {
   return value
-    .replace(MEDIA_RE, '')
+    .replace(MD_MEDIA_RE, '')
+    .replace(MD_ATTACHMENT_RE, '')
+    .replace(MD_LOCAL_RE, '')
+    .replace(LEGACY_IMAGE_RE, '')
+    .replace(LEGACY_LOCAL_IMAGE_RE, '')
     .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/\*([^*]+)\*/g, '$1')
@@ -24,12 +55,26 @@ function stripMedia(value = ''): string {
     .trim();
 }
 
-/** Посчитать токены определённого типа */
-function countTokens(value = '', type?: 'image' | 'local-image'): number {
-  const re = type
-    ? new RegExp(`\\[\\[${type}:[^\\]]+\\]\\]`, 'g')
-    : MEDIA_RE;
-  return (value.match(re) || []).length;
+/** Сколько уже сохранённых изображений */
+function countStoredImages(value = ''): number {
+  return (
+    countMatches(value, MD_MEDIA_RE) +
+    countMatches(value, MD_ATTACHMENT_RE) +
+    countMatches(value, LEGACY_IMAGE_RE)
+  );
+}
+
+/** Сколько временных local-изображений */
+function countLocalImages(value = ''): number {
+  return (
+    countMatches(value, MD_LOCAL_RE) +
+    countMatches(value, LEGACY_LOCAL_IMAGE_RE)
+  );
+}
+
+/** Сколько всего изображений, независимо от типа */
+function countAllImages(value = ''): number {
+  return countStoredImages(value) + countLocalImages(value);
 }
 
 /** Обрезать длинный текст */
@@ -37,22 +82,25 @@ function shorten(value: string, max = 160): string {
   return value.length <= max ? value : value.slice(0, max) + '…';
 }
 
+/** Получить отображаемое имя для ID */
+function getDisplayName(id: string | null | undefined, actorNames: Map<string, string>): string {
+  if (!id) return '';
+  // Сначала ищем в actorNames
+  const fromActor = actorNames.get(id);
+  if (fromActor) return fromActor;
+  // Иначе показываем ID в усечённом виде
+  return id.slice(0, 8);
+}
+
 // ─── Классификация записи истории ─────────────────────────────────────────────
 
 interface EntryAnalysis {
-  /** Полностью скрыть (технический мусор) */
   hidden: boolean;
-  /** Текст изменился */
   textChanged: boolean;
-  /** Старый текст (без медиа) */
   oldText: string;
-  /** Новый текст (без медиа) */
   newText: string;
-  /** Сколько картинок добавлено */
   imagesAdded: number;
-  /** Сколько картинок удалено */
   imagesRemoved: number;
-  /** Только техническая обработка медиа (local→server) */
   technicalMediaOnly: boolean;
 }
 
@@ -64,27 +112,26 @@ function analyzeEntry(entry: any): EntryAnalysis {
   const newText = stripMedia(newVal);
   const textChanged = oldText !== newText;
 
-  const oldTotal = countTokens(oldVal);
-  const newTotal = countTokens(newVal);
-  const oldLocal = countTokens(oldVal, 'local-image');
-  const newLocal = countTokens(newVal, 'local-image');
-  const oldServer = countTokens(oldVal, 'image');
-  const newServer = countTokens(newVal, 'image');
+  const oldTotal = countAllImages(oldVal);
+  const newTotal = countAllImages(newVal);
+
+  const oldLocal = countLocalImages(oldVal);
+  const newLocal = countLocalImages(newVal);
 
   const imagesAdded = Math.max(0, newTotal - oldTotal);
   const imagesRemoved = Math.max(0, oldTotal - newTotal);
 
-  // Техническая запись: текст не менялся, просто local-image → image
+  // Техническая запись: текст тот же, число картинок то же,
+  // но local заменились на server/media
   const technicalMediaOnly =
     !textChanged &&
     oldTotal === newTotal &&
     oldLocal !== newLocal;
 
-  // Полностью скрыть:
-  // 1. Технический upload (local→server, текст тот же)
-  // 2. Промежуточные состояния (только local-image ↔ local-image)
+  // Полностью local → local, без реального изменения текста
   const onlyLocalOld = oldTotal > 0 && oldLocal === oldTotal;
   const onlyLocalNew = newTotal > 0 && newLocal === newTotal;
+
   const hidden =
     technicalMediaOnly ||
     (!textChanged && onlyLocalOld && onlyLocalNew);
@@ -102,11 +149,15 @@ function analyzeEntry(entry: any): EntryAnalysis {
 
 // ─── Мета-данные действий ─────────────────────────────────────────────────────
 
-const ACTION_CONFIG: Record<string, {
-  label: string;
-  icon: React.ReactNode;
-  color: string;
-}> = {
+const ACTION_CONFIG: Record<
+  string,
+  {
+    label: string;
+    icon: ReactNode;
+    color: string;
+    formatValue?: (oldVal: string | null, newVal: string | null, actorNames: Map<string, string>) => string;
+  }
+> = {
   ticket_created: {
     label: 'Создал заявку',
     icon: <Plus className="w-4.5 h-4.5" />,
@@ -131,11 +182,21 @@ const ACTION_CONFIG: Record<string, {
     label: 'Назначил исполнителя',
     icon: <UserPlus className="w-4.5 h-4.5" />,
     color: 'bg-cyan-500/15 text-cyan-400',
+    formatValue: (oldVal, newVal, actorNames) => {
+      if (newVal && !oldVal) return ` → ${getDisplayName(newVal, actorNames)}`;
+      if (oldVal && !newVal) return `${getDisplayName(oldVal, actorNames)} → Не назначен`;
+      if (oldVal && newVal) return `${getDisplayName(oldVal, actorNames)} → ${getDisplayName(newVal, actorNames)}`;
+      return '';
+    },
   },
   unassigned: {
     label: 'Снял исполнителя',
     icon: <UserMinus className="w-4.5 h-4.5" />,
     color: 'bg-red-500/15 text-red-400',
+    formatValue: (oldVal, newVal, actorNames) => {
+      if (oldVal) return `${getDisplayName(oldVal, actorNames)} → Не назначен`;
+      return '';
+    },
   },
   title_edited: {
     label: 'Изменил тему',
@@ -171,6 +232,12 @@ const ACTION_CONFIG: Record<string, {
     label: 'Изменил исполнителя',
     icon: <UserCheck className="w-4.5 h-4.5" />,
     color: 'bg-cyan-500/15 text-cyan-400',
+    formatValue: (oldVal, newVal, actorNames) => {
+      if (oldVal && newVal) return `${getDisplayName(oldVal, actorNames)} → ${getDisplayName(newVal, actorNames)}`;
+      if (newVal) return ` → ${getDisplayName(newVal, actorNames)}`;
+      if (oldVal) return `${getDisplayName(oldVal, actorNames)} → Не назначен`;
+      return '';
+    },
   },
   counterparty_changed: {
     label: 'Изменил контрагента',
@@ -197,10 +264,10 @@ const ACTION_CONFIG: Record<string, {
 const DEFAULT_ACTION_CONFIG = {
   label: 'Изменение',
   icon: <Clock className="w-4.5 h-4.5" />,
-  color: 'bg-white/10 text-white/50',
+  color: 'bg-[var(--hover-1)] text-[var(--text-primary)]/50',
 };
 
-// ─── Компонент ────────────────────────────────────────────────────────────────
+// ─── Компонент ────
 
 export const HistoryEntry = ({
   entry,
@@ -208,9 +275,7 @@ export const HistoryEntry = ({
   actorNames,
 }: HistoryEntryProps) => {
   const isDescEdit = entry.action === 'description_edited';
-  const analysis = isDescEdit
-    ? analyzeEntry(entry)
-    : null;
+  const analysis = isDescEdit ? analyzeEntry(entry) : null;
 
   // Скрываем технические записи
   if (analysis?.hidden) return null;
@@ -221,22 +286,68 @@ export const HistoryEntry = ({
 
   const config = ACTION_CONFIG[entry.action] || DEFAULT_ACTION_CONFIG;
 
-  // Для description_edited уточняем label
   let actionLabel = config.label;
   if (isDescEdit && analysis) {
-    if (!analysis.textChanged && (analysis.imagesAdded > 0 || analysis.imagesRemoved > 0)) {
+    if (
+      !analysis.textChanged &&
+      (analysis.imagesAdded > 0 || analysis.imagesRemoved > 0)
+    ) {
       actionLabel = 'Изменил вложения';
     }
   }
 
   const hasMediaChanges =
-    analysis && (analysis.imagesAdded > 0 || analysis.imagesRemoved > 0);
+    !!analysis &&
+    (analysis.imagesAdded > 0 || analysis.imagesRemoved > 0);
 
-  // Для не-description действий показываем simple diff если есть old/new
   const showSimpleDiff =
     !isDescEdit &&
     entry.old_value &&
     entry.new_value;
+
+  // Форматированное значение для diff (с маппингом ID в имя)
+  let formattedOldValue = entry.old_value;
+  let formattedNewValue = entry.new_value;
+
+  if (config.formatValue) {
+    // Если есть кастомный форматтер — используем его для полной строки
+    const formatted = config.formatValue(entry.old_value, entry.new_value, actorNames);
+    if (formatted) {
+      return (
+        <div className="flex gap-4">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${config.color}`}>
+            {config.icon}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[var(--text-primary)] text-base font-medium">
+              {actorName}{' '}
+              <span className="text-[var(--text-primary)]/40 font-normal">
+                • {actionLabel}
+              </span>
+            </p>
+            <p className="text-[var(--text-primary)]/35 text-sm mt-0.5">
+              {formatDate(entry.created_at)}
+            </p>
+            <div className="mt-2 text-sm">
+              <span className="text-[var(--text-primary)]/60">
+                {formatted}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // Для assigned/unassigned без кастомного форматтера — маппим ID в имя
+  if (entry.action === 'assigned' || entry.action === 'unassigned' || entry.action === 'assigned_to_updated') {
+    if (entry.old_value) {
+      formattedOldValue = getDisplayName(entry.old_value, actorNames);
+    }
+    if (entry.new_value) {
+      formattedNewValue = getDisplayName(entry.new_value, actorNames);
+    }
+  }
 
   return (
     <div className="flex gap-4">
@@ -257,10 +368,15 @@ export const HistoryEntry = ({
 
       <div className="flex-1 min-w-0">
         {/* Заголовок */}
-        <p className="text-white text-base font-medium">
-          {actorName} <span className="text-white/40 font-normal">• {actionLabel}</span>
+        <p className="text-[var(--text-primary)] text-base font-medium">
+          {actorName}{' '}
+          <span className="text-[var(--text-primary)]/40 font-normal">
+            • {actionLabel}
+          </span>
         </p>
-        <p className="text-white/35 text-sm mt-0.5">{formatDate(entry.created_at)}</p>
+        <p className="text-[var(--text-primary)]/35 text-sm mt-0.5">
+          {formatDate(entry.created_at)}
+        </p>
 
         {/* Плашка про картинки */}
         {isDescEdit && hasMediaChanges && (
@@ -273,6 +389,7 @@ export const HistoryEntry = ({
                   : `Добавлено: ${analysis!.imagesAdded}`}
               </span>
             )}
+
             {analysis!.imagesRemoved > 0 && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-red-500/10 border border-red-500/20 text-red-400">
                 <Minus className="w-3.5 h-3.5" />
@@ -304,18 +421,24 @@ export const HistoryEntry = ({
           </div>
         )}
 
-        {/* Simple diff для статуса, приоритета и т.д. */}
+        {/* Обычный diff для статуса, приоритета и т.п. */}
         {showSimpleDiff && (
           <div className="mt-2 text-sm">
-            <span className="text-white/30 line-through">{entry.old_value}</span>
-            <span className="text-white/30 mx-2">→</span>
-            <span className="text-white/60">{entry.new_value}</span>
+            <span className="text-[var(--text-primary)]/30 line-through">
+              {formattedOldValue}
+            </span>
+            <span className="text-[var(--text-primary)]/30 mx-2">→</span>
+            <span className="text-[var(--text-primary)]/60">
+              {formattedNewValue}
+            </span>
           </div>
         )}
 
-        {/* Описание для ticket_created и других без diff */}
+        {/* Описание для ticket_created */}
         {entry.action === 'ticket_created' && entry.description && (
-          <p className="mt-1 text-sm text-white/35">{entry.description}</p>
+          <p className="mt-1 text-sm text-[var(--text-primary)]/35">
+            {entry.description}
+          </p>
         )}
       </div>
     </div>

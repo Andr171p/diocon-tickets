@@ -64,7 +64,7 @@ export default function ProjectMembers({ project, onUpdate }: ProjectMembersProp
 
   const loadEmployees = async () => {
     if (!project.counterparty_id) return;
-    
+
     setLoadingEmployees(true);
     try {
       // Получаем всех сотрудников контрагента
@@ -100,10 +100,10 @@ export default function ProjectMembers({ project, onUpdate }: ProjectMembersProp
         user_id: selectedUserId,
         project_role: selectedRole as any,
       });
-      
+
       onUpdate(updatedProject);
       toast({ title: 'Участник добавлен', description: 'Пользователь успешно добавлен в проект' });
-      
+
       // Сброс формы
       setSelectedUserId(null);
       setSearchQuery('');
@@ -144,7 +144,7 @@ export default function ProjectMembers({ project, onUpdate }: ProjectMembersProp
             {project.memberships?.length || 0}
           </span>
         </div>
-        
+
         <button
           onClick={() => setIsAdding(true)}
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-white text-sm"
@@ -292,11 +292,10 @@ export default function ProjectMembers({ project, onUpdate }: ProjectMembersProp
             return (
               <div
                 key={membership.user_id}
-                className={`flex items-center justify-between p-4 rounded-xl transition-colors ${
-                  isCurrentUser(membership.user_id) 
-                    ? 'bg-gradient-to-r from-red-500/10 to-red-600/5 border border-red-500/30' 
+                className={`flex items-center justify-between p-4 rounded-xl transition-colors ${isCurrentUser(membership.user_id)
+                    ? 'bg-gradient-to-r from-red-500/10 to-red-600/5 border border-red-500/30'
                     : 'bg-white/5 hover:bg-white/10'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-neutral-700 to-neutral-800 flex items-center justify-center">
@@ -316,7 +315,7 @@ export default function ProjectMembers({ project, onUpdate }: ProjectMembersProp
                     <p className="text-white/40 text-sm">ID: {membership.user_id.slice(0, 8)}...</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium ${getRoleBadgeColor(membership.project_role)}`}>
                     {getRoleIcon(membership.project_role)}

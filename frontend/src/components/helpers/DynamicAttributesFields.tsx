@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 interface DynamicAttributesFieldsProps {
   schemaResponse: any;
@@ -58,15 +58,15 @@ export const DynamicAttributesFields: React.FC<DynamicAttributesFieldsProps> = (
               <select
                 value={values[key] ?? ''}
                 onChange={(e) => onChange(key, e.target.value || null)}
-                className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white focus:outline-none focus:border-red-800/60 transition-colors text-sm"
+                className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-[var(--text-primary)] focus:outline-none focus:border-red-800/60 transition-colors text-sm"
               >
                 {!isRequired && (
-                  <option value="" className="bg-[#1c1c1c]">
+                  <option value="" className="bg-[var(--bg-secondary)]">
                     — не выбрано —
                   </option>
                 )}
                 {prop.enum.map((opt: string) => (
-                  <option key={opt} value={opt} className="bg-[#1c1c1c]">
+                  <option key={opt} value={opt} className="bg-[var(--bg-secondary)]">
                     {opt}
                   </option>
                 ))}
@@ -85,17 +85,15 @@ export const DynamicAttributesFields: React.FC<DynamicAttributesFieldsProps> = (
                   role="switch"
                   aria-checked={!!values[key]}
                   onClick={() => onChange(key, !values[key])}
-                  className={`relative w-10 h-6 rounded-full transition-colors duration-200 ${
-                    values[key] ? 'bg-green-600' : 'bg-white/10'
-                  }`}
+                  className={`relative w-10 h-6 rounded-full transition-colors duration-200 ${values[key] ? 'bg-green-600' : 'bg-[var(--hover-1)]'
+                    }`}
                 >
                   <span
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-                      values[key] ? 'translate-x-4' : 'translate-x-0'
-                    }`}
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${values[key] ? 'translate-x-4' : 'translate-x-0'
+                      }`}
                   />
                 </button>
-                <span className="text-sm text-white/70">
+                <span className="text-sm text-[var(--text-primary)]/70">
                   {values[key] ? 'Да' : 'Нет'}
                 </span>
               </label>
@@ -115,7 +113,7 @@ export const DynamicAttributesFields: React.FC<DynamicAttributesFieldsProps> = (
                   onChange(key, v === '' ? null : Number(v));
                 }}
                 placeholder={placeholder}
-                className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white focus:outline-none focus:border-red-800/60 transition-colors text-sm"
+                className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-[var(--text-primary)] focus:outline-none focus:border-red-800/60 transition-colors text-sm"
               />
             </Field>
           );
@@ -144,7 +142,7 @@ export const DynamicAttributesFields: React.FC<DynamicAttributesFieldsProps> = (
                 type="date"
                 value={values[key] ?? ''}
                 onChange={(e) => onChange(key, e.target.value || null)}
-                className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white focus:outline-none focus:border-red-800/60 transition-colors text-sm [color-scheme:dark]"
+                className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-[var(--text-primary)] focus:outline-none focus:border-red-800/60 transition-colors text-sm [color-scheme:dark]"
               />
             </Field>
           );
@@ -158,7 +156,7 @@ export const DynamicAttributesFields: React.FC<DynamicAttributesFieldsProps> = (
               value={values[key] ?? ''}
               onChange={(e) => onChange(key, e.target.value || null)}
               placeholder={placeholder}
-              className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-white focus:outline-none focus:border-red-800/60 transition-colors text-sm"
+              className="w-full px-3 py-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-[var(--text-primary)] focus:outline-none focus:border-red-800/60 transition-colors text-sm"
             />
           </Field>
         );
@@ -167,7 +165,7 @@ export const DynamicAttributesFields: React.FC<DynamicAttributesFieldsProps> = (
   );
 };
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Sub-components ────
 
 const Field = ({
   label,
@@ -181,13 +179,13 @@ const Field = ({
   children: React.ReactNode;
 }) => (
   <div className="space-y-1.5">
-    <label className="block text-sm text-white/60">
+    <label className="block text-sm text-[var(--text-primary)]/60">
       {label}
       {required && <span className="ml-1 text-red-400">*</span>}
     </label>
     {children}
     {description && (
-      <p className="text-xs text-white/30 leading-relaxed">{description}</p>
+      <p className="text-xs text-[var(--text-primary)]/30 leading-relaxed">{description}</p>
     )}
   </div>
 );
@@ -231,13 +229,13 @@ const TagInput = ({
         {values.map((tag, i) => (
           <span
             key={i}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/10 text-sm text-white/80"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[var(--hover-1)] text-sm text-[var(--text-primary)]/80"
           >
             {tag}
             <button
               type="button"
               onClick={() => removeTag(i)}
-              className="text-white/40 hover:text-red-400 ml-0.5 transition-colors"
+              className="text-[var(--text-primary)]/40 hover:text-red-400 ml-0.5 transition-colors"
             >
               ×
             </button>
@@ -250,7 +248,7 @@ const TagInput = ({
           onKeyDown={handleKeyDown}
           onBlur={addTag}
           placeholder={values.length === 0 ? placeholder : ''}
-          className="flex-1 min-w-[120px] bg-transparent text-white text-sm outline-none placeholder-white/25"
+          className="flex-1 min-w-[120px] bg-transparent text-[var(--text-primary)] text-sm outline-none placeholder-white/25"
         />
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
+﻿import { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import ImageExtension from '@tiptap/extension-image';
@@ -8,17 +8,17 @@ import { proofreadingApi } from '../../api/client';
 import { attachmentsApi } from '../../api/attachments';
 import { SpellCheckDiff } from './SpellCheckDiff';
 
-// ─── Типы ─────────────────────────────────────────────────────────────────────
+// ─── Типы ─────────
 
 export type DescriptionBlock =
   | { id: string; type: 'text'; value: string }
   | {
-      id: string;
-      type: 'image';
-      localFile?: File;
-      localPreview?: string;
-      attachmentId?: string;
-    };
+    id: string;
+    type: 'image';
+    localFile?: File;
+    localPreview?: string;
+    attachmentId?: string;
+  };
 
 // ─── Кастомный Image extension ────────────────────────────────────────────────
 // Стандартный @tiptap/extension-image НЕ хранит data-attachment-id.
@@ -54,7 +54,7 @@ const TicketImage = ImageExtension.extend({
   },
 });
 
-// ─── Хелперы ──────────────────────────────────────────────────────────────────
+// ─── Хелперы ──────
 
 function makeId() {
   return Math.random().toString(36).slice(2, 10);
@@ -66,8 +66,8 @@ export function serializeBlocks(blocks: DescriptionBlock[]): string {
       if (b.type === 'text') return b.value.trim();
       if (b.type === 'image') {
         return b.attachmentId
-          ? `[[image:${b.attachmentId}]]`
-          : `[[local-image:${b.id}]]`;
+          ? `![image](media://${b.attachmentId})`  // ← новый формат
+          : `![image](local:${b.id})`;
       }
       return '';
     })
@@ -75,36 +75,82 @@ export function serializeBlocks(blocks: DescriptionBlock[]): string {
     .join('\n\n');
 }
 
+
+
 export function deserializeToBlocks(text: string): DescriptionBlock[] {
-  const RE = /\[\[(image|local-image):([^\]]+)\]\]/g;
   const blocks: DescriptionBlock[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
 
-  while ((m = RE.exec(text)) !== null) {
-    const before = text.slice(last, m.index).trim();
-    if (before) blocks.push({ id: makeId(), type: 'text', value: before });
+  // Два отдельных простых regex — намного надёжнее одного сложного
+  const mediaRegex = /!\[image\]\(media:\/\/([^)]+)\)/g;
+  const attachmentRegex = /!\[image\]\((attachment|local):([^)]+)\)/g;
+  const legacyRegex = /\[\[(image|local-image):([^\]]+)\]\]/g;
 
-    if (m[1] === 'image') {
-      blocks.push({ id: makeId(), type: 'image', attachmentId: m[2] });
-    }
-    // local-image в сохранённых данных — это мусор от предыдущих багов.
-    // Показываем как битый блок, но не теряем молча.
-    if (m[1] === 'local-image') {
-      blocks.push({ id: m[2], type: 'image' });
-    }
+  // Собираем все совпадения в единый массив и сортируем по позиции
+  type RawMatch = { index: number; end: number; block: DescriptionBlock };
+  const matches: RawMatch[] = [];
 
-    last = RE.lastIndex;
+  let ma: RegExpExecArray | null;
+
+  // media://UUID
+  while ((ma = mediaRegex.exec(text)) !== null) {
+    matches.push({
+      index: ma.index,
+      end: mediaRegex.lastIndex,
+      block: { id: makeId(), type: 'image', attachmentId: ma[1] },
+    });
   }
 
-  const rest = text.slice(last).trim();
-  if (rest) blocks.push({ id: makeId(), type: 'text', value: rest });
+  // attachment:UUID и local:blockId
+  while ((ma = attachmentRegex.exec(text)) !== null) {
+    matches.push({
+      index: ma.index,
+      end: attachmentRegex.lastIndex,
+      block: ma[1] === 'attachment'
+        ? { id: makeId(), type: 'image', attachmentId: ma[2] }
+        : { id: ma[2], type: 'image' },
+    });
+  }
+
+  // legacy [[image:UUID]]
+  while ((ma = legacyRegex.exec(text)) !== null) {
+    matches.push({
+      index: ma.index,
+      end: legacyRegex.lastIndex,
+      block: ma[1] === 'image'
+        ? { id: makeId(), type: 'image', attachmentId: ma[2] }
+        : { id: ma[2], type: 'image' },
+    });
+  }
+
+  // Сортируем по позиции в тексте
+  matches.sort((a, b) => a.index - b.index);
+
+  if (matches.length === 0) {
+    // Нет картинок — весь текст
+    const trimmed = text.trim();
+    if (trimmed) blocks.push({ id: makeId(), type: 'text', value: trimmed });
+  } else {
+    for (const match of matches) {
+      // Текст до картинки
+      const before = text.slice(last, match.index).trim();
+      if (before) blocks.push({ id: makeId(), type: 'text', value: before });
+      // Картинка
+      blocks.push(match.block);
+      last = match.end;
+    }
+    // Текст после последней картинки
+    const after = text.slice(last).trim();
+    if (after) blocks.push({ id: makeId(), type: 'text', value: after });
+  }
+
   if (!blocks.length) blocks.push({ id: makeId(), type: 'text', value: '' });
 
   return blocks;
 }
 
-// ─── Toolbar ──────────────────────────────────────────────────────────────────
+// ─── Toolbar ──────
 
 function EditorToolbar({
   editor,
@@ -135,10 +181,9 @@ function EditorToolbar({
   if (!editor) return null;
 
   const btnCls = (active: boolean) =>
-    `px-2.5 py-1.5 rounded-lg border text-sm transition-all ${
-      active
-        ? 'bg-red-500/20 border-red-500/40 text-red-400 shadow-[0_0_8px_rgba(239,68,68,0.15)]'
-        : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.08] text-white/60 hover:text-white'
+    `px-2.5 py-1.5 rounded-lg border text-sm transition-all ${active
+      ? 'bg-red-500/20 border-red-500/40 text-red-400 shadow-[0_0_8px_rgba(239,68,68,0.15)]'
+      : 'bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.08] text-[var(--text-primary)]/60 hover:text-[var(--text-primary)]'
     }`;
 
   return (
@@ -193,7 +238,7 @@ function EditorToolbar({
   );
 }
 
-// ─── Основной компонент ───────────────────────────────────────────────────────
+// ─── Основной компонент 
 
 interface TicketEditorProps {
   blocks: DescriptionBlock[];
@@ -205,15 +250,15 @@ export function TicketEditor({ blocks, onChange }: TicketEditorProps) {
   const [spellChecking, setSpellChecking] = useState(false);
   const [spellResult, setSpellResult] = useState<any>(null);
 
-  // ────────────────────────────────────────────────────────────────────────────
+  // ────────────────
   // КЛЮЧЕВОЙ ФИКС: imageFiles храним в ref, а не в state.
   // useState — асинхронный, и при быстрой вставке картинки
   // syncBlocksFromEditor мог не видеть File, потому что setState
   // ещё не применился. useRef обновляется мгновенно.
-  // ────────────────────────────────────────────────────────────────────────────
+  // ────────────────
   const imageFilesRef = useRef<Map<string, File>>(new Map());
 
-  const insertImageRef = useRef<(file: File) => void>(() => {});
+  const insertImageRef = useRef<(file: File) => void>(() => { });
 
   // ── Загрузка blob URL для картинок с attachmentId ──────────────────────────
   const [resolvedUrls, setResolvedUrls] = useState<Map<string, string>>(
@@ -287,13 +332,14 @@ export function TicketEditor({ blocks, onChange }: TicketEditorProps) {
 
   // ── HTML для инициализации ────────────────────────────────────────────────
 
-  function markdownToHtml(text: string): string {
-    return text
-      .replace(/\*\*\*([^*\n]+)\*\*\*/g, '<strong><em>$1</em></strong>')
-      .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
-      .replace(/\n/g, '<br>');
-  }
+// ── Исправленный markdownToHtml ──────────────────────────────────────────────
+function markdownToHtml(text: string): string {
+  return text
+    .replace(/\*\*\*([^*\n]+)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>');
+}
 
   const initialHtml = useMemo(() => {
     return blocks
@@ -320,7 +366,7 @@ export function TicketEditor({ blocks, onChange }: TicketEditorProps) {
       .join('');
   }, [blocks, resolvedUrls]);
 
-  // ── Ref на editor ─────────────────────────────────────────────────────────
+  // ── Ref на editor ──
   const editorRef = useRef<Editor | null>(null);
 
   // ── Синхронизация editor → blocks ─────────────────────────────────────────
@@ -434,7 +480,7 @@ export function TicketEditor({ blocks, onChange }: TicketEditorProps) {
     editorProps: {
       attributes: {
         class:
-          'min-h-[200px] p-5 focus:outline-none text-white text-base leading-relaxed prose prose-invert max-w-none',
+          'min-h-[200px] p-5 focus:outline-none text-[var(--text-primary)] text-base leading-relaxed prose prose-invert max-w-none',
       },
       handleDrop: (_view, event) => {
         const files = Array.from(event.dataTransfer?.files || []).filter((f) =>
@@ -478,7 +524,7 @@ export function TicketEditor({ blocks, onChange }: TicketEditorProps) {
     return () => clearTimeout(timer);
   }, [urlsReady, resolvedUrls]); // eslint-disable-line
 
-  // ── Вставка картинки ───────────────────────────────────────────────────────
+  // ── Вставка картинки 
 
   const insertImageFile = useCallback(
     (file: File) => {
@@ -507,7 +553,7 @@ export function TicketEditor({ blocks, onChange }: TicketEditorProps) {
     insertImageRef.current = insertImageFile;
   }, [insertImageFile]);
 
-  // ── SpellCheck ─────────────────────────────────────────────────────────────
+  // ── SpellCheck ─
 
   const handleSpellCheck = useCallback(async () => {
     if (!editor) return;
@@ -544,12 +590,12 @@ export function TicketEditor({ blocks, onChange }: TicketEditorProps) {
     [editor]
   );
 
-  // ── Рендер ─────────────────────────────────────────────────────────────────
+  // ── Рендер ─────
 
   if (!urlsReady) {
     return (
       <div className="min-h-[200px] rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-center">
-        <div className="flex items-center gap-3 text-white/40">
+        <div className="flex items-center gap-3 text-[var(--text-primary)]/40">
           <Loader2 size={20} className="animate-spin" />
           <span className="text-base">Загрузка изображений...</span>
         </div>
@@ -591,7 +637,7 @@ export function TicketEditor({ blocks, onChange }: TicketEditorProps) {
         onClick={() => fileInputRef.current?.click()}
         className="mt-3 flex items-center gap-2 px-4 py-2 rounded-xl text-sm
                    bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08]
-                   text-white/50 hover:text-white/80 transition-all"
+                   text-[var(--text-primary)]/50 hover:text-[var(--text-primary)]/80 transition-all"
       >
         <ImagePlus size={16} /> Добавить изображение
       </button>

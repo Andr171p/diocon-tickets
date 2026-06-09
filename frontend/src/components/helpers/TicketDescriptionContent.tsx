@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, ImageOff } from 'lucide-react';
 import { attachmentsApi } from '../../api/attachments';
 
-// ─── Inline formatting ───────────────────────────────────────────────────────
+// ─── Inline formatting 
 
 function renderInlineFormatting(text: string): React.ReactNode[] {
   const result: React.ReactNode[] = [];
@@ -22,19 +22,19 @@ function renderInlineFormatting(text: string): React.ReactNode[] {
 
     if (token.startsWith('***') && token.endsWith('***')) {
       result.push(
-        <strong key={key++} className="font-bold italic text-white">
+        <strong key={key++} className="font-bold italic text-[var(--text-primary)]">
           {token.slice(3, -3)}
         </strong>
       );
     } else if (token.startsWith('**') && token.endsWith('**')) {
       result.push(
-        <strong key={key++} className="font-semibold text-white">
+        <strong key={key++} className="font-semibold text-[var(--text-primary)]">
           {token.slice(2, -2)}
         </strong>
       );
     } else if (token.startsWith('*') && token.endsWith('*')) {
       result.push(
-        <em key={key++} className="italic text-white">
+        <em key={key++} className="italic text-[var(--text-primary)]">
           {token.slice(1, -1)}
         </em>
       );
@@ -50,31 +50,59 @@ function renderInlineFormatting(text: string): React.ReactNode[] {
   return result;
 }
 
-// ─── Сегменты ────────────────────────────────────────────────────────────────
+// ─── Сегменты ────
 
 type Segment =
   | { type: 'text'; value: string }
   | { type: 'image'; attachmentId: string }
   | { type: 'local-image'; localId: string };
 
-const TOKEN_REGEX = /\[\[(image|local-image):([^[\]]+)\]\]/g;
+// Новый markdown-формат: ![image](attachment:UUID) и ![image](local:blockId)
+// Legacy формат: [[image:UUID]] и [[local-image:blockId]] (для обратной совместимости)
+const LEGACY_IMAGE_RE = /\[\[(image|local-image):([^[\]]+)\]\]/g;
+
+const MD_IMAGE_RE = /!\[image\]\((media):\/\/([^)]+)|!\[image\]\((attachment|local):([^)]+)\)/g;
 
 function parseContent(text: string): Segment[] {
   const segments: Segment[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
-  const regex = new RegExp(TOKEN_REGEX);
 
-  while ((match = regex.exec(text)) !== null) {
+  const mdRegex = new RegExp(MD_IMAGE_RE.source, 'g');
+
+  while ((match = mdRegex.exec(text)) !== null) {
     if (match.index > lastIndex) {
       segments.push({ type: 'text', value: text.slice(lastIndex, match.index) });
     }
-    if (match[1] === 'image') {
+
+    if (match[1] === 'media') {
+      // ![image](media://UUID) — группы: [1]='media', [2]=UUID
       segments.push({ type: 'image', attachmentId: match[2] });
-    } else {
-      segments.push({ type: 'local-image', localId: match[2] });
+    } else if (match[3] === 'attachment') {
+      // ![image](attachment:UUID) — группы: [3]='attachment', [4]=UUID
+      segments.push({ type: 'image', attachmentId: match[4] });
+    } else if (match[3] === 'local') {
+      // ![image](local:blockId) — группы: [3]='local', [4]=blockId
+      segments.push({ type: 'local-image', localId: match[4] });
     }
-    lastIndex = regex.lastIndex;
+
+    lastIndex = mdRegex.lastIndex;
+  }
+
+  // Legacy формат [[image:UUID]]
+  if (segments.length === 0 && lastIndex === 0) {
+    const legacyRegex = new RegExp(LEGACY_IMAGE_RE.source, 'g');
+    while ((match = legacyRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        segments.push({ type: 'text', value: text.slice(lastIndex, match.index) });
+      }
+      if (match[1] === 'image') {
+        segments.push({ type: 'image', attachmentId: match[2] });
+      } else {
+        segments.push({ type: 'local-image', localId: match[2] });
+      }
+      lastIndex = legacyRegex.lastIndex;
+    }
   }
 
   if (lastIndex < text.length) {
@@ -84,7 +112,7 @@ function parseContent(text: string): Segment[] {
   return segments;
 }
 
-// ─── Remote Image ────────────────────────────────────────────────────────────
+// ─── Remote Image 
 
 function RemoteImage({ attachmentId }: { attachmentId: string }) {
   const [src, setSrc] = useState<string | null>(null);
@@ -118,8 +146,8 @@ function RemoteImage({ attachmentId }: { attachmentId: string }) {
 
   if (loading) return (
     <div className="my-4 flex items-center gap-2 px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08]">
-      <Loader2 className="w-4 h-4 animate-spin text-white/30" />
-      <span className="text-sm text-white/40">Загрузка изображения...</span>
+      <Loader2 className="w-4 h-4 animate-spin text-[var(--text-primary)]/30" />
+      <span className="text-sm text-[var(--text-primary)]/40">Загрузка изображения...</span>
     </div>
   );
 
@@ -131,7 +159,7 @@ function RemoteImage({ attachmentId }: { attachmentId: string }) {
   );
 
   return <img src={src} alt="attachment"
-              className="my-4 max-w-full max-h-[400px] rounded-2xl border border-white/[0.08] object-contain" />;
+    className="my-4 max-w-full max-h-[400px] rounded-2xl border border-white/[0.08] object-contain" />;
 }
 
 // ─── Основной компонент ──────────────────────────────────────────────────────
@@ -158,7 +186,7 @@ export function TicketDescriptionContent({ text, className, localImageBlocks }: 
           const lb = localImageBlocks?.find(b => b.id === seg.localId);
           return lb?.localPreview
             ? <img key={i} src={lb.localPreview} alt="preview"
-                   className="my-4 max-w-full max-h-[280px] rounded-2xl border border-white/[0.08] object-contain" />
+              className="my-4 max-w-full max-h-[280px] rounded-2xl border border-white/[0.08] object-contain" />
             : null;
         }
         return null;

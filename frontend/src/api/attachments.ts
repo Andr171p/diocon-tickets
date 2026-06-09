@@ -50,7 +50,7 @@ export const attachmentsApi = {
   // Загрузить файл напрямую в MinIO
   async uploadFileToStorage(uploadUrl: string, file: File): Promise<void> {
     const publicUrl = uploadUrl.replace('minio:9000', 'localhost:9900');
-    
+
     const response = await fetch(publicUrl, {
       method: 'PUT',
       body: file,
@@ -58,7 +58,7 @@ export const attachmentsApi = {
         'Content-Type': file.type,
       },
     });
-    
+
     if (!response.ok) {
       throw new Error(`Upload failed: ${response.status}`);
     }
@@ -85,53 +85,53 @@ export const attachmentsApi = {
 
   // Полный процесс скачивания
   async downloadAttachment(attachmentId: string): Promise<void> {
-  try {
-    // Шаг 1: Получить presigned URL для скачивания
-    const { download_url, storage_key } = await this.getPresignedDownloadUrl(attachmentId);
-    
-    // Шаг 2: ЗАМЕНЯЕМ URL (так же как и при загрузке)
-    let fixedDownloadUrl = download_url;
-    if (fixedDownloadUrl.includes('http://minio:9000')) {
-      fixedDownloadUrl = fixedDownloadUrl.replace('http://minio:9000', 'http://localhost:9900');
+    try {
+      // Шаг 1: Получить presigned URL для скачивания
+      const { download_url, storage_key } = await this.getPresignedDownloadUrl(attachmentId);
+
+      // Шаг 2: ЗАМЕНЯЕМ URL (так же как и при загрузке)
+      let fixedDownloadUrl = download_url;
+      if (fixedDownloadUrl.includes('http://minio:9000')) {
+        fixedDownloadUrl = fixedDownloadUrl.replace('http://minio:9000', 'http://localhost:9900');
+      }
+      if (fixedDownloadUrl.includes('http://maildev:9000')) {
+        fixedDownloadUrl = fixedDownloadUrl.replace('http://maildev:9000', 'http://localhost:9900');
+      }
+
+
+      // Шаг 3: Скачать файл по исправленному URL
+      const response = await fetch(fixedDownloadUrl);
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status}`);
+      }
+
+      // Шаг 4: Сохранить файл на диск
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+
+      // Извлекаем оригинальное имя файла из storage_key или запрашиваем информацию о вложении
+      const attachment = await this.getAttachment(attachmentId);
+      a.download = attachment.original_filename;
+
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+      throw error;
     }
-    if (fixedDownloadUrl.includes('http://maildev:9000')) {
-      fixedDownloadUrl = fixedDownloadUrl.replace('http://maildev:9000', 'http://localhost:9900');
-    }
-    
-    
-    // Шаг 3: Скачать файл по исправленному URL
-    const response = await fetch(fixedDownloadUrl);
-    
-    if (!response.ok) {
-      throw new Error(`Download failed: ${response.status}`);
-    }
-    
-    // Шаг 4: Сохранить файл на диск
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    
-    // Извлекаем оригинальное имя файла из storage_key или запрашиваем информацию о вложении
-    const attachment = await this.getAttachment(attachmentId);
-    a.download = attachment.original_filename;
-    
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  } catch (error) {
-    console.error('Download failed:', error);
-    throw error;
-  }
-},
+  },
   // Полный процесс загрузки
   async uploadAttachment(
     file: File,
     ownerType: string,
     ownerId: string
   ): Promise<Attachment> {
-    
+
     const presignedData = await this.getPresignedUploadUrl({
       filename: file.name,
       content_type: file.type,

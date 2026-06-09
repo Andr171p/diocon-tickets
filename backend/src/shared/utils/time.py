@@ -16,6 +16,6 @@ def get_expiration_time(expires_in: timedelta) -> datetime:
 
 
 def get_expiration_timestamp(expires_in: timedelta) -> int:
-    """Получение и расчёт Unix Timestamp для истечения времени"""
+    """Получение и расчёт UNIX Timestamp для истечения времени"""
 
     return int((current_datetime() + expires_in).timestamp())

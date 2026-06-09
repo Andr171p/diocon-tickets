@@ -34,8 +34,8 @@ const CATEGORY_STYLES: Record<string, { bg: string; text: string; label: string 
 
 const getStyle = (category: string) =>
   CATEGORY_STYLES[category] || {
-    bg: 'bg-white/10',
-    text: 'text-white/60',
+    bg: 'bg-[var(--hover-1)]',
+    text: 'text-[var(--text-primary)]/60',
     label: 'Ошибка',
   };
 
@@ -44,7 +44,7 @@ export const SpellCheckDiff: React.FC<SpellCheckDiffProps> = ({
   onApply,
   onDismiss,
 }) => {
-    const correctedSegments = useMemo(() => {
+  const correctedSegments = useMemo(() => {
     if (!result.suggestions.length) {
       return [{ type: 'text' as const, value: result.corrected_text }];
     }
@@ -125,7 +125,7 @@ export const SpellCheckDiff: React.FC<SpellCheckDiffProps> = ({
         <span className="text-sm text-green-300">Ошибок не найдено </span>
         <button
           onClick={onDismiss}
-          className="ml-auto p-1 rounded-full text-white/40 hover:text-white/70 hover:bg-white/10 transition-colors"
+          className="ml-auto p-1 rounded-full text-[var(--text-primary)]/40 hover:text-[var(--text-primary)]/70 hover:bg-[var(--hover-1)] transition-colors"
         >
           <X size={14} />
         </button>
@@ -138,7 +138,7 @@ export const SpellCheckDiff: React.FC<SpellCheckDiffProps> = ({
       {/* Заголовок */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.06] bg-white/[0.02]">
         <WandSparkles size={14} className="text-amber-400" />
-        <span className="text-sm text-white/80 font-medium">
+        <span className="text-sm text-[var(--text-primary)]/80 font-medium">
           Найдено {result.suggestions.length}{' '}
           {result.suggestions.length === 1
             ? 'исправление'
@@ -148,7 +148,7 @@ export const SpellCheckDiff: React.FC<SpellCheckDiffProps> = ({
         </span>
         <button
           onClick={onDismiss}
-          className="ml-auto p-1 rounded-full text-white/40 hover:text-white/70 hover:bg-white/10 transition-colors"
+          className="ml-auto p-1 rounded-full text-[var(--text-primary)]/40 hover:text-[var(--text-primary)]/70 hover:bg-[var(--hover-1)] transition-colors"
         >
           <X size={14} />
         </button>
@@ -156,17 +156,16 @@ export const SpellCheckDiff: React.FC<SpellCheckDiffProps> = ({
 
       {/* Только исправленный текст */}
       <div className="px-3 py-2.5">
-        <div className="mb-2 text-sm text-white/45">
+        <div className="mb-2 text-sm text-[var(--text-primary)]/45">
           Исправленный текст
         </div>
 
         <div className="rounded-lg   px-3 py-2.5">
           <div
-            className={`relative ${
-              !showFullText && isLongText ? 'max-h-[160px] overflow-hidden' : ''
-            }`}
+            className={`relative ${!showFullText && isLongText ? 'max-h-[160px] overflow-hidden' : ''
+              }`}
           >
-            <p className="text-[16px] leading-relaxed text-white/90 whitespace-pre-wrap break-words">
+            <p className="text-[16px] leading-relaxed text-[var(--text-primary)]/90 whitespace-pre-wrap break-words">
               {correctedSegments.map((seg, i) => {
                 if (seg.type === 'text') {
                   return <span key={i}>{seg.value}</span>;
@@ -208,11 +207,11 @@ export const SpellCheckDiff: React.FC<SpellCheckDiffProps> = ({
           onClick={() => setShowChanges(prev => !prev)}
           className="w-full flex items-center justify-between gap-2 text-left"
         >
-          <div className="text-sm text-white/45">
+          <div className="text-sm text-[var(--text-primary)]/45">
             Что исправлено
           </div>
 
-          <div className="flex items-center gap-2 text-white/40 px-2 hover:bg-white/10 rounded-xl">
+          <div className="flex items-center gap-2 text-[var(--text-primary)]/40 px-2 hover:bg-[var(--hover-1)] rounded-xl">
             {!showChanges && (
               <span className="text-xs">
                 {result.suggestions.length}
@@ -233,10 +232,10 @@ export const SpellCheckDiff: React.FC<SpellCheckDiffProps> = ({
                   key={i}
                   className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg ${style.bg} border border-current/5`}
                 >
-                  <span className="text-sm text-white/50 line-through">
+                  <span className="text-sm text-[var(--text-primary)]/50 line-through">
                     {s.original}
                   </span>
-                  <span className="text-sm text-white/30">→</span>
+                  <span className="text-sm text-[var(--text-primary)]/30">→</span>
                   <span className={`text-sm font-medium ${style.text}`}>
                     {s.suggestion}
                   </span>
@@ -245,7 +244,7 @@ export const SpellCheckDiff: React.FC<SpellCheckDiffProps> = ({
             })}
 
             {result.suggestions.length > 3 && (
-              <div className="inline-flex items-center px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-white/45">
+              <div className="inline-flex items-center px-2 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06] text-sm text-[var(--text-primary)]/45">
                 + ещё {result.suggestions.length - 3}
               </div>
             )}
@@ -272,18 +271,18 @@ export const SpellCheckDiff: React.FC<SpellCheckDiffProps> = ({
                       </span>
                     </span>
 
-                    <span className="text-[16px] text-white/50 line-through break-all">
+                    <span className="text-[16px] text-[var(--text-primary)]/50 line-through break-all">
                       {s.original}
                     </span>
 
-                    <span className="text-[16px] text-white/30">→</span>
+                    <span className="text-[16px] text-[var(--text-primary)]/30">→</span>
 
                     <span className={`text-[16px] font-medium ${style.text} break-all`}>
                       {s.suggestion}
                     </span>
                   </div>
 
-                  <div className="mt-1 text-sm text-white/55">
+                  <div className="mt-1 text-sm text-[var(--text-primary)]/55">
                     {s.message}
                   </div>
                 </div>
@@ -297,14 +296,14 @@ export const SpellCheckDiff: React.FC<SpellCheckDiffProps> = ({
       <div className="flex items-center gap-2 px-3 py-2.5 border-t border-white/[0.06] bg-white/[0.02]">
         <button
           onClick={() => onApply(result.corrected_text)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600/40 hover:bg-green-600/60 text-white text-sm font-medium transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600/40 hover:bg-green-600/60 text-[var(--text-primary)] text-sm font-medium transition-colors"
         >
           <Check size={14} />
           Применить все
         </button>
         <button
           onClick={onDismiss}
-          className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.08] text-white/60 text-sm transition-colors"
+          className="px-3 py-1.5 rounded-lg bg-white/[0.05] hover:bg-white/[0.08] text-[var(--text-primary)]/60 text-sm transition-colors"
         >
           Оставить как есть
         </button>

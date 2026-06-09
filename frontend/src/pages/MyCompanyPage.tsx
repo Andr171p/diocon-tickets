@@ -14,7 +14,7 @@ import type { Counterparty, CounterpartyCustomer, TicketListItem } from '@/types
 
 type TabType = 'info' | 'contacts' | 'branches' | 'employees' | 'tickets';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers ──────
 
 function getInitials(name?: string | null): string {
   if (!name) return '?';
@@ -31,23 +31,29 @@ function Avatar({ name, size = 'md' }: { name?: string | null; size?: 'sm' | 'md
   );
 }
 
-const statusClr = (s: string) => ({
-  'Новый':          'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  'На согласовании':'bg-purple-500/15 text-purple-400 border-purple-500/30',
-  'Открыт':         'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
-  'В работе':       'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
-  'Ожидает ответа': 'bg-orange-500/15 text-orange-400 border-orange-500/30',
-  'Решён':          'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  'Закрыт':         'bg-neutral-500/15 text-neutral-400 border-neutral-500/30',
-  'Переоткрыт':     'bg-red-500/15 text-red-400 border-red-500/30',
-}[s] ?? 'bg-white/5 text-white/50 border-white/10');
+const statusClr = (s: string) => {
+  const map: Record<string, string> = {
+    'Новый': 'status-new',
+    'На согласовании': 'status-agreement',
+    'Открыт': 'status-open',
+    'В работе': 'status-progress',
+    'Ожидает ответа': 'status-waiting',
+    'Решён': 'status-resolved',
+    'Закрыт': 'status-closed',
+    'Переоткрыт': 'status-reopened',
+  };
+  return map[s] || 'status-closed';
+};
 
-const priorityClr = (p: string) => ({
-  'Низкий':      'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  'Средний':     'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
-  'Высокий':     'bg-orange-500/15 text-orange-400 border-orange-500/30',
-  'Критический': 'bg-red-500/15 text-red-400 border-red-500/30',
-}[p] ?? 'bg-white/5 text-white/50 border-white/10');
+const priorityClr = (p: string) => {
+  const map: Record<string, string> = {
+    'Низкий': 'priority-low',
+    'Средний': 'priority-medium',
+    'Высокий': 'priority-high',
+    'Критический': 'priority-critical',
+  };
+  return map[p] || 'priority-medium';
+};
 
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -60,22 +66,22 @@ const getEmployeeRoleInfo = (role: string) => {
     customer_admin: {
       label: 'Администратор',
       icon: <Crown className="w-3.5 h-3.5" />,
-      color: 'bg-red-500/15 text-red-400 border-red-500/30',
+      color: 'status-reopened',
     },
     customer: {
       label: 'Сотрудник',
       icon: <User className="w-3.5 h-3.5" />,
-      color: 'bg-white/[0.06] text-white/60 border-white/[0.1]',
+      color: 'status-closed',
     },
   };
   return roles[role] || {
     label: 'Пользователь',
     icon: <User className="w-3.5 h-3.5" />,
-    color: 'bg-white/[0.06] text-white/50 border-white/[0.1]',
+    color: 'status-closed',
   };
 };
 
-// ─── Основной компонент ───────────────────────────────────────────────────────
+// ─── Основной компонент 
 
 export default function MyCompanyPage() {
   const { user } = useAuthStore();
@@ -93,7 +99,7 @@ export default function MyCompanyPage() {
   const [loadingTickets, setLoadingTickets] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('info');
-  
+
   const canViewEmployees = user?.role === 'customer_admin' || user?.role === 'admin';
   const canViewTickets = user?.role === 'customer_admin' || user?.role === 'customer' || user?.role === 'admin';
 
@@ -151,41 +157,41 @@ export default function MyCompanyPage() {
     load();
   }, [canViewEmployees, company?.id, activeTab]);
 
-  // ── Загрузка заявок ───────────────────────────────────────────────────────
+  // ── Загрузка заявок 
 
   const TICKETS_PER_PAGE = 10;
 
-const loadTickets = useCallback(async (page = 1) => {
-  if (!company?.id) return;
-  setLoadingTickets(true);
-  try {
-    const res = await ticketsApi.getAllWithFilters(page, TICKETS_PER_PAGE, {
-      counterparty_id: company.id,
-    });
-    setTickets(res.items);
-    setTicketsPage(res.page);
-    setTicketsTotalPages(res.total_pages);
-    setTicketsTotalItems(res.total_items);
-  } catch {
-    setTickets([]);
-    setTicketsTotalItems(0);
-    setTicketsTotalPages(1);
-  } finally {
-    setLoadingTickets(false);
-  }
-}, [company?.id]);
+  const loadTickets = useCallback(async (page = 1) => {
+    if (!company?.id) return;
+    setLoadingTickets(true);
+    try {
+      const res = await ticketsApi.getAllWithFilters(page, TICKETS_PER_PAGE, {
+        counterparty_id: company.id,
+      });
+      setTickets(res.items);
+      setTicketsPage(res.page);
+      setTicketsTotalPages(res.total_pages);
+      setTicketsTotalItems(res.total_items);
+    } catch {
+      setTickets([]);
+      setTicketsTotalItems(0);
+      setTicketsTotalPages(1);
+    } finally {
+      setLoadingTickets(false);
+    }
+  }, [company?.id]);
 
-// Загружаем общее количество заявок сразу при загрузке компании (для статистики)
-useEffect(() => {
-  if (company?.id) loadTickets(1);
-}, [company?.id, loadTickets]);
+  // Загружаем общее количество заявок сразу при загрузке компании (для статистики)
+  useEffect(() => {
+    if (company?.id) loadTickets(1);
+  }, [company?.id, loadTickets]);
 
-// При переключении страницы
-useEffect(() => {
-  if (activeTab === 'tickets') loadTickets(ticketsPage);
-}, [ticketsPage]);
+  // При переключении страницы
+  useEffect(() => {
+    if (activeTab === 'tickets') loadTickets(ticketsPage);
+  }, [ticketsPage]);
 
-  // ── Tabs ──────────────────────────────────────────────────────────────────
+  // ── Tabs ──────
 
   const hasBranches = branches.length > 0;
 
@@ -206,11 +212,11 @@ useEffect(() => {
     tabs.push({ id: 'tickets', label: 'Заявки', icon: Ticket, count: ticketsTotalItems });
   }
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
+  // ── Stats ─────
 
   const activeTickets = tickets.filter(t => t.status !== 'Закрыт' && t.status !== 'Решён').length;
 
-  // ── Loading / Error ───────────────────────────────────────────────────────
+  // ── Loading / Error 
 
   if (loading) {
     return (
@@ -225,74 +231,70 @@ useEffect(() => {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center max-w-md">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Компания не найдена</h2>
-          <p className="text-base text-white/50">{error || 'Вы не привязаны ни к одной компании'}</p>
+          <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Компания не найдена</h2>
+          <p className="text-base text-[var(--text-primary)]/50">{error || 'Вы не привязаны ни к одной компании'}</p>
         </div>
       </div>
     );
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Render ────
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in duration-500">
 
-      {/* ── Header ───────────────────────────────────────────────────────── */}
+      {/* ── Header ── */}
       <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
         <div className="flex items-center gap-5">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-800 to-red-700
                           flex items-center justify-center shadow-lg shadow-red-900/30 flex-shrink-0">
             {company.avatar_url ? (
               <img src={company.avatar_url} alt={company.name}
-                   className="w-16 h-16 rounded-2xl object-cover" />
+                className="w-16 h-16 rounded-2xl object-cover" />
             ) : (
-              <Building2 className="w-8 h-8 text-white" />
+              <Building2 className="w-8 h-8 text-[var(--text-primary)]" />
             )}
           </div>
           <div>
             <div className="flex items-center gap-3 flex-wrap mb-2">
-              <h1 className="text-3xl font-bold text-white">{company.name}</h1>
-              <span className={`px-3 py-1 rounded-lg text-base font-medium border ${
-                company.is_active
-                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                  : 'bg-white/[0.06] text-white/40 border-white/[0.1]'
-              }`}>
+              <h1 className="text-3xl font-bold text-[var(--text-primary)]">{company.name}</h1>
+                            <span className={`px-3 py-1 rounded-lg text-base font-medium border ${company.is_active
+                  ? 'status-resolved'
+                  : 'status-closed'
+                }`}>
                 {company.is_active ? 'Активен' : 'Неактивен'}
               </span>
               {hasBranches && (
-                <span className="px-3 py-1 rounded-lg text-base font-medium
-                                 bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                <span className="px-3 py-1 rounded-lg text-base font-medium status-waiting">
                   Головная компания
                 </span>
               )}
             </div>
-            <p className="text-white/50 text-base">{company.legal_name}</p>
+            <p className="text-[var(--text-primary)]/50 text-base">{company.legal_name}</p>
           </div>
         </div>
 
         <Link to="/tickets/new"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl
-                         bg-red-800 hover:bg-red-700 text-white text-base font-medium
-                         transition-colors shadow-lg shadow-red-900/30 flex-shrink-0">
+          className="btn-primary flex items-center gap-2 px-4 py-2.5 rounded-xl
+                         text-white text-base font-medium flex-shrink-0 shadow-lg shadow-[var(--accent-glow)]">
           <Plus className="w-4 h-4" />
           Создать заявку
         </Link>
       </div>
 
-      {/* ── Tabs ─────────────────────────────────────────────────────────── */}
-      <div className="flex gap-1.5 border-b border-white/[0.08] overflow-x-auto">
+      {/* ── Tabs ──── */}
+      <div className="flex gap-1.5 border-b border-[var(--border-color)] overflow-x-auto">
         {tabs.map(tab => (
           <button key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-5 py-3 rounded-t-xl transition-all whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? 'bg-red-800/50 text-white border-b-2 border-red-500'
-                      : 'text-white/50 hover:text-white/70 hover:bg-white/[0.04]'
-                  }`}>
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-5 py-3 rounded-t-xl transition-all whitespace-nowrap ${activeTab === tab.id
+                ? 'bg-red-800/50 text-white border-b-2 border-red-500'
+                : 'text-[var(--text-primary)]/50 hover:text-[var(--text-primary)]/70 hover:bg-[var(--hover-2)]'
+              }`}>
             <tab.icon className="w-4 h-4" />
             <span className="text-base font-medium">{tab.label}</span>
             {(tab.count ?? 0) > 0 && (
-              <span className="ml-0.5 px-2 py-0.5 rounded-full bg-white/[0.1] text-sm">
+              <span className="ml-0.5 px-2 py-0.5 rounded-full bg-[var(--hover-3)] text-sm">
                 {tab.count}
               </span>
             )}
@@ -300,13 +302,13 @@ useEffect(() => {
         ))}
       </div>
 
-      {/* ── Content ──────────────────────────────────────────────────────── */}
+      {/* ── Content ─ */}
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
 
           {/* ═══ Info ═══ */}
           {activeTab === 'info' && (
-            <div className="space-y-6">
+            <div className="space-y-6 animate-in fade-in duration-500">
               <div className="grid md:grid-cols-2 gap-4">
                 {[
                   { label: 'ИНН', value: company.inn },
@@ -315,27 +317,27 @@ useEffect(() => {
                   { label: 'Тип', value: company.counterparty_type },
                 ].map(field => (
                   <div key={field.label}
-                       className="bg-white/[0.04] rounded-2xl border border-white/[0.08] p-5">
-                    <p className="text-xs uppercase tracking-widest text-white/30 mb-2">{field.label}</p>
-                    <p className="text-base font-semibold text-white">{field.value || '—'}</p>
+                    className="bg-[var(--hover-2)] rounded-2xl border border-[var(--border-color)] p-5">
+                    <p className="text-xs uppercase tracking-widest text-[var(--text-primary)]/30 mb-2">{field.label}</p>
+                    <p className="text-base font-semibold text-[var(--text-primary)]">{field.value || '—'}</p>
                   </div>
                 ))}
               </div>
 
               {company.address && (
-                <div className="bg-white/[0.04] rounded-2xl border border-white/[0.08] p-5">
-                  <p className="text-xs uppercase tracking-widest text-white/30 mb-2 flex items-center gap-2">
+                <div className="bg-[var(--hover-2)] rounded-2xl border border-[var(--border-color)] p-5">
+                  <p className="text-xs uppercase tracking-widest text-[var(--text-primary)]/30 mb-2 flex items-center gap-2">
                     <MapPin className="w-3.5 h-3.5" /> Адрес
                   </p>
-                  <p className="text-base text-white">{company.address}</p>
+                  <p className="text-base text-[var(--text-primary)]">{company.address}</p>
                 </div>
               )}
 
-              <div className="bg-white/[0.04] rounded-2xl border border-white/[0.08] p-5">
-                <p className="text-xs uppercase tracking-widest text-white/30 mb-2 flex items-center gap-2">
+              <div className="bg-[var(--hover-2)] rounded-2xl border border-[var(--border-color)] p-5">
+                <p className="text-xs uppercase tracking-widest text-[var(--text-primary)]/30 mb-2 flex items-center gap-2">
                   <Calendar className="w-3.5 h-3.5" /> Дата регистрации
                 </p>
-                <p className="text-base text-white font-medium">{fmtDateTime(company.created_at)}</p>
+                <p className="text-base text-[var(--text-primary)] font-medium">{fmtDateTime(company.created_at)}</p>
               </div>
 
               {/* Статистика */}
@@ -343,13 +345,13 @@ useEffect(() => {
                 {[
                   { icon: GitBranch, value: branches.length, label: 'Подразделений' },
                   { icon: Ticket, value: ticketsTotalItems, label: 'Заявок' },
-                  { icon: Clock,     value: activeTickets,   label: 'Активных' },
+                  { icon: Clock, value: activeTickets, label: 'Активных' },
                 ].map(s => (
                   <div key={s.label}
-                       className="bg-white/[0.04] rounded-2xl border border-white/[0.08] p-5 text-center">
-                    <s.icon className="w-5 h-5 text-white/30 mx-auto mb-3" />
-                    <p className="text-3xl font-bold text-white mb-1">{s.value}</p>
-                    <p className="text-sm text-white/40">{s.label}</p>
+                    className="bg-[var(--hover-2)] rounded-2xl border border-[var(--border-color)] p-5 text-center">
+                    <s.icon className="w-5 h-5 text-[var(--text-primary)]/30 mx-auto mb-3" />
+                    <p className="text-3xl font-bold text-[var(--text-primary)] mb-1">{s.value}</p>
+                    <p className="text-sm text-[var(--text-primary)]/40">{s.label}</p>
                   </div>
                 ))}
               </div>
@@ -358,9 +360,9 @@ useEffect(() => {
 
           {/* ═══ Contacts ═══ */}
           {activeTab === 'contacts' && (
-            <div className="bg-white/[0.04] rounded-2xl border border-white/[0.08] p-6">
-              <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2.5">
-                <User className="w-5 h-5 text-white/40" />
+            <div className="bg-[var(--hover-2)] rounded-2xl border border-[var(--border-color)] p-6">
+              <h3 className="text-lg font-bold text-[var(--text-primary)] mb-6 flex items-center gap-2.5">
+                <User className="w-5 h-5 text-[var(--text-primary)]/40" />
                 Контактное лицо
               </h3>
 
@@ -369,47 +371,47 @@ useEffect(() => {
                   <div className="flex items-center gap-4 mb-6">
                     <Avatar name={company.contact_person.full_name} size="lg" />
                     <div>
-                      <p className="text-lg font-bold text-white">{company.contact_person.full_name}</p>
-                      <p className="text-base text-white/40">Контактное лицо</p>
+                      <p className="text-lg font-bold text-[var(--text-primary)]">{company.contact_person.full_name}</p>
+                      <p className="text-base text-[var(--text-primary)]/40">Контактное лицо</p>
                     </div>
                   </div>
 
                   <div className="space-y-3">
                     {company.contact_person.phone && (
                       <a href={`tel:${company.contact_person.phone}`}
-                         className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03]
-                                    hover:bg-white/[0.06] transition-colors">
-                        <Phone className="w-5 h-5 text-emerald-400" />
-                        <span className="text-base text-white">{company.contact_person.phone}</span>
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--hover-1)]
+                                    hover:bg-[var(--hover-2)] transition-colors group">
+                        <Phone className="w-5 h-5 text-[var(--status-resolved-text)]" />
+                        <span className="text-base text-[var(--text-primary)]">{company.contact_person.phone}</span>
                       </a>
                     )}
                     {company.contact_person.email && (
                       <a href={`mailto:${company.contact_person.email}`}
-                         className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03]
-                                    hover:bg-white/[0.06] transition-colors">
-                        <Mail className="w-5 h-5 text-red-400" />
-                        <span className="text-base text-white">{company.contact_person.email}</span>
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--hover-1)]
+                                    hover:bg-[var(--hover-2)] transition-colors group">
+                        <Mail className="w-5 h-5 text-[var(--accent-light)]" />
+                        <span className="text-base text-[var(--text-primary)]">{company.contact_person.email}</span>
                       </a>
                     )}
                     {company.contact_person.messengers?.telegram && (
                       <a href={`https://t.me/${company.contact_person.messengers.telegram}`}
-                         target="_blank" rel="noopener noreferrer"
-                         className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03]
-                                    hover:bg-white/[0.06] transition-colors">
-                        <MessageSquare className="w-5 h-5 text-sky-400" />
-                        <span className="text-base text-white flex-1">
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--hover-1)]
+                                    hover:bg-[var(--hover-2)] transition-colors group">
+                        <MessageSquare className="w-5 h-5 text-[var(--status-open-text)]" />
+                        <span className="text-base text-[var(--text-primary)] flex-1">
                           @{company.contact_person.messengers.telegram}
                         </span>
-                        <ExternalLink className="w-4 h-4 text-white/20" />
+                        <ExternalLink className="w-4 h-4 text-[var(--text-muted)]" />
                       </a>
                     )}
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-16">
-                  <User className="w-16 h-16 text-white/10 mx-auto mb-4" />
-                  <p className="text-white/50 text-base font-semibold mb-1">Не указано</p>
-                  <p className="text-white/30 text-sm">Контактное лицо не задано</p>
+                  <User className="w-16 h-16 text-[var(--text-primary)]/10 mx-auto mb-4" />
+                  <p className="text-[var(--text-primary)]/50 text-base font-semibold mb-1">Не указано</p>
+                  <p className="text-[var(--text-primary)]/30 text-sm">Контактное лицо не задано</p>
                 </div>
               )}
             </div>
@@ -417,12 +419,12 @@ useEffect(() => {
 
           {/* ═══ Branches ═══ */}
           {activeTab === 'branches' && (
-            <div className="bg-white/[0.04] rounded-2xl border border-white/[0.08] overflow-hidden">
-              <div className="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.01]">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2.5">
+            <div className="bg-[var(--hover-2)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
+              <div className="px-6 py-5 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--hover-1)]">
+                <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2.5">
                   <GitBranch className="w-5 h-5 text-amber-400" />
                   Подразделения
-                  <span className="px-2 py-0.5 rounded-full bg-white/[0.08] text-sm text-white/50">
+                  <span className="px-2 py-0.5 rounded-full bg-[var(--hover-3)] text-sm text-[var(--text-primary)]/50">
                     {branches.length}
                   </span>
                 </h2>
@@ -431,21 +433,21 @@ useEffect(() => {
               <div className="p-6">
                 {branches.length === 0 ? (
                   <div className="text-center py-16">
-                    <GitBranch className="w-16 h-16 text-white/10 mx-auto mb-4" />
-                    <p className="text-white/50 text-base">Нет подразделений</p>
+                    <GitBranch className="w-16 h-16 text-[var(--text-primary)]/10 mx-auto mb-4" />
+                    <p className="text-[var(--text-primary)]/50 text-base">Нет подразделений</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-white/[0.05]">
+                  <div className="divide-y divide-[var(--border-color)]">
                     {branches.map(branch => (
                       <div key={branch.id} className="flex items-center gap-4 py-4 px-2">
-                        <div className="w-10 h-10 rounded-xl bg-amber-600/15 flex items-center justify-center flex-shrink-0">
-                          <Building2 className="w-5 h-5 text-amber-400" />
+                        <div className="w-10 h-10 rounded-xl bg-[var(--status-waiting-bg)] flex items-center justify-center flex-shrink-0">
+                          <Building2 className="w-5 h-5 text-[var(--status-waiting-text)]" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-white font-semibold text-base truncate">{branch.name}</p>
-                          <p className="text-white/40 text-sm truncate">{branch.legal_name}</p>
+                          <p className="text-[var(--text-primary)] font-semibold text-base truncate">{branch.name}</p>
+                          <p className="text-[var(--text-primary)]/40 text-sm truncate">{branch.legal_name}</p>
                         </div>
-                        <div className="text-right text-sm text-white/30 flex-shrink-0">
+                        <div className="text-right text-sm text-[var(--text-primary)]/30 flex-shrink-0">
                           {branch.inn && <p>ИНН {branch.inn}</p>}
                           {branch.kpp && <p>КПП {branch.kpp}</p>}
                         </div>
@@ -459,13 +461,13 @@ useEffect(() => {
 
           {/* ═══ Employees ═══ */}
           {activeTab === 'employees' && canViewEmployees && (
-            <div className="bg-white/[0.04] rounded-2xl border border-white/[0.08] overflow-hidden">
-              <div className="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.01]">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2.5">
-                  <Users className="w-5 h-5 text-white/40" />
+            <div className="bg-[var(--hover-2)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
+              <div className="px-6 py-5 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--hover-1)]">
+                <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2.5">
+                  <Users className="w-5 h-5 text-[var(--text-primary)]/40" />
                   Сотрудники
                   {employees.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-white/[0.08] text-sm text-white/50">
+                    <span className="px-2 py-0.5 rounded-full bg-[var(--hover-3)] text-sm text-[var(--text-primary)]/50">
                       {employees.length}
                     </span>
                   )}
@@ -475,40 +477,39 @@ useEffect(() => {
               <div className="p-6">
                 {loadingEmployees ? (
                   <div className="flex justify-center py-16">
-                    <Loader2 className="w-8 h-8 animate-spin text-white/20" />
+                    <Loader2 className="w-8 h-8 animate-spin text-[var(--text-primary)]/20" />
                   </div>
                 ) : employees.length === 0 ? (
                   <div className="text-center py-16">
-                    <Users className="w-16 h-16 text-white/10 mx-auto mb-4" />
-                    <p className="text-white/50 text-base font-semibold mb-1">Пока нет сотрудников</p>
-                    <p className="text-white/30 text-sm">
+                    <Users className="w-16 h-16 text-[var(--text-primary)]/10 mx-auto mb-4" />
+                    <p className="text-[var(--text-primary)]/50 text-base font-semibold mb-1">Пока нет сотрудников</p>
+                    <p className="text-[var(--text-primary)]/30 text-sm">
                       Вы можете пригласить коллег через раздел «Приглашения»
                     </p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-white/[0.05]">
+                  <div className="divide-y divide-[var(--border-color)]">
                     {employees.map(emp => {
                       const roleInfo = getEmployeeRoleInfo(emp.role);
                       const isMe = emp.id === user?.user_id;
 
                       return (
                         <div key={emp.id}
-                             className={`flex items-center gap-4 py-4 px-2 rounded-xl ${
-                               isMe ? 'bg-red-500/[0.04]' : ''
-                             }`}>
+                          className={`flex items-center gap-4 py-4 px-2 rounded-xl ${isMe ? 'bg-red-500/[0.04]' : ''
+                            }`}>
                           <Avatar name={emp.full_name || emp.username} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-white font-semibold text-base truncate">
+                              <span className="text-[var(--text-primary)] font-semibold text-base truncate">
                                 {emp.full_name || emp.username}
                               </span>
                               {isMe && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-white/[0.08] text-white/50">
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--hover-3)] text-[var(--text-primary)]/50">
                                   Вы
                                 </span>
                               )}
                             </div>
-                            <p className="text-white/40 text-sm truncate">{emp.email}</p>
+                            <p className="text-[var(--text-primary)]/40 text-sm truncate">{emp.email}</p>
                           </div>
                           <span className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm
                                            font-medium border flex-shrink-0 ${roleInfo.color}`}>
@@ -526,20 +527,20 @@ useEffect(() => {
 
           {/* ═══ Tickets ═══ */}
           {activeTab === 'tickets' && canViewTickets && (
-            <div className="bg-white/[0.04] rounded-2xl border border-white/[0.08] overflow-hidden">
-              <div className="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.01]">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2.5">
-                  <Ticket className="w-5 h-5 text-white/40" />
+            <div className="bg-[var(--hover-2)] rounded-2xl border border-[var(--border-color)] overflow-hidden">
+              <div className="px-6 py-5 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--hover-1)]">
+                <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2.5">
+                  <Ticket className="w-5 h-5 text-[var(--text-primary)]/40" />
                   Заявки
                   {tickets.length > 0 && (
-                    <span className="px-2 py-0.5 rounded-full bg-white/[0.08] text-sm text-white/50">
+                    <span className="px-2 py-0.5 rounded-full bg-[var(--hover-3)] text-sm text-[var(--text-primary)]/50">
                       {tickets.length}
                     </span>
                   )}
                 </h2>
                 <Link to="/tickets/new"
-                      className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-red-800 hover:bg-red-700
-                                 text-white text-base font-medium transition-colors shadow-md shadow-red-900/30">
+                  className="btn-primary flex items-center gap-2 px-3.5 py-2 rounded-xl
+                                 text-white text-base font-medium shadow-md shadow-[var(--accent-glow)]">
                   <Plus className="w-4 h-4" />
                   Создать
                 </Link>
@@ -548,26 +549,26 @@ useEffect(() => {
               <div className="p-6">
                 {loadingTickets ? (
                   <div className="flex justify-center py-16">
-                    <Loader2 className="w-8 h-8 animate-spin text-white/20" />
+                    <Loader2 className="w-8 h-8 animate-spin text-[var(--text-primary)]/20" />
                   </div>
                 ) : tickets.length === 0 ? (
                   <div className="text-center py-20">
-                    <Ticket className="w-16 h-16 text-white/10 mx-auto mb-4" />
-                    <p className="text-white/50 text-base font-semibold mb-1">Нет заявок</p>
-                    <p className="text-white/30 text-sm mb-5">
+                    <Ticket className="w-16 h-16 text-[var(--text-primary)]/10 mx-auto mb-4" />
+                    <p className="text-[var(--text-primary)]/50 text-base font-semibold mb-1">Нет заявок</p>
+                    <p className="text-[var(--text-primary)]/30 text-sm mb-5">
                       У вашей компании пока нет заявок
                     </p>
                     <Link to="/tickets/new"
-                          className="text-red-400 hover:text-red-300 transition-colors text-base">
+                      className="text-[var(--accent-light)] hover:text-[var(--accent)] transition-colors text-base font-medium">
                       Создать первую заявку →
                     </Link>
                   </div>
                 ) : (
-                  <div className="divide-y divide-white/[0.05]">
+                  <div className="divide-y divide-[var(--border-color)]">
                     {tickets.map(ticket => (
                       <Link key={ticket.id} to={`/tickets/${ticket.number}`}
-                            className="flex items-start justify-between gap-4 py-4 px-2
-                                       hover:bg-white/[0.03] rounded-xl transition-colors group">
+                        className="flex items-start justify-between gap-4 py-4 px-2
+                                       hover:bg-[var(--hover-1)] rounded-xl transition-colors group">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <span className="text-red-400 font-mono text-sm bg-red-500/10
@@ -583,30 +584,30 @@ useEffect(() => {
                               {ticket.priority}
                             </span>
                           </div>
-                          <p className="text-white font-medium text-base group-hover:text-red-400
+                          <p className="text-[var(--text-primary)] font-medium text-base group-hover:text-red-400
                                         transition-colors truncate">
                             {ticket.title}
                           </p>
-                          <p className="text-white/30 text-sm mt-1">{fmtDate(ticket.created_at)}</p>
+                          <p className="text-[var(--text-primary)]/30 text-sm mt-1">{fmtDate(ticket.created_at)}</p>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-red-400
+                        <ChevronRight className="w-4 h-4 text-[var(--text-primary)]/20 group-hover:text-red-400
                                                  group-hover:translate-x-0.5 transition-all
                                                  flex-shrink-0 mt-1" />
                       </Link>
                     ))}
-                                   </div>
+                  </div>
                 )}
 
                 {/* Пагинация */}
                 {ticketsTotalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 pt-6 border-t border-white/[0.06]">
+                  <div className="flex items-center justify-center gap-2 pt-6 border-t border-[var(--border-color)]">
                     <button
                       onClick={() => setTicketsPage(p => Math.max(1, p - 1))}
                       disabled={ticketsPage === 1}
                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl
-                                 bg-white/[0.04] border border-white/[0.08]
-                                 hover:bg-white/[0.07] disabled:opacity-40 disabled:cursor-not-allowed
-                                 text-white text-base transition-colors"
+                                 bg-[var(--hover-2)] border border-[var(--border-color)]
+                                 hover:bg-[var(--hover-3)] disabled:opacity-40 disabled:cursor-not-allowed
+                                 text-[var(--text-primary)] text-base transition-colors"
                     >
                       <ChevronRight className="w-4 h-4 rotate-180" />
                       Назад
@@ -620,11 +621,10 @@ useEffect(() => {
                           <button
                             key={pageNum}
                             onClick={() => setTicketsPage(pageNum)}
-                            className={`w-10 h-10 rounded-xl text-base font-medium transition-colors ${
-                              pageNum === ticketsPage
+                            className={`w-10 h-10 rounded-xl text-base font-medium transition-colors ${pageNum === ticketsPage
                                 ? 'bg-red-700 text-white'
-                                : 'bg-white/[0.04] text-white/60 border border-white/[0.08] hover:bg-white/[0.08]'
-                            }`}
+                                : 'bg-[var(--hover-2)] text-[var(--text-primary)]/60 border border-[var(--border-color)] hover:bg-[var(--hover-3)]'
+                              }`}
                           >
                             {pageNum}
                           </button>
@@ -636,9 +636,9 @@ useEffect(() => {
                       onClick={() => setTicketsPage(p => Math.min(ticketsTotalPages, p + 1))}
                       disabled={ticketsPage === ticketsTotalPages}
                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl
-                                 bg-white/[0.04] border border-white/[0.08]
-                                 hover:bg-white/[0.07] disabled:opacity-40 disabled:cursor-not-allowed
-                                 text-white text-base transition-colors"
+                                 bg-[var(--hover-2)] border border-[var(--border-color)]
+                                 hover:bg-[var(--hover-3)] disabled:opacity-40 disabled:cursor-not-allowed
+                                 text-[var(--text-primary)] text-base transition-colors"
                     >
                       Вперёд
                       <ChevronRight className="w-4 h-4" />
@@ -653,29 +653,30 @@ useEffect(() => {
         {/* ── Sidebar ───────────────────────────────────────────────────── */}
         <div className="space-y-5">
           {/* Информация */}
-          <div className="bg-white/[0.04] rounded-2xl border border-white/[0.08] p-5">
-            <p className="text-xs uppercase tracking-widest text-white/30 mb-5 flex items-center gap-2">
+          <div className="bg-[var(--hover-2)] rounded-2xl border border-[var(--border-color)] p-5">
+            <p className="text-xs uppercase tracking-widest text-[var(--text-primary)]/30 mb-5 flex items-center gap-2">
               <Settings className="w-3.5 h-3.5" /> Информация
             </p>
             <div className="divide-y divide-white/[0.06]">
               {[
-                { label: 'Тип',           value: <span className="text-white/80">{company.counterparty_type}</span> },
-                { label: 'Статус',        value: (
-                  <span className={`text-sm px-2.5 py-1 rounded-lg font-medium border ${
-                    company.is_active
-                      ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                      : 'bg-white/[0.06] text-white/40 border-white/[0.1]'
-                  }`}>
-                    {company.is_active ? 'Активен' : 'Неактивен'}
-                  </span>
-                )},
-                { label: 'Подразделений', value: <span className="text-white font-bold">{branches.length}</span> },
-                { label: 'Заявок', value: <span className="text-white font-bold">{ticketsTotalItems}</span> },
-                { label: 'Активных',      value: <span className="text-white font-bold">{activeTickets}</span> },
-                { label: 'Зарегистрирован', value: <span className="text-white/70 text-sm">{fmtDate(company.created_at)}</span> },
+                { label: 'Тип', value: <span className="text-[var(--text-primary)]/80">{company.counterparty_type}</span> },
+                {
+                  label: 'Статус', value: (
+                    <span className={`text-sm px-2.5 py-1 rounded-lg font-medium border ${company.is_active
+                        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                        : 'bg-[var(--hover-2)] text-[var(--text-primary)]/40 border-[var(--border-color)]'
+                      }`}>
+                      {company.is_active ? 'Активен' : 'Неактивен'}
+                    </span>
+                  )
+                },
+                { label: 'Подразделений', value: <span className="text-[var(--text-primary)] font-bold">{branches.length}</span> },
+                { label: 'Заявок', value: <span className="text-[var(--text-primary)] font-bold">{ticketsTotalItems}</span> },
+                { label: 'Активных', value: <span className="text-[var(--text-primary)] font-bold">{activeTickets}</span> },
+                { label: 'Зарегистрирован', value: <span className="text-[var(--text-primary)]/70 text-sm">{fmtDate(company.created_at)}</span> },
               ].map(row => (
                 <div key={row.label} className="flex items-center justify-between py-3">
-                  <span className="text-white/40 text-base">{row.label}</span>
+                  <span className="text-[var(--text-primary)]/40 text-base">{row.label}</span>
                   {row.value}
                 </div>
               ))}
@@ -683,37 +684,37 @@ useEffect(() => {
           </div>
 
           {/* Контакты */}
-          <div className="bg-white/[0.04] rounded-2xl border border-white/[0.08] p-5">
-            <p className="text-xs uppercase tracking-widest text-white/30 mb-4 flex items-center gap-2">
+          <div className="bg-[var(--hover-2)] rounded-2xl border border-[var(--border-color)] p-5">
+            <p className="text-xs uppercase tracking-widest text-[var(--text-primary)]/30 mb-4 flex items-center gap-2">
               <Phone className="w-3.5 h-3.5" /> Контакты
             </p>
             <div className="space-y-3">
               {company.phone ? (
                 <a href={`tel:${company.phone}`}
-                   className="flex items-center gap-2 text-white/50 hover:text-white/70 transition-colors text-base">
+                  className="flex items-center gap-2 text-[var(--text-primary)]/50 hover:text-[var(--text-primary)]/70 transition-colors text-base">
                   <Phone className="w-4 h-4" /> {company.phone}
                 </a>
               ) : (
-                <p className="text-white/20 text-base">Телефон не указан</p>
+                <p className="text-[var(--text-primary)]/20 text-base">Телефон не указан</p>
               )}
               {company.email ? (
                 <a href={`mailto:${company.email}`}
-                   className="flex items-center gap-2 text-white/50 hover:text-white/70 transition-colors text-base break-all">
+                  className="flex items-center gap-2 text-[var(--text-primary)]/50 hover:text-[var(--text-primary)]/70 transition-colors text-base break-all">
                   <Mail className="w-4 h-4" /> {company.email}
                 </a>
               ) : (
-                <p className="text-white/20 text-base">Email не указан</p>
+                <p className="text-[var(--text-primary)]/20 text-base">Email не указан</p>
               )}
             </div>
           </div>
 
           {company.inn && (
-            <div className="bg-white/[0.04] rounded-2xl border border-white/[0.08] p-5">
-              <p className="text-xs uppercase tracking-widest text-white/30 mb-4">Реквизиты</p>
+            <div className="bg-[var(--hover-2)] rounded-2xl border border-[var(--border-color)] p-5">
+              <p className="text-xs uppercase tracking-widest text-[var(--text-primary)]/30 mb-4">Реквизиты</p>
               <div className="space-y-2 text-sm">
-                <p className="text-white/40">ИНН <span className="text-white font-mono">{company.inn}</span></p>
-                {company.kpp && <p className="text-white/40">КПП <span className="text-white font-mono">{company.kpp}</span></p>}
-                {company.okpo && <p className="text-white/40">ОКПО <span className="text-white font-mono">{company.okpo}</span></p>}
+                <p className="text-[var(--text-primary)]/40">ИНН <span className="text-[var(--text-primary)] font-mono">{company.inn}</span></p>
+                {company.kpp && <p className="text-[var(--text-primary)]/40">КПП <span className="text-[var(--text-primary)] font-mono">{company.kpp}</span></p>}
+                {company.okpo && <p className="text-[var(--text-primary)]/40">ОКПО <span className="text-[var(--text-primary)] font-mono">{company.okpo}</span></p>}
               </div>
             </div>
           )}

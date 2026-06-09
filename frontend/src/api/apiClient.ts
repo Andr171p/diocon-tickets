@@ -15,34 +15,34 @@ export const tokenStorage = {
   getAccessToken: (): string | null => {
     return localStorage.getItem('access_token') || getCookie('access_token');
   },
-  
+
   getRefreshToken: (): string | null => {
     return localStorage.getItem('refresh_token') || getCookie('refresh_token');
   },
-  
+
   setTokens: (accessToken: string, refreshToken: string, expiresAt: number) => {
     // Сохраняем в localStorage
     localStorage.setItem('access_token', accessToken);
     localStorage.setItem('refresh_token', refreshToken);
     localStorage.setItem('token_expires_at', expiresAt.toString());
-    
+
     // Сохраняем в cookies
     const accessExpires = new Date(expiresAt * 1000);
     const refreshExpires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 дней
-    
+
     setCookie('access_token', accessToken, accessExpires);
     setCookie('refresh_token', refreshToken, refreshExpires);
   },
-  
+
   clearTokens: () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('token_expires_at');
-    
+
     deleteCookie('access_token');
     deleteCookie('refresh_token');
   },
-  
+
   isTokenExpired: (): boolean => {
     const expiresAt = localStorage.getItem('token_expires_at');
     if (!expiresAt) return true;
@@ -124,7 +124,7 @@ export const authApi = {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
     });
-    
+
     return response.data;
   },
 

@@ -150,7 +150,7 @@ class SqlTaskRepository(SqlAlchemyRepository[Task, TaskOrm]):
             conditions.append(self.model.assignee_id == assignee_id)
 
         if priorities is not None:
-            conditions.append(self.model.priorities.in_(priorities))
+            conditions.append(self.model.priority.in_(priorities))
 
         if overdue_only:
             today = current_datetime().date()

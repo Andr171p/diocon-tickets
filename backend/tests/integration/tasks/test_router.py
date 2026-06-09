@@ -97,7 +97,7 @@ def make_task(
     user_id = created_by or uuid4()
 
     task = Task.create(
-        number=number or TaskNumber(f"TASK-{uuid4().int % 1000:03d}"),
+        number=number or TaskNumber(f"TASK-{uuid4().int % 10**8:08d}"),
         title=f"Task {uuid4()}",
         description="Task router integration test",
         priority=Priority.MEDIUM,

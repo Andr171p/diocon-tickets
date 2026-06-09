@@ -3,24 +3,26 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium transition-colors",
+  "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold transition-colors border",
   {
     variants: {
       variant: {
         default:
-          "bg-white/10 text-white/70",
+          "bg-[var(--hover-2)] text-[var(--text-secondary)] border-[var(--border-color)]",
         secondary:
-          "bg-white/5 text-white/60",
+          "bg-transparent text-[var(--text-muted)] border-[var(--border-color)]",
         destructive:
-          "bg-red-500/10 text-red-400",
+          "bg-[var(--error)]/8 text-[var(--error)] border-[var(--error)]/15",
         outline: 
-          "border border-white/10 bg-transparent text-white/70",
+          "bg-transparent text-[var(--text-secondary)] border-[var(--border-color)]",
         success:
-          "bg-emerald-500/10 text-emerald-400",
+          "bg-[var(--success)]/8 text-[var(--success)] border-[var(--success)]/15",
         warning:
-          "bg-amber-500/10 text-amber-400",
+          "bg-[var(--warning)]/8 text-[var(--warning)] border-[var(--warning)]/15",
         info:
-          "bg-blue-500/10 text-blue-400",
+          "bg-[var(--info)]/8 text-[var(--info)] border-[var(--info)]/15",
+        brand:
+          "bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent-soft)]",
       },
     },
     defaultVariants: {

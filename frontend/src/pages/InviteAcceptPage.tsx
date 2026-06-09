@@ -22,7 +22,7 @@ export default function InviteAcceptPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -46,7 +46,7 @@ export default function InviteAcceptPage() {
         full_name: data.full_name,
         password: data.password,
       });
-      
+
       setSuccess(true);
       setTimeout(() => {
         navigate('/login');
@@ -61,12 +61,12 @@ export default function InviteAcceptPage() {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="bg-neutral-900/80 backdrop-blur-sm border border-neutral-800 rounded-2xl p-8 text-center">
-            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <AlertCircle className="w-16 h-16 text-[var(--accent)] mx-auto mb-4" />
             <h2 className="text-[16px] font-semibold text-white mb-2">Ссылка недействительна</h2>
-            <p className="text-neutral-400 mb-6">
+            <p className="text-[var(--text-muted)] mb-6">
               Токен приглашения не найден. Убедитесь, что вы перешли по правильной ссылке из письма.
             </p>
             <button
@@ -83,14 +83,14 @@ export default function InviteAcceptPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="bg-neutral-900/80 backdrop-blur-sm border border-neutral-800 rounded-2xl p-8 text-center">
-            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-green-500" />
+            <div className="w-16 h-16 bg-[var(--success)]/8 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-[var(--success)]" />
             </div>
             <h2 className="text-[16px] font-semibold text-white mb-2">Регистрация успешна!</h2>
-            <p className="text-neutral-400 mb-6">
+            <p className="text-[var(--text-muted)] mb-6">
               Ваш аккаунт создан. Сейчас вы будете перенаправлены на страницу входа...
             </p>
             <div className="w-8 h-8 border-2 border-neutral-600 border-t-red-500 rounded-full animate-spin mx-auto" />
@@ -101,17 +101,17 @@ export default function InviteAcceptPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4">
       {/* Фоновые эффекты */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-red-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[var(--accent-soft)] rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[var(--accent-soft)] rounded-full blur-3xl" />
       </div>
 
       <div className="w-full max-w-md relative z-10">
         {/* Логотип */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[var(--accent)] mb-4">
             <span className="text-2xl font-bold text-white">ДК</span>
           </div>
           <h1 className="text-2xl font-bold text-white">ДИО-Консалт</h1>
@@ -124,9 +124,9 @@ export default function InviteAcceptPage() {
           <p className="text-neutral-500 mb-6">Заполните данные для завершения регистрации</p>
 
           {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-400">{error}</p>
+            <div className="mb-6 p-4 bg-[var(--accent-soft)] border border-[var(--accent)]/15 rounded-xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-[var(--accent)] flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-[var(--accent)]">{error}</p>
             </div>
           )}
 
@@ -140,12 +140,12 @@ export default function InviteAcceptPage() {
                 <input
                   type="text"
                   {...register('username')}
-                  className="w-full pl-12 pr-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-colors"
+                  className="w-full pl-12 pr-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-red-500 transition-colors"
                   placeholder="ivan_ivanov"
                 />
               </div>
               {errors.username && (
-                <p className="text-red-400 text-sm mt-2">{errors.username.message}</p>
+                <p className="text-[var(--accent)] text-sm mt-2">{errors.username.message}</p>
               )}
             </div>
 
@@ -158,12 +158,12 @@ export default function InviteAcceptPage() {
                 <input
                   type="text"
                   {...register('full_name')}
-                  className="w-full pl-12 pr-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-colors"
+                  className="w-full pl-12 pr-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-red-500 transition-colors"
                   placeholder="Иванов Иван Иванович"
                 />
               </div>
               {errors.full_name && (
-                <p className="text-red-400 text-sm mt-2">{errors.full_name.message}</p>
+                <p className="text-[var(--accent)] text-sm mt-2">{errors.full_name.message}</p>
               )}
             </div>
 
@@ -176,12 +176,12 @@ export default function InviteAcceptPage() {
                 <input
                   type="password"
                   {...register('password')}
-                  className="w-full pl-12 pr-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-colors"
+                  className="w-full pl-12 pr-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-red-500 transition-colors"
                   placeholder="••••••••"
                 />
               </div>
               {errors.password && (
-                <p className="text-red-400 text-sm mt-2">{errors.password.message}</p>
+                <p className="text-[var(--accent)] text-sm mt-2">{errors.password.message}</p>
               )}
             </div>
 
@@ -194,19 +194,19 @@ export default function InviteAcceptPage() {
                 <input
                   type="password"
                   {...register('confirmPassword')}
-                  className="w-full pl-12 pr-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 transition-colors"
+                  className="w-full pl-12 pr-4 py-3 bg-neutral-800/50 border border-neutral-700 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-red-500 transition-colors"
                   placeholder="••••••••"
                 />
               </div>
               {errors.confirmPassword && (
-                <p className="text-red-400 text-sm mt-2">{errors.confirmPassword.message}</p>
+                <p className="text-[var(--accent)] text-sm mt-2">{errors.confirmPassword.message}</p>
               )}
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-[var(--accent)] hover:from-red-600 hover:to-red-700 text-white font-medium rounded-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <>
