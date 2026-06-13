@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field, NonNegativeInt
+from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt
 
 from ..shared.schemas import Page
 from .domain.vo import ProjectRole, ProjectStageStatus, ProjectStatus
@@ -43,6 +43,24 @@ class ProjectMembershipResponse(BaseModel):
     is_active: bool = Field(..., description="Активен ли участник в проекте")
 
 
+class ProjectStageCreate(BaseModel):
+    """Создание нового этапа проекта"""
+
+    name: str = Field(..., description="Название этапа")
+    description: str | None = Field(
+        None, description="Детальное описание (например, что будет выполнено в рамках этапа"
+    )
+    order: PositiveInt | None = Field(
+        ...,
+        description="""\
+        Порядковый номер этапа (все этапы должны выполняться по порядку).
+        Если передан null - порядок этапа определиться автоматически.
+        """
+    )
+    planned_start: date | None = Field(None, description="Запланированная дата начала этапа")
+    planned_end: date | None = Field(None, description="Запланированная дата завершения этапа")
+
+
 class ProjectStageResponse(BaseModel):
     """Этап проекта (логический блок в рамках которого выполняются работы)"""
 
@@ -52,7 +70,7 @@ class ProjectStageResponse(BaseModel):
 
     project_id: UUID = Field(..., description="ID проекта")
     name: str = Field(..., description="Название этапа")
-    order: int = Field(
+    order: PositiveInt = Field(
         ..., description="Порядковый номер этапа (все этапы должны выполняться по порядку)"
     )
     status: ProjectStageStatus = Field(..., description="Текущий статус этапа")
@@ -106,16 +124,8 @@ class KeyCheckResult(BaseModel):
     )
 
 
-class MemberCreate(BaseModel):
+class ProjectMembershipCreate(BaseModel):
     """Добавление участника проекта"""
 
     user_id: UUID = Field(..., description="ID пользователя, которого нужно добавить")
     project_role: ProjectRole = Field(..., description="Назначенная роль в проекте")
-
-
-class MembersCreate(BaseModel):
-    """Добавление множества участников за один запрос"""
-
-    members: list[MemberCreate] = Field(
-        default_factory=list, description="Участники, которых нужно добавить в проект"
-    )

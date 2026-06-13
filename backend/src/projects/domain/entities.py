@@ -277,7 +277,9 @@ class Project(AggregateRoot):
         self.stages.sort(key=lambda x: x.order)
 
     def add_stage(
-            self, name: str,
+            self,
+            name: str,
+            description: str | None = None,
             order: int | None = None,
             planned_start: date | None = None,
             planned_end: date | None = None,
@@ -298,6 +300,7 @@ class Project(AggregateRoot):
         stage = ProjectStage(
             project_id=self.id,
             name=name.strip(),
+            description=description.strip(),
             order=order,
             status=ProjectStageStatus.PLANNED,
             planned_start=planned_start,

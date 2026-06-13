@@ -30,6 +30,7 @@ class SqlAlchemyRepository[EntityT: Entity, ModelT: Base]:
         self.session = session
 
     async def create(self, entity: EntityT) -> EntityT:
+
         model = self.model_mapper.from_entity(entity)
         self.session.add(model)
         return self.model_mapper.to_entity(model)
