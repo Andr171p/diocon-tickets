@@ -276,7 +276,7 @@ async def test_add_member_returns_created_membership(session, projects_client, p
     data = response.json()
     assert data["user_id"] == str(target_user.id)
     assert data["project_role"] == ProjectRole.CONTRIBUTOR
-    assert data["added_by"] == str(current_support_manager.user_id)
+    assert data["created_by"] == str(current_support_manager.user_id)
     assert data["is_active"] is True
 
 

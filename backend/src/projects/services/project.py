@@ -5,27 +5,27 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..iam.domain.exceptions import PermissionDeniedError
-from ..iam.domain.repos import UserRepository
-from ..iam.schemas import CurrentUser
-from ..shared.domain.events import EventPublisher
-from ..shared.domain.exceptions import AlreadyExistsError, NotFoundError
-from ..shared.schemas import Page
-from .domain.entities import Project
-from .domain.repos import MembershipRepository, ProjectRepository
-from .domain.services import ProjectAccessService
-from .domain.vo import ProjectKey, ProjectRole
-from .mappers import (
+from ...iam.domain.exceptions import PermissionDeniedError
+from ...iam.domain.repos import UserRepository
+from ...iam.schemas import CurrentUser
+from ...shared.domain.events import EventPublisher
+from ...shared.domain.exceptions import AlreadyExistsError, NotFoundError
+from ...shared.schemas import Page
+from ..domain.entities import Project
+from ..domain.repos import MembershipRepository, ProjectRepository
+from ..domain.services import ProjectAccessService
+from ..domain.vo import ProjectKey, ProjectRole
+from ..mappers import (
     map_membership_to_response,
     map_project_to_detailed_response,
     map_project_to_response,
 )
-from .schemas import (
+from ..schemas import (
     KeyCheckResult,
     ProjectMembershipCreate,
-    MembershipResponse,
     ProjectCreate,
     ProjectDetailedResponse,
+    ProjectMembershipResponse,
     ProjectResponse,
 )
 
@@ -165,7 +165,7 @@ class ProjectService:
 
     async def add_member(
             self, project_id: UUID, data: ProjectMembershipCreate, current_user: CurrentUser
-    ) -> MembershipResponse:
+    ) -> ProjectMembershipResponse:
         """Добавление участника в проект"""
 
         # 1. Получение и проверка на существование

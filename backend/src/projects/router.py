@@ -14,9 +14,9 @@ from .domain.services import generate_project_key
 from .mappers import map_project_to_response
 from .schemas import (
     KeyCheckResult,
-    MemberCreate,
-    MembershipResponse,
     ProjectCreate,
+    ProjectMembershipCreate,
+    ProjectMembershipResponse,
     ProjectResponse,
 )
 
@@ -120,13 +120,13 @@ async def get_projects(params: PaginationDep, repository: ProjectRepoDep) -> Pag
 @router.post(
     path="/{project_id}/memberships",
     status_code=status.HTTP_201_CREATED,
-    response_model=MembershipResponse,
+    response_model=ProjectMembershipResponse,
     summary="Добавление участников в проект"
 )
-async def add_member(
+async def add_project_membership(
         project_id: Annotated[UUID, Path(..., description="ID проекта")],
-        data: MemberCreate,
+        data: ProjectMembershipCreate,
         current_user: CurrentUserDep,
         service: ProjectServiceDep,
-) -> MembershipResponse:
+) -> ProjectMembershipResponse:
     return await service.add_member(project_id, data, current_user)

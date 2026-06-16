@@ -94,7 +94,7 @@ async def test_create_project_creates_owner_membership(
     assert response.owner_id == current_support_manager.user_id
     assert membership is not None
     assert membership.project_role == ProjectRole.OWNER
-    assert membership.added_by == current_support_manager.user_id
+    assert membership.created_by == current_support_manager.user_id
 
 
 @pytest.mark.asyncio

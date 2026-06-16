@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 import pytest
 
 from src.iam.domain.vo import UserRole
-from src.projects.domain.entities import Membership, Project
+from src.projects.domain.entities import Project, ProjectMembership
 from src.projects.domain.services import (
     ProjectAccessService,
     generate_project_key,
@@ -63,11 +63,11 @@ def active_project(created_by, counterparty_id):
 def make_membership(
         project_id: UUID, user_id: UUID, project_role: ProjectRole, is_deleted: bool = False
 ):
-    return Membership(
+    return ProjectMembership(
         project_id=project_id,
         user_id=user_id,
         project_role=project_role,
-        added_by=uuid4(),
+        created_by=uuid4(),
         deleted_at=current_datetime() if is_deleted else None,
     )
 

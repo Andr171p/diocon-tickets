@@ -6,15 +6,15 @@ from sqlalchemy import and_, exists, or_, select
 
 from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
 from ...shared.schemas import Page, Pagination
-from ..domain.entities import Membership, Project
+from ..domain.entities import Project, ProjectMembership, ProjectStage
 from ..domain.vo import ProjectKey, ProjectRole
-from .models import MembershipOrm, ProjectOrm
+from .models import ProjectMembershipOrm, ProjectOrm, ProjectStageOrm
 
 
-class MembershipMapper(ModelMapper[Membership, MembershipOrm]):
+class ProjectMembershipMapper(ModelMapper[ProjectMembership, ProjectMembershipOrm]):
     @staticmethod
-    def to_entity(model: MembershipOrm) -> Membership:
-        return Membership(
+    def to_entity(model: ProjectMembershipOrm) -> ProjectMembership:
+        return ProjectMembership(
             id=model.id,
             created_at=model.created_at,
             updated_at=model.updated_at,
@@ -22,13 +22,12 @@ class MembershipMapper(ModelMapper[Membership, MembershipOrm]):
             project_id=model.project_id,
             user_id=model.user_id,
             project_role=model.project_role,
-            added_at=model.added_at,
-            added_by=model.added_by,
+            created_by=model.created_by,
         )
 
     @staticmethod
-    def from_entity(entity: Membership) -> MembershipOrm:
-        return MembershipOrm(
+    def from_entity(entity: ProjectMembership) -> ProjectMembershipOrm:
+        return ProjectMembershipOrm(
             id=entity.id,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
@@ -36,8 +35,49 @@ class MembershipMapper(ModelMapper[Membership, MembershipOrm]):
             user_id=entity.user_id,
             project_id=entity.project_id,
             project_role=entity.project_role,
-            added_at=entity.added_at,
-            added_by=entity.added_by,
+            created_by=entity.created_by,
+        )
+
+
+class ProjectStageMapper(ModelMapper[ProjectStage, ProjectStageOrm]):
+    @staticmethod
+    def to_entity(model: ProjectStageOrm) -> ProjectStage:
+        return ProjectStage(
+            id=model.id,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            deleted_at=model.deleted_at,
+            project_id=model.project_id,
+            name=model.name,
+            order=model.order,
+            status=model.status,
+            planned_start=model.planned_start,
+            planned_end=model.planned_end,
+            started_at=model.started_at,
+            completed_at=model.completed_at,
+            responsible_id=model.responsible_id,
+            description=model.description,
+            completion_criteria=model.completion_criteria,
+        )
+
+    @staticmethod
+    def from_entity(entity: ProjectStage) -> ProjectStageOrm:
+        return ProjectStageOrm(
+            id=entity.id,
+            created_at=entity.created_at,
+            updated_at=entity.updated_at,
+            deleted_at=entity.deleted_at,
+            project_id=entity.project_id,
+            name=entity.name,
+            order=entity.order,
+            status=entity.status,
+            planned_start=entity.planned_start,
+            planned_end=entity.planned_end,
+            started_at=entity.started_at,
+            completed_at=entity.completed_at,
+            responsible_id=entity.responsible_id,
+            description=entity.description,
+            completion_criteria=entity.completion_criteria,
         )
 
 
@@ -56,6 +96,8 @@ class ProjectMapper(ModelMapper[Project, ProjectOrm]):
             counterparty_id=model.counterparty_id,
             owner_id=model.owner_id,
             status=model.status,
+            current_stage_id=model.current_stage_id,
+            stages=[ProjectStageMapper.to_entity(stage) for stage in model.stages]
         )
 
     @staticmethod
@@ -72,6 +114,8 @@ class ProjectMapper(ModelMapper[Project, ProjectOrm]):
             counterparty_id=entity.counterparty_id,
             owner_id=entity.owner_id,
             status=entity.status,
+            current_stage_id=entity.current_stage_id,
+            stages=[ProjectStageMapper.from_entity(stage) for stage in entity.stages],
         )
 
 
@@ -104,9 +148,9 @@ class SqlProjectRepository(SqlAlchemyRepository[Project, ProjectOrm]):
         stmt = select(self.model)
         membership_exists = exists().where(
             and_(
-                MembershipOrm.project_id == self.model.id,
-                MembershipOrm.user_id == user_id,
-                MembershipOrm.deleted_at.is_(None),
+                ProjectMembershipOrm.project_id == self.model.id,
+                ProjectMembershipOrm.user_id == user_id,
+                ProjectMembershipOrm.deleted_at.is_(None),
             )
         )
 
@@ -119,9 +163,9 @@ class SqlProjectRepository(SqlAlchemyRepository[Project, ProjectOrm]):
         return await self._paginate(stmt, pagination)
 
 
-class SqlMembershipRepository(SqlAlchemyRepository[Membership, MembershipOrm]):
-    model = MembershipOrm
-    model_mapper = MembershipMapper
+class SqlMembershipRepository(SqlAlchemyRepository[ProjectMembership, ProjectMembershipOrm]):
+    model = ProjectMembershipOrm
+    model_mapper = ProjectMembershipMapper
 
     @override
     async def paginate(
@@ -129,7 +173,7 @@ class SqlMembershipRepository(SqlAlchemyRepository[Membership, MembershipOrm]):
             pagination: Pagination,
             project_id: UUID | None = None,
             include_project_roles: list[ProjectRole] | None = None,
-    ) -> Page[Membership]:
+    ) -> Page[ProjectMembership]:
         # 1. Базовый запрос для получения всех участников
         stmt = select(self.model)
 
@@ -142,7 +186,7 @@ class SqlMembershipRepository(SqlAlchemyRepository[Membership, MembershipOrm]):
 
         return await self._paginate(stmt, pagination)
 
-    async def find(self, project_id: UUID, user_id: UUID) -> Membership | None:
+    async def find(self, project_id: UUID, user_id: UUID) -> ProjectMembership | None:
         stmt = select(self.model).where(
             (self.model.project_id == project_id) & (self.model.user_id == user_id)
         )
@@ -150,7 +194,7 @@ class SqlMembershipRepository(SqlAlchemyRepository[Membership, MembershipOrm]):
         model = result.scalar_one_or_none()
         return None if model is None else self.model_mapper.to_entity(model)
 
-    async def get_by_user(self, user_id: UUID) -> list[Membership]:
+    async def get_by_user(self, user_id: UUID) -> list[ProjectMembership]:
         stmt = select(self.model).where(
             (self.model.user_id == user_id) & (self.model.deleted_at.is_(None))
         )
