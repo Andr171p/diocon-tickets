@@ -509,12 +509,7 @@ async def test_get_ticket_comments_returns_comments_page(session, tickets_client
 
 
 @pytest.mark.asyncio
-async def test_add_comment_reply_returns_created_reply(
-    session,
-    tickets_client,
-    ticket_repo,
-    current_support_manager,
-):
+async def test_add_comment_reply_returns_created_reply(session, tickets_client, ticket_repo, current_support_manager):
     """
     Проверяем API ответа на комментарий: endpoint должен найти тикет и
     родительский комментарий, создать reply и вернуть response-схему.
@@ -557,12 +552,7 @@ async def test_add_comment_reply_returns_created_reply(
 
 
 @pytest.mark.asyncio
-async def test_get_comment_replies_returns_replies_page(
-    session,
-    tickets_client,
-    ticket_repo,
-    current_support_manager,
-):
+async def test_get_comment_replies_returns_replies_page(session, tickets_client, ticket_repo, current_support_manager):
     """
     Проверяем API получения ответов на комментарий: endpoint должен вернуть
     страницу replies для родительского комментария.
@@ -611,12 +601,7 @@ async def test_get_comment_replies_returns_replies_page(
 
 
 @pytest.mark.asyncio
-async def test_edit_comment_returns_updated_comment(
-    session,
-    tickets_client,
-    ticket_repo,
-    current_support_manager,
-):
+async def test_edit_comment_returns_updated_comment(session, tickets_client, ticket_repo, current_support_manager):
     """
     Проверяем API редактирования комментария: endpoint должен найти тикет и
     комментарий, обновить текст и вернуть response-схему.
@@ -654,12 +639,7 @@ async def test_edit_comment_returns_updated_comment(
 
 
 @pytest.mark.asyncio
-async def test_delete_comment_returns_204(
-    session,
-    tickets_client,
-    ticket_repo,
-    current_support_manager,
-):
+async def test_delete_comment_returns_204(session, tickets_client, ticket_repo, current_support_manager):
     """
     Проверяем API удаления комментария: endpoint должен выполнить soft-delete
     и вернуть 204 No Content.
@@ -701,12 +681,7 @@ async def test_delete_comment_returns_204(
 
 
 @pytest.mark.asyncio
-async def test_toggle_reaction_returns_204(
-    session,
-    tickets_client,
-    ticket_repo,
-    current_support_manager,
-):
+async def test_toggle_reaction_returns_204(session, tickets_client, ticket_repo, current_support_manager):
     """
     Проверяем API переключения реакции: endpoint должен создать реакцию
     текущего пользователя и вернуть 204 No Content.
@@ -741,12 +716,7 @@ async def test_toggle_reaction_returns_204(
 
 
 @pytest.mark.asyncio
-async def test_get_comment_reactions_returns_reaction_summary(
-    session,
-    tickets_client,
-    ticket_repo,
-    current_support_manager,
-):
+async def test_get_comment_reactions_returns_reaction_summary(session, tickets_client, ticket_repo, current_support_manager):
     """
     Проверяем API получения реакций комментария: после toggle endpoint должен
     вернуть счётчик реакции и реакцию текущего пользователя.
@@ -786,14 +756,7 @@ async def test_get_comment_reactions_returns_reaction_summary(
 
 
 @pytest.mark.asyncio
-async def test_get_tickets_returns_paginated_ticket_views(
-    session,
-    tickets_client,
-    ticket_repo,
-    project_repo,
-    membership_repo,
-    current_support_manager,
-):
+async def test_get_tickets_returns_paginated_ticket_views(session, tickets_client, ticket_repo, project_repo, membership_repo, current_support_manager):
     """
     Проверяем API общего списка тикетов: endpoint должен учитывать scope
     текущего support-manager и вернуть страницу TicketViewResponse.
