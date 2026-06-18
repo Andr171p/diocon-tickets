@@ -3,7 +3,7 @@ from uuid import UUID
 
 from ...iam.domain.services import PermissionResult
 from ...iam.domain.vo import UserRole
-from ...projects.domain.repos import MembershipRepository
+from ...projects.domain.repos import ProjectMembershipRepository
 from .constants import NON_COMMENTABLE_STATUSES
 from .entities import Ticket
 from .vo import TicketStatus
@@ -223,7 +223,7 @@ class TicketScopeService:
     """
 
     def __init__(
-            self, project_membership_repo: MembershipRepository
+            self, project_membership_repo: ProjectMembershipRepository
     ) -> None:
         self.project_membership_repo = project_membership_repo
 

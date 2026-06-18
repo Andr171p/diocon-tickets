@@ -11,7 +11,7 @@ from ...iam.domain.services import PermissionResult
 from ...iam.domain.vo import UserRole
 from ...shared.utils.text import get_latin_slug
 from .entities import Project
-from .repos import MembershipRepository
+from .repos import ProjectMembershipRepository
 from .vo import ProjectRole
 
 WORDS_COUNT = 2
@@ -80,7 +80,7 @@ class ProjectAccessService:
     Доменный сервис для проверки прав доступа к действиям над проектом
     """
 
-    def __init__(self, membership_repo: MembershipRepository) -> None:
+    def __init__(self, membership_repo: ProjectMembershipRepository) -> None:
         self.membership_repo = membership_repo
 
     @staticmethod

@@ -12,7 +12,7 @@ from ...shared.domain.events import EventPublisher
 from ...shared.domain.exceptions import AlreadyExistsError, NotFoundError
 from ...shared.schemas import Page
 from ..domain.entities import Project
-from ..domain.repos import MembershipRepository, ProjectRepository
+from ..domain.repos import ProjectMembershipRepository, ProjectRepository
 from ..domain.services import ProjectAccessService
 from ..domain.vo import ProjectKey, ProjectRole
 from ..mappers import (
@@ -35,7 +35,7 @@ class ProjectService:
             self,
             session: AsyncSession,
             project_repo: ProjectRepository,
-            membership_repo: MembershipRepository,
+            membership_repo: ProjectMembershipRepository,
             user_repo: UserRepository,
             event_publisher: EventPublisher,
     ) -> None:

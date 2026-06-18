@@ -4,7 +4,7 @@ from uuid import UUID
 
 from ..iam.domain.constants import SUPPORT_TEAM
 from ..iam.domain.repos import UserRepository
-from ..projects.domain.repos import MembershipRepository
+from ..projects.domain.repos import ProjectMembershipRepository
 from ..projects.domain.vo import ProjectRole
 from ..shared.domain.events import Event
 from ..shared.utils.helpers import iterate_batches
@@ -25,7 +25,7 @@ class NotificationPolicy[EventT: Event](Protocol):
 
 class TicketCreatedPolicy:
     def __init__(
-            self, project_membership_repo: MembershipRepository, user_repo: UserRepository
+            self, project_membership_repo: ProjectMembershipRepository, user_repo: UserRepository
     ) -> None:
         self.project_membership_repo = project_membership_repo
         self.user_repo = user_repo

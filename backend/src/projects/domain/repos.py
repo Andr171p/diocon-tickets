@@ -30,7 +30,7 @@ class ProjectRepository(Repository[Project]):
         """
 
 
-class MembershipRepository(Repository[ProjectMembership]):
+class ProjectMembershipRepository(Repository[ProjectMembership]):
 
     @override
     async def paginate(

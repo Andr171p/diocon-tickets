@@ -28,18 +28,12 @@ class UserRole(StrEnum):
     ADMIN = "admin"  # системный администратор
 
     def is_customer(self) -> bool:
-        """Является ли клиентом"""
-
         return self.value in {self.CUSTOMER, self.CUSTOMER_ADMIN}
 
     def is_support(self) -> bool:
-        """Является ли поддержкой"""
-
         return self.value in {self.SUPPORT_AGENT, self.SUPPORT_MANAGER, self.ADMIN}
 
     def is_internal(self) -> bool:
-        """Является ли роль внутренней"""
-
         return self.value not in {self.CUSTOMER, self.CUSTOMER_ADMIN}
 
 

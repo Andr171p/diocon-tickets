@@ -4,7 +4,7 @@ from fastapi import Depends
 
 from ..iam.dependencies import UserRepoDep
 from ..shared.dependencies import EventPublisherDep, SessionDep
-from .domain.repos import MembershipRepository, ProjectRepository
+from .domain.repos import ProjectMembershipRepository, ProjectRepository
 from .domain.services import ProjectAccessService
 from .infra.repos import SqlMembershipRepository, SqlProjectRepository
 from .services import ProjectService
@@ -19,7 +19,7 @@ def get_membership_repo(session: SessionDep) -> SqlMembershipRepository:
 
 
 ProjectRepoDep = Annotated[ProjectRepository, Depends(get_project_repo)]
-MembershipRepoDep = Annotated[MembershipRepository, Depends(get_membership_repo)]
+MembershipRepoDep = Annotated[ProjectMembershipRepository, Depends(get_membership_repo)]
 
 
 def get_project_access_service(membership_repo: MembershipRepoDep) -> ProjectAccessService:

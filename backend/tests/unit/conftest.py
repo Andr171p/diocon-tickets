@@ -14,7 +14,7 @@ from src.iam.domain.vo import FullName, UserRole
 from src.notifications.domain.repos import NotificationRepository, PreferenceRepository
 from src.products.domain.repo import ProductRepository
 from src.projects.domain.entities import Project, ProjectMembership
-from src.projects.domain.repos import MembershipRepository, ProjectRepository
+from src.projects.domain.repos import ProjectMembershipRepository, ProjectRepository
 from src.projects.domain.services import ProjectAccessService
 from src.projects.domain.vo import ProjectRole
 from src.shared.domain.events import EventPublisher
@@ -74,7 +74,7 @@ def fake_project_repo() -> ProjectRepository:
 
 
 @pytest.fixture
-def fake_membership_repo() -> MembershipRepository:
+def fake_membership_repo() -> ProjectMembershipRepository:
     return InMemoryMembershipRepository()
 
 
