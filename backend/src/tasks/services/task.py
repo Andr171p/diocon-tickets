@@ -162,7 +162,7 @@ class TaskService:
 
         # 3. Изменение статуса задачи и обновление сущности
         task.move_to(new_status=new_status, moved_by=current_user.user_id)
-        await self.task_repo.upsert(task)
+        await self.task_repo.update(task)
         await self.session.commit()
 
         # 4. Публикация доменных событий
@@ -195,7 +195,7 @@ class TaskService:
             estimated_hours=data.estimated_hours,
             due_date=data.due_date,
         )
-        await self.task_repo.upsert(task)
+        await self.task_repo.update(task)
         await self.session.commit()
 
         # 4. публикация доменных событий
@@ -231,7 +231,7 @@ class TaskService:
 
         # 4. Назначение исполнителя и обновление сущности
         task.assign_to(assignee_id=assignee_id, assigned_by=current_user.user_id)
-        await self.task_repo.upsert(task)
+        await self.task_repo.update(task)
         await self.session.commit()
 
         # 5. Публикация доменных событий
@@ -267,7 +267,7 @@ class TaskService:
 
         # 3. Запрос ревью и обновление состояния задачи
         task.request_review(reviewer_id=reviewer_id, requested_by=current_user.user_id)
-        await self.task_repo.upsert(task)
+        await self.task_repo.update(task)
         await self.session.commit()
 
         # 4. Публикация доменных событий
@@ -299,7 +299,7 @@ class TaskService:
         if data.action == "reject":
             task.reject_review(rejected_by=current_user.user_id)
 
-        await self.task_repo.upsert(task)
+        await self.task_repo.update(task)
         await self.session.commit()
 
         # 4. Публикация доменных событий
@@ -325,7 +325,7 @@ class TaskService:
 
         # 3. Архивация и обновление сущности
         task.archive(archived_by=current_user.user_id)
-        await self.task_repo.upsert(task)
+        await self.task_repo.update(task)
         await self.session.commit()
 
         # 4. Публикация доменных событий
@@ -344,5 +344,5 @@ class TaskService:
 
         # 2. Добавление часов + обновление состояния
         task.add_actual_hours(hours)
-        await self.task_repo.upsert(task)
+        await self.task_repo.update(task)
         await self.session.commit()

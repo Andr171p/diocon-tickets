@@ -134,7 +134,7 @@ class TimesheetService:
         # 4. Отправка на согласование + обновление состояния
         submit_worklogs_in_timesheet(timesheet, worklogs)
 
-        await self.timesheet_repo.upsert(timesheet)
+        await self.timesheet_repo.update(timesheet)
         await self.worklog_repo.bulk_upsert(worklogs)
         await self.session.commit()
 
@@ -171,7 +171,7 @@ class TimesheetService:
         # 4. Согласование и обновление состояния
         approve_worklogs_in_timesheet(timesheet, worklogs, approved_by=current_user.user_id)
 
-        await self.timesheet_repo.upsert(timesheet)
+        await self.timesheet_repo.update(timesheet)
         await self.worklog_repo.bulk_upsert(worklogs)
         await self.session.commit()
 
@@ -214,7 +214,7 @@ class TimesheetService:
             rejected_by=current_user.user_id,
             reason=reason,
         )
-        await self.timesheet_repo.upsert(timesheet)
+        await self.timesheet_repo.update(timesheet)
         await self.worklog_repo.bulk_upsert(worklogs)
         await self.session.commit()
 

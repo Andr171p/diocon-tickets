@@ -175,7 +175,7 @@ class TicketService:
             tags=None if data.tags is None
             else [Tag(name=tag.name, color=tag.color) for tag in data.tags],
         )
-        await self.ticket_repo.upsert(ticket)
+        await self.ticket_repo.update(ticket)
         await self.session.commit()
 
         # 3. Публикация доменных событий
@@ -201,7 +201,7 @@ class TicketService:
 
         # 3. Архивация тикета и обновление сущности
         ticket.archive(archived_by=current_user.user_id)
-        await self.ticket_repo.upsert(ticket)
+        await self.ticket_repo.update(ticket)
         await self.session.commit()
 
         # 4. Публикация доменных событий
@@ -249,7 +249,7 @@ class TicketService:
 
         # 5. Назначение исполнителя и обновление сущности
         ticket.assign_to(assignee_id=assignee_id, assigned_by=current_user.user_id)
-        await self.ticket_repo.upsert(ticket)
+        await self.ticket_repo.update(ticket)
         await self.session.commit()
 
         # 6. Публикация доменных событий
@@ -294,7 +294,7 @@ class TicketService:
 
         # 4. Изменение статуса и обновление доменной сущности
         ticket.change_status(new_status=new_status, changed_by=current_user.user_id)
-        await self.ticket_repo.upsert(ticket)
+        await self.ticket_repo.update(ticket)
         await self.session.commit()
 
         # 5. Публикация доменных событий

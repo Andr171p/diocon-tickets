@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum, auto
 from uuid import UUID
 
+from .vo import Email, UserRole
+
 
 class PrincipalType(StrEnum):
     USER = auto()  # пользователь (человек)
@@ -11,8 +13,8 @@ class PrincipalType(StrEnum):
     AI_AGENT = auto()
 
 
-@dataclass(frozen=True, kw_only=True)
-class Principal:
+@dataclass(frozen=True)
+class Subject:
     """
     Единый субъект авторизации в системе.
     Объединяет как обычных пользователей, так и внешние приложения.
@@ -23,9 +25,9 @@ class Principal:
 
     scopes: list[str] = field(default_factory=list)  # для clients
 
-    roles: list[str] = field(default_factory=list)
+    email: Email | None = None
+    roles: list[UserRole] = field(default_factory=list)
     counterparty_id: UUID | None = None
-    is_active: bool
 
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -39,6 +41,9 @@ class Principal:
 
     def has_role(self, role: str) -> bool:
         return role in self.roles
+
+    def has_scope(self, scope: str) -> bool:
+        return scope in self.scopes
 
 
 @dataclass(frozen=True)
@@ -105,4 +110,4 @@ class AnyOf[AuthContextT]:
 
 @dataclass(frozen=True)
 class BaseAuthContext:
-    principal: Principal
+    subject: Subject

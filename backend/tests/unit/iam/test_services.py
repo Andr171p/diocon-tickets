@@ -394,7 +394,7 @@ class TestInvitationServiceSendInvitation:
         invited_by = uuid4()
         email = fake.email()
 
-        with pytest.raises(ValueError, match="Invalid invite params"):
+        with pytest.raises(ValueError, match="Invalid invite pagination"):
             await mock_invitation_service.send_invitation(
                 invited_by=invited_by,
                 email=email,

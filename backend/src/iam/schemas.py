@@ -69,11 +69,13 @@ class LogoutRequest(BaseModel):
 
 
 class CurrentUser(BaseModel):
-    """Пользователь, который делает запрос к текущему endpoint"""
+    """
+    Текущий пользователь, который делает запрос.
+    """
 
-    user_id: UUID = Field(..., description="Уникальный ID пользователя")
+    id: UUID = Field(..., description="Уникальный ID пользователя")
     email: EmailStr = Field(..., description="Email адрес учётной записи")
-    role: UserRole = Field(..., description="Роль пользователя в системе")
+    roles: list[UserRole] = Field(..., description="Список назначенных ролей")
     counterparty_id: UUID | None = Field(None, description="ID контрагента (для клиентов)")
 
 

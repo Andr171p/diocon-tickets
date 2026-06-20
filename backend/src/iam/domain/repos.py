@@ -12,11 +12,8 @@ class UserRepository(Repository[User]):
 
     @override
     async def paginate(
-            self, params: Pagination, include_roles: list[UserRole] | None = None
-    ) -> Page[User]:
-        """
-        Переопределённая пагинация с фильтром по ролям
-        """
+            self, params: Pagination, roles: list[UserRole] | None = None
+    ) -> Page[User]: ...
 
     async def get_by_email(self, email: str) -> User | None: ...
 

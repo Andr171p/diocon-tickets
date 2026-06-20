@@ -32,13 +32,18 @@ class AddMemberContext(ProjectContext):
     target_role: ProjectRole
 
 
+@dataclass(frozen=True, kw_only=True)
+class RemoveMemberContext(ProjectContext):
+    membership_to_remove: ProjectMembership
+
+
 class HasAllowedCreationRoleRule(AuthorizationRule[BaseAuthContext]):
     ALLOWED_ROLES: ClassVar[set[ProjectRole]] = {role for role in UserRole if role.is_internal()}
 
     @classmethod
     def check(cls, ctx: BaseAuthContext) -> PermissionResult:
         for allowed_role in cls.ALLOWED_ROLES:
-            if ctx.principal.has_role(allowed_role):
+            if ctx.subject.has_role(allowed_role):
                 return PermissionResult(True)
 
         return PermissionResult(False, "You don't have permission to create projects")
@@ -47,9 +52,9 @@ class HasAllowedCreationRoleRule(AuthorizationRule[BaseAuthContext]):
 class IsUserPrincipalRule(AuthorizationRule[BaseAuthContext]):
     @staticmethod
     def check(ctx: BaseAuthContext) -> PermissionResult:
-        if not ctx.principal.is_user:
+        if not ctx.subject.is_user:
             return PermissionResult(
-                False, f"{ctx.principal.type.value.capitalize()}s cannot create projects"
+                False, f"{ctx.subject.type.value.capitalize()}s cannot create projects"
             )
 
         return PermissionResult(True)
@@ -99,8 +104,8 @@ class IsOwnerOrAdminRule(AuthorizationRule[ProjectContext]):
     @staticmethod
     def check(ctx: ProjectContext) -> PermissionResult:
         is_super = (
-            ctx.principal.id in {ctx.project.owner_id, ctx.project.created_by}
-            or ctx.principal.has_role(UserRole.ADMIN)
+                ctx.subject.id in {ctx.project.owner_id, ctx.project.created_by}
+                or ctx.subject.has_role(UserRole.ADMIN)
         )
         return (
             PermissionResult(True)
@@ -172,6 +177,24 @@ class IsStaffMemberRule(AuthorizationRule[ProjectContext]):
         return PermissionResult(False, "Project staff required")
 
 
+class CannotRemoveOwnerRule(AuthorizationRule[RemoveMemberContext]):
+    @staticmethod
+    def check(ctx: RemoveMemberContext) -> PermissionResult:
+        if ctx.membership_to_remove.user_id == ctx.project.owner_id:
+            return PermissionResult(False, "Cannot remove the project owner")
+
+        return PermissionResult(True)
+
+
+class IsManagerRule(AuthorizationRule[ProjectContext]):
+    @staticmethod
+    def check(ctx: ProjectContext) -> PermissionResult:
+        if ctx.current_membership and ctx.current_membership.project_role == ProjectRole.OWNER:
+            return PermissionResult(True)
+
+        return PermissionResult(False, "Not a project manager")
+
+
 CreateProjectRule = AllOf(HasAllowedCreationRoleRule, IsUserPrincipalRule)
 ManageProjectRule = AllOf(MembershipExistsRule, IsStaffMemberRule)
 AddMemberRule = AnyOf(
@@ -181,4 +204,9 @@ AddMemberRule = AnyOf(
         TargetRoleCompatibilityRule,
         AnyOf(AddMemberByContributorRule, AddMemberByCustomerManagerRule)
     )
+)
+RemoveMemberRule = AllOf(
+    MembershipExistsRule,
+    CannotRemoveOwnerRule,
+    AnyOf(IsOwnerOrAdminRule, IsManagerRule)
 )

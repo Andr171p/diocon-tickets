@@ -175,7 +175,7 @@ async def change_ticket_status(
 async def delete_ticket(
         ticket_id: UUID, current_user: CurrentUserDep, service: TicketServiceDep
 ) -> TicketResponse:
-    return await service.archive(ticket_id=ticket_id, current_user=current_user)
+    return await service.archive(ticket_id=ticket_id, current_subject=current_user)
 
 
 @router.get(

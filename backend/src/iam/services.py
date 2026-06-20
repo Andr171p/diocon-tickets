@@ -104,7 +104,7 @@ class AuthService:
         # 4. Сохранение пользователя + пометка приглашения как использованное
         await self.user_repo.create(user)
         invitation.mark_as_used()
-        await self.invitation_repo.upsert(invitation)
+        await self.invitation_repo.update(invitation)
 
         # 5. Выпуск пары токенов
         tokens = create_tokens_for_user(user)
@@ -114,7 +114,6 @@ class AuthService:
     async def authenticate(self, email: str, password: str) -> Tokens:
         """Аутентификация пользователя по его учётным данным"""
 
-        # 1. Проверка учётных данных пользователя
         user = await self.user_repo.get_by_email(email)
         if user is None:
             raise UnauthorizedError(f"User not found by email - '{email}'")
@@ -122,26 +121,22 @@ class AuthService:
                 not user.is_active:
             raise UnauthorizedError("Invalid password or user is not active")
 
-        # 2. Выпуск пары токенов
         return create_tokens_for_user(user)
 
     async def refresh_tokens(self, refresh_token: str) -> Tokens:
         """Обновление пары токенов с ротацией"""
 
-        # 1. декодирование refresh токена, чтобы получить jti и exp
         payload = validate_token(refresh_token)
         user_id, jti, exp = payload.get("sub"), payload.get("jti"), payload.get("exp", 0)
 
         if jti is None and user_id is None:
             raise UnauthorizedError("Refresh token is invalid or expired")
 
-        # 2. Получение и валидация пользователя
         user = await self.user_repo.read(user_id)
         if user is None or not user.is_active:
             await self.blacklist.revoke(jti, user_id=user_id, exp=exp, reason="user_inactive")
             raise UnauthorizedError("User is not active")
 
-        # 3. Ротация и выпуск новых токенов
         await self.blacklist.revoke(jti, user_id=user_id, exp=exp, reason="refresh_tokens")
 
         return create_tokens_for_user(user)
@@ -149,7 +144,6 @@ class AuthService:
     async def logout(self, access_token: str, refresh_token: str | None = None) -> None:
         """Выход с текущего аккаунта"""
 
-        # 1. Отзыв access токена
         try:
             payload = validate_token(access_token)
             jti, exp, user_id = payload.get("jti"), payload.get("exp", 0), payload.get("user_id")
@@ -158,7 +152,6 @@ class AuthService:
         except UnauthorizedError:
             logger.warning("Access token might invalid or expired")
 
-        # 2. Отзыв refresh токена
         if refresh_token is not None:
             try:
                 payload = validate_token(refresh_token)
@@ -214,7 +207,7 @@ class InvitationService:
                     assigned_role=assigned_role,
                 )
             else:
-                raise ValueError("Invalid invite params")
+                raise ValueError("Invalid invite pagination")
 
             await self.repository.create(invitation)
             await self.session.commit()

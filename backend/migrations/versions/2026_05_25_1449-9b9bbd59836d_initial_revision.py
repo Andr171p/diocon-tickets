@@ -183,7 +183,7 @@ def upgrade() -> None:
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('project_role', sa.Enum('OWNER', 'MANAGER', 'CONTRIBUTOR', 'VIEWER', 'CUSTOMER', 'CUSTOMER_MANAGER', name='projectrole'), nullable=False),
     sa.Column('added_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('added_by', sa.Uuid(), nullable=False),
+    sa.Column('created_by', sa.Uuid(), nullable=False),
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),

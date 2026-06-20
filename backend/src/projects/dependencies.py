@@ -1,12 +1,18 @@
 from typing import Annotated
 
-from fastapi import Depends
+from uuid import UUID
 
-from ..iam.dependencies import UserRepoDep
-from ..shared.dependencies import EventPublisherDep, SessionDep
+from fastapi import Depends, Query
+
+from src.iam.dependencies import CurrentSubjectDep, UserRepoDep
+from src.shared.dependencies import EventPublisherDep, PaginationDep, SessionDep
+from src.shared.domain.exceptions import NotFoundError
+from src.shared.schemas import Page
+
 from .domain.repos import ProjectMembershipRepository, ProjectRepository
-from .domain.services import ProjectAccessService
 from .infra.repos import SqlMembershipRepository, SqlProjectRepository
+from .mappers import map_project_to_response
+from .schemas import ProjectResponse
 from .services import ProjectService
 
 
@@ -20,10 +26,6 @@ def get_membership_repo(session: SessionDep) -> SqlMembershipRepository:
 
 ProjectRepoDep = Annotated[ProjectRepository, Depends(get_project_repo)]
 MembershipRepoDep = Annotated[ProjectMembershipRepository, Depends(get_membership_repo)]
-
-
-def get_project_access_service(membership_repo: MembershipRepoDep) -> ProjectAccessService:
-    return ProjectAccessService(membership_repo)
 
 
 def get_project_service(
@@ -42,5 +44,40 @@ def get_project_service(
     )
 
 
-ProjectAccessServiceDep = Annotated[ProjectAccessService, Depends(get_project_access_service)]
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
+
+
+async def get_project_or_404(project_id: UUID, project_repo: ProjectRepoDep) -> ProjectResponse:
+    project = await project_repo.read(project_id)
+    if project is None:
+        raise NotFoundError(f"Project with ID {project_id} not found")
+
+    return map_project_to_response(project)
+
+
+async def get_page_of_projects(
+        pagination: PaginationDep, project_repo: ProjectRepoDep
+) -> Page[ProjectResponse]:
+    page = await project_repo.paginate(pagination)
+    return page.to_response(map_project_to_response)
+
+
+async def get_my_projects(
+        current_subject: CurrentSubjectDep,
+        pagination: PaginationDep,
+        project_repo: ProjectRepoDep,
+        owner_only: Annotated[
+            bool, Query(description="Только те, где пользователь владелец")
+        ] = False,
+) -> Page[ProjectResponse]:
+    page = await project_repo.get_by_user_membership(
+        user_id=current_subject.id,
+        pagination=pagination,
+        owner_only=owner_only,
+    )
+    return page.to_response(map_project_to_response)
+
+
+ProjectDep = Annotated[ProjectResponse, Depends(get_project_or_404)]
+ProjectPageDep = Annotated[Page[ProjectResponse], Depends(get_page_of_projects)]
+MyProjectsDep = Annotated[Page[ProjectResponse], Depends(get_my_projects)]

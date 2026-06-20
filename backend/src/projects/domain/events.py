@@ -17,13 +17,23 @@ class ProjectCreated(Event):
 
 
 @dataclass(frozen=True, kw_only=True)
-class MemberAdded(Event):
+class ProjectMembershipCreated(Event):
     """Участник добавлен в проект"""
 
     project_id: UUID
     project_role: ProjectRole
     user_id: UUID
-    added_by: UUID
+    created_by: UUID
+
+
+@dataclass(frozen=True, kw_only=True)
+class ProjectMembershipRemoved(Event):
+    """Участник проекта удалён"""
+
+    project_id: UUID
+    project_role: ProjectRole
+    user_id: UUID
+    removed_by: UUID
 
 
 @dataclass(frozen=True, kw_only=True)

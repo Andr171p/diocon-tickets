@@ -110,7 +110,7 @@ class CommentService:
             comment_type=data.type,
         )
         await self.comment_repo.create(comment)
-        await self.ticket_repo.upsert(ticket)
+        await self.ticket_repo.update(ticket)
         await self.session.commit()
 
         # 3. Публикация доменных событий
@@ -150,9 +150,9 @@ class CommentService:
             comment_type=data.type,
             parent_comment=parent_comment,
         )
-        await self.comment_repo.upsert(parent_comment)
+        await self.comment_repo.update(parent_comment)
         await self.comment_repo.create(reply)
-        await self.ticket_repo.upsert(ticket)
+        await self.ticket_repo.update(ticket)
         await self.session.commit()
 
         # 5. Публикация доменных событий
@@ -190,8 +190,8 @@ class CommentService:
                 old_value=comment.text[:100],
                 new_value=data.text[:100],
             )
-        await self.comment_repo.upsert(comment)
-        await self.ticket_repo.upsert(ticket)
+        await self.comment_repo.update(comment)
+        await self.ticket_repo.update(ticket)
         await self.session.commit()
 
         # 4. Публикация доменных событий
@@ -238,12 +238,12 @@ class CommentService:
             new_value=None,
         )
 
-        await self.comment_repo.upsert(comment)
+        await self.comment_repo.update(comment)
 
         if parent_comment is not None:
-            await self.comment_repo.upsert(parent_comment)
+            await self.comment_repo.update(parent_comment)
 
-        await self.ticket_repo.upsert(ticket)
+        await self.ticket_repo.update(ticket)
         await self.session.commit()
 
     async def get_comments(

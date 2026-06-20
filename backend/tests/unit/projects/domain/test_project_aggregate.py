@@ -47,7 +47,7 @@ class TestCreateMembership:
         )
 
         assert membership.project_id == project.id
-        assert membership.added_by == created_by
+        assert membership.created_by == created_by
 
     def test_failed_when_project_is_archived(self, project_factory):
         project = project_factory(status=ProjectStatus.ARCHIVED)

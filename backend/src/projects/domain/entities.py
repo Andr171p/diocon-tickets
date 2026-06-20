@@ -6,9 +6,10 @@ from ...shared.domain.entities import AggregateRoot, Entity
 from ...shared.domain.exceptions import InvalidStateError, InvariantViolationError, NotFoundError
 from ...shared.utils.time import current_datetime
 from .events import (
-    MemberAdded,
     ProjectArchived,
     ProjectCreated,
+    ProjectMembershipCreated,
+    ProjectMembershipRemoved,
     ProjectStageCompleted,
     ProjectStageStarted,
 )
@@ -27,11 +28,26 @@ class ProjectMembership(Entity):
     user_id: UUID
     created_by: UUID
 
+    def remove(self, removed_by: UUID) -> None:
+        if self.is_deleted:
+            return
+
+        self.deleted_at = current_datetime()
+
+        self.register_event(
+            ProjectMembershipRemoved(
+                project_id=self.project_id,
+                project_role=self.project_role,
+                user_id=self.user_id,
+                removed_by=removed_by,
+            ),
+        )
+
 
 @dataclass(kw_only=True)
 class ProjectStage(Entity):
     """
-    Этап проекта - структурированный шаг в жизненном цикле проекта
+    Этап проекта - структурированный шаг в жизненном цикле проекта.
     """
 
     project_id: UUID
@@ -176,7 +192,7 @@ class ProjectStage(Entity):
 @dataclass(kw_only=True)
 class Project(AggregateRoot):
     """
-    Проект - изолированный контейнер с процессами: тикеты, задачи, контекстные роли
+    Проект - изолированный контейнер с процессами: тикеты, задачи, контекстные роли.
     """
 
     name: str
@@ -184,9 +200,8 @@ class Project(AggregateRoot):
     description: str | None = None
     counterparty_id: UUID | None = None
     status: ProjectStatus
-    # Владелец проекта, руководитель или ответственный
+
     owner_id: UUID
-    # Метаданные
     created_by: UUID
 
     # Этапы проекта
@@ -194,7 +209,6 @@ class Project(AggregateRoot):
     stages: list[ProjectStage] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        # Наименование проекта не может быть пустым
         if not self.name.strip():
             raise ValueError("Project name cannot be empty")
 
@@ -207,8 +221,6 @@ class Project(AggregateRoot):
             description: str | None = None,
             counterparty_id: UUID | None = None,
     ) -> "Project":
-        """Создание проекта"""
-
         project_id = uuid4()
         project = cls(
             id=project_id,
@@ -221,7 +233,6 @@ class Project(AggregateRoot):
             created_by=created_by,
         )
 
-        # Регистрация доменного события
         project.register_event(
             ProjectCreated(
                 project_id=project_id,
@@ -250,13 +261,12 @@ class Project(AggregateRoot):
             created_by=created_by,
         )
 
-        # Регистрация доменного события
         self.register_event(
-            MemberAdded(
+            ProjectMembershipCreated(
                 project_id=self.id,
                 project_role=project_role,
                 user_id=user_id,
-                added_by=created_by,
+                created_by=created_by,
             )
         )
 
@@ -269,7 +279,9 @@ class Project(AggregateRoot):
             self.status = ProjectStatus.ARCHIVED
             self.deleted_at = current_datetime()
 
-            self.register_event(ProjectArchived(project_id=self.id, archived_by=archived_by))
+            self.register_event(
+                ProjectArchived(project_id=self.id, archived_by=archived_by)
+            )
 
     def _sort_stages(self) -> None:
         """Сортировка этапов проекта по их порядку"""

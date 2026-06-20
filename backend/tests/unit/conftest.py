@@ -223,7 +223,7 @@ def membership_factory(fake_membership_repo):
             user_id=user_id,
             project_id=project_id,
             project_role=project_role,
-            added_by=overrides.pop("added_by", uuid4()),
+            added_by=overrides.pop("created_by", uuid4()),
             added_at=overrides.pop("added_at", current_datetime())
         )
         await fake_membership_repo.create(membership)

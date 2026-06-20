@@ -5,15 +5,16 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...iam.domain.exceptions import PermissionDeniedError
-from ...iam.domain.repos import UserRepository
-from ...iam.schemas import CurrentUser
-from ...shared.domain.events import EventPublisher
-from ...shared.domain.exceptions import AlreadyExistsError, NotFoundError
-from ...shared.schemas import Page
+from src.iam.domain.authz import Subject
+from src.iam.domain.exceptions import PermissionDeniedError
+from src.iam.domain.repos import UserRepository
+from src.shared.domain.events import EventPublisher
+from src.shared.domain.exceptions import AlreadyExistsError, NotFoundError
+from src.shared.schemas import Page
+
+from ..domain.authz import ProjectAuthZService
 from ..domain.entities import Project
 from ..domain.repos import ProjectMembershipRepository, ProjectRepository
-from ..domain.services import ProjectAccessService
 from ..domain.vo import ProjectKey, ProjectRole
 from ..mappers import (
     map_membership_to_response,
@@ -22,11 +23,12 @@ from ..mappers import (
 )
 from ..schemas import (
     KeyCheckResult,
-    ProjectMembershipCreate,
     ProjectCreate,
     ProjectDetailedResponse,
+    ProjectMembershipCreate,
     ProjectMembershipResponse,
     ProjectResponse,
+    ProjectStageCreate,
 )
 
 
@@ -43,7 +45,7 @@ class ProjectService:
         self.user_repo = user_repo
         self.project_repo = project_repo
         self.membership_repo = membership_repo
-        self.access_service = ProjectAccessService(membership_repo)
+        self.authz_service = ProjectAuthZService(membership_repo)
         self.event_publisher = event_publisher
 
     async def generate_key_suggestions(
@@ -63,17 +65,17 @@ class ProjectService:
         if not base_key:
             base_key = "PROJ"  # fallback
 
-        # 1. Добавление простых числовых суффиксов
+        # Добавление простых числовых суффиксов
         suggestions = [f"{base_key}{i}" for i in range(1, max_attempts + 1)]
 
-        # 2. Если ключ короткий, то добавление вариантов с буквами
+        # Если ключ короткий, то добавление вариантов с буквами
         if len(base_key) <= min_key_length:
             alphabet = string.ascii_uppercase
             suggestions.extend(
                 f"{base_key}{letter}" for letter in random.sample(alphabet, len(alphabet))
             )
 
-        # 3. Удаление дубликатов и сохранение порядка
+        # Удаление дубликатов и сохранение порядка
         seen = set()
         unique_suggestions = []
         for suggestion in suggestions:
@@ -82,42 +84,33 @@ class ProjectService:
                 unique_suggestions.append(suggestion)
 
         unique_suggestions = unique_suggestions[:max_attempts * 2]
-
         existing_keys = await self.project_repo.get_existing_keys(unique_suggestions)
-
-        # Получение только свободных
         available = [key for key in unique_suggestions if key not in existing_keys]
 
         return available[:max_attempts]
 
-    async def check_key(self, project_key: str) -> KeyCheckResult:
+    async def check_key(self, key: str) -> KeyCheckResult:
         """Проверка ключа на уникальность перед созданием"""
 
-        # 1. Если проекта нет - то ключ свободен
-        project_key = ProjectKey(project_key)
-        project = await self.project_repo.get_by_key(project_key)
+        key = ProjectKey(key)
+        project = await self.project_repo.get_by_key(key)
         if project is None:
             return KeyCheckResult(available=True)
 
-        # 2. Генерация альтернатив
-        suggestions = await self.generate_key_suggestions(project_key.value)
+        suggestions = await self.generate_key_suggestions(key.value)
         return KeyCheckResult(available=False, suggestions=suggestions)
 
     async def create(
-            self, data: ProjectCreate, current_user: CurrentUser, max_attempts: int = 5,
+            self, data: ProjectCreate, current_subject: Subject, max_attempts: int = 5,
     ) -> ProjectDetailedResponse:
         """
         Создание проекта с уникальным ключом
         """
 
-        # 1. Проверка прав на создание проекта
-        permission = self.access_service.can_create_project(
-            user_role=current_user.role, project_counterparty_id=data.counterparty_id
-        )
+        permission = self.authz_service.can_create_project(current_subject)
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
 
-        # 2. Создание с retires попытками для разрешения коллизий на уникальность ключа
         original_key, key_candidate = data.key, data.key
         for attempt in range(1, max_attempts + 1):
             try:
@@ -126,29 +119,27 @@ class ProjectService:
                     key=key_candidate,
                     description=data.description,
                     counterparty_id=data.counterparty_id,
-                    created_by=current_user.user_id,
+                    created_by=current_subject.id,
                 )
                 await self.project_repo.create(project)
                 await self.session.flush()
+
             except IntegrityError:
                 await self.session.rollback()
                 key_candidate = f"{original_key}{attempt}"
 
-            # 3. Добавление владельца проекта и фиксация изменений
             else:
                 owner = project.create_membership(
-                    user_id=current_user.user_id,
+                    user_id=current_subject.id,
                     project_role=ProjectRole.OWNER,
-                    created_by=current_user.user_id,
+                    created_by=current_subject.id,
                 )
                 await self.membership_repo.create(owner)
                 await self.session.commit()
 
-                # 4. Публикация доменных событий
                 for event in project.collect_events():
                     await self.event_publisher.publish(event)
 
-                # 5. Формирование ответа
                 memberships = [owner]
                 return map_project_to_detailed_response(
                     project, memberships=Page.create(
@@ -164,75 +155,123 @@ class ProjectService:
         )
 
     async def add_member(
-            self, project_id: UUID, data: ProjectMembershipCreate, current_user: CurrentUser
+            self, project_id: UUID, data: ProjectMembershipCreate, current_subject: Subject
     ) -> ProjectMembershipResponse:
         """Добавление участника в проект"""
 
-        # 1. Получение и проверка на существование
         project = await self.project_repo.read(project_id)
         if project is None:
             raise NotFoundError(f"Project with ID {project_id} not found")
 
-        # 2. Получение пользователя, которого нужно добавить в проект
-        target_user = await self.user_repo.read(data.user_id)
-        if target_user is None or target_user.is_deleted:
+        invitee = await self.user_repo.read(data.user_id)
+        if invitee is None or invitee.is_deleted:
             raise NotFoundError(f"User with ID {data.user_id} not found")
 
-        # 3. Проверка прав на добавление участника
-        permission = await self.access_service.can_add_members(
+        permission = await self.authz_service.can_add_member(
+            subject=current_subject,
             project=project,
-            target_user_role=target_user.role,
-            target_project_role=data.project_role,
-            user_id=current_user.user_id,
-            user_role=current_user.role,
+            invitee=invitee,
+            target_role=data.project_role,
         )
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
 
-        # 4. Был ли такой участник уже добавлен в проект
         existing = await self.membership_repo.find(project_id, data.user_id)
         if existing is not None:
-            raise AlreadyExistsError(f"User with ID {current_user.user_id} is already a member")
+            raise AlreadyExistsError(f"User with ID {data.user_id} is already a member")
 
-        # 5. Создание и сохранение сущности
         membership = project.create_membership(
             user_id=data.user_id,
             project_role=data.project_role,
-            created_by=current_user.user_id,
+            created_by=current_subject.id,
         )
         await self.membership_repo.create(membership)
         await self.session.commit()
 
-        # 6. Публикация доменных событий
         for event in project.collect_events():
             await self.event_publisher.publish(event)
 
         return map_membership_to_response(membership)
 
-    async def archive(self, project_id: UUID, current_user: CurrentUser) -> ProjectResponse:
-        """Архивирование проекта (soft-delete)"""
+    async def remove_member(
+            self, project_id: UUID, user_id: UUID, current_subject: Subject
+    ) -> None:
+        """Удаляет участника из проекта"""
 
-        # 1. Получение и проверка на существование
         project = await self.project_repo.read(project_id)
         if project is None:
             raise NotFoundError(f"Project with ID {project_id} not found")
 
-        # 2. Проверка прав на архивирование проекта
-        permission = self.access_service.can_archive_project(
+        membership_to_remove = await self.membership_repo.find(project_id, user_id)
+        if membership_to_remove is None:
+            raise NotFoundError(
+                f"User with ID {user_id} not a member of the project with ID {project_id}"
+            )
+
+        permission = await self.authz_service.can_remove_member(
+            subject=current_subject,
             project=project,
-            user_id=current_user.user_id,
-            user_role=current_user.role,
+            membership_to_remove=membership_to_remove,
         )
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
 
-        # 3. Архивация и обновление сущности
-        project.archive(archived_by=current_user.user_id)
-        await self.project_repo.upsert(project)
+        membership_to_remove.remove(removed_by=current_subject.id)
+        await self.membership_repo.update(membership_to_remove)
         await self.session.commit()
 
-        # 4. Публикация доменных событий
+        for event in membership_to_remove.collect_events():
+            await self.event_publisher.publish(event)
+
+    async def archive(self, project_id: UUID, current_subject: Subject) -> ProjectResponse:
+        """
+        Архивирование проекта (soft delete метод).
+        """
+
+        project = await self.project_repo.read(project_id)
+        if project is None:
+            raise NotFoundError(f"Project with ID {project_id} not found")
+
+        permission = self.authz_service.can_archive_project(
+            subject=current_subject, project=project,
+        )
+        if not permission.allowed:
+            raise PermissionDeniedError(permission.reason)
+
+        project.archive(archived_by=current_subject.id)
+        await self.project_repo.update(project)
+        await self.session.commit()
+
         for event in project.collect_events():
             await self.event_publisher.publish(event)
+
+        return map_project_to_response(project)
+
+    async def add_stage(
+            self, project_id: UUID, data: ProjectStageCreate, current_subject: Subject
+    ) -> ProjectResponse:
+        """
+        Добавить новый этап в проект.
+        """
+
+        project = await self.project_repo.read(project_id)
+        if project is None:
+            raise NotFoundError(f"Project with ID {project_id} not found")
+
+        permission = await self.authz_service.can_manage_project(
+            subject=current_subject, project=project
+        )
+        if not permission.allowed:
+            raise PermissionDeniedError(permission.reason)
+
+        project.add_stage(
+            name=data.name,
+            description=data.description,
+            order=data.order,
+            planned_start=data.planned_start,
+            planned_end=data.planned_end,
+        )
+        await self.project_repo.update(project)
+        await self.session.commit()
 
         return map_project_to_response(project)

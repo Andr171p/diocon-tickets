@@ -228,7 +228,7 @@ class ProjectService:
 
         # 3. Архивация и обновление сущности
         project.archive(archived_by=current_user.user_id)
-        await self.project_repo.upsert(project)
+        await self.project_repo.update(project)
         await self.session.commit()
 
         # 4. Публикация доменных событий

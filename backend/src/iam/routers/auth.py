@@ -27,7 +27,7 @@ async def register(
     path="/login",
     status_code=status.HTTP_200_OK,
     response_model=Tokens,
-    summary="Вход в учётную запись"
+    summary="Войти в учётную запись"
 )
 async def login(
         form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -40,7 +40,7 @@ async def login(
     path="/refresh",
     status_code=status.HTTP_200_OK,
     response_model=Tokens,
-    summary="Обновление пары токенов"
+    summary="Обновить пару токенов"
 )
 async def refresh(data: TokensRefresh, service: AuthServiceDep) -> Tokens:
     return await service.refresh_tokens(data.refresh_token)
@@ -49,7 +49,8 @@ async def refresh(data: TokensRefresh, service: AuthServiceDep) -> Tokens:
 @router.post(
     path="/logout",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Выход из аккаунта"
+    summary="Выйти из аккаунта",
+    description="Добавляет токены в черный список."
 )
 async def logout(
         access_token: Annotated[str, Depends(oauth2_scheme)],
@@ -63,8 +64,8 @@ async def logout(
     path="/userinfo",
     response_model=CurrentUser,
     status_code=status.HTTP_200_OK,
-    summary="Получение информации о пользователе",
-    description="Информация берётся только из токена (не требует запроса к БД)"
+    summary="Получить информацию о текущем пользователе",
+    description="Информация берётся из payload токена (не запроса к БД)."
 )
 async def get_userinfo(current_user: CurrentUserDep) -> CurrentUser:
     return current_user
