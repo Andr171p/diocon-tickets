@@ -2,23 +2,24 @@ from typing import ClassVar
 
 import re
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import StrEnum, auto
 
-from ...projects.domain.vo import ProjectKey
-from ...shared.domain.vo import ValueObject
-from ...tickets.domain.vo import TicketNumber
+from src.projects.domain.vo import ProjectKey
+from src.shared.domain.vo import ValueObject
+from src.tickets.domain.vo import TicketNumber
 
 
 class TaskStatus(StrEnum):
     """Статус выполнения задачи"""
 
-    BACKLOG = "backlog"  # ещё сырая задача
-    TODO = "todo"  # готова к выполнению
-    IN_PROGRESS = "in_progress"  # в работе
-    BLOCKED = "blocked"  # заблокирована (приостановлена)
-    REVIEW = "review"  # отправлена на ревью
-    DONE = "done"  # выполнена
-    CANCELLED = "cancelled"  # отменена
+    BACKLOG = auto()
+    TODO = auto()
+    IN_PROGRESS = auto()
+    PAUSED = auto()
+    BLOCKED = auto()
+    REVIEW = auto()
+    DONE = auto()
+    CANCELLED = auto()
 
     @property
     def is_open(self) -> bool:

@@ -33,6 +33,7 @@ TASK_STATUS_LABEL_MAP: dict[TaskStatus, str] = {
     TaskStatus.TODO: "Готово к выполнению",
     TaskStatus.IN_PROGRESS: "В работе",
     TaskStatus.REVIEW: "На проверке",
+    TaskStatus.PAUSED: "На паузе",
     TaskStatus.BLOCKED: "Приостановлено",
     TaskStatus.DONE: "Выполнено",
     TaskStatus.CANCELLED: "Отменено",

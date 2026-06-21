@@ -3,11 +3,12 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from ...media.domain.entities import Attachment
-from ...shared.domain.entities import Entity
-from ...shared.domain.exceptions import InvalidStateError, InvariantViolationError
-from ...shared.utils.time import current_datetime
-from ...tickets.domain.vo import Priority, Tag
+from src.media.domain.entities import Attachment
+from src.shared.domain.entities import Entity
+from src.shared.domain.exceptions import InvalidStateError, InvariantViolationError
+from src.shared.utils.time import current_datetime
+from src.tickets.domain.vo import Priority, Tag
+
 from .constants import ALLOWED_ASSIGN_STATUSES, ALLOWED_EDIT_STATUSES, ALLOWED_TRANSITIONS
 from .events import TaskArchived, TaskAssigned, TaskCreated, TaskReviewRequested, TaskStatusMoved
 from .vo import StoryPoints, TaskNumber, TaskStatus
@@ -16,7 +17,7 @@ from .vo import StoryPoints, TaskNumber, TaskStatus
 @dataclass(kw_only=True)
 class Task(Entity):
     """
-    Задача для специалиста.
+    Задача для сотрудника.
     Используется для детализации работ, например по большому тикету.
     """
 
@@ -30,42 +31,36 @@ class Task(Entity):
     priority: Priority
     story_points: StoryPoints | None = None
 
-    # Исполнитель и ответственный
     assignee_id: UUID | None = None
     reviewer_id: UUID | None = None
 
-    # Трудозатраты (оценка и факт)
     estimated_hours: Decimal | None = None
     actual_hours: Decimal = Decimal(0)
 
-    # Сроки
     due_date: date | None = None  # срок выполнения
     started_at: datetime | None = None
     completed_at: datetime | None = None
 
     created_by: UUID
 
-    # Навигация и поиск
     tags: set[Tag] = field(default_factory=set)
 
     attachments: list[Attachment] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        # 1. Заголовок не может быть пустым
         if not self.title.strip():
             raise ValueError("Task title cannot be empty")
 
-        # 2. Описание не может быть пустой строкой
         if self.description is not None and not self.description.strip():
             raise ValueError("Task description cannot be empty")
 
-        # 3. Задача не может быть в процессе выполнения без исполнителя
+        # Задача не может быть в процессе выполнения без исполнителя
         if self.status == TaskStatus.IN_PROGRESS and self.assignee_id is None:
             raise InvariantViolationError(
                 "Task cannot be in 'IN_PROGRESS' status without an assignee"
             )
 
-        # 4. Завершённая задача должна иметь дату завершения
+        # Завершённая задача должна иметь дату завершения
         if self.status == TaskStatus.DONE and self.completed_at is None:
             raise InvariantViolationError("Task in 'DONE' status must have completed_at")
 
@@ -101,7 +96,6 @@ class Task(Entity):
             tags={} if tags is None else set(tags),
         )
 
-        # Регистрация доменного объекта
         task.register_event(
             TaskCreated(
                 task_id=task_id,
@@ -114,7 +108,9 @@ class Task(Entity):
         return task
 
     def move_to(self, new_status: TaskStatus, moved_by: UUID) -> None:
-        """Перемещение статуса задачи (между колонками Kanban)"""
+        """
+        Перемещение статуса задачи (между колонками доски).
+        """
 
         # 1. Проверка возможности перехода
         if new_status not in ALLOWED_TRANSITIONS.get(self.status, []):
