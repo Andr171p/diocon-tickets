@@ -8,11 +8,11 @@ from uuid import UUID
 from fastapi import Body
 from pydantic import BaseModel, Field, NonNegativeFloat, NonNegativeInt
 
-from ..media.schemas import AttachmentResponse
-from ..shared.schemas import Page
-from ..tickets.domain.vo import Priority
-from ..tickets.schemas import Tag
-from .domain.vo import TaskStatus
+from src.media.schemas import AttachmentResponse
+from src.shared.domain.vo import Priority, Tag
+from src.shared.schemas import Page
+
+from .domain.vo import ReviewDecision, TaskStatus
 
 NewStatus = Annotated[
     TaskStatus, Body(..., embed=True, description="Новый статус задачи")
@@ -25,11 +25,12 @@ ReviewerId = Annotated[
     UUID,
     Body(..., embed=True, description="ID пользователя, который должен проверить задачу")
 ]
+ReviewDecision = Annotated[
+    ReviewDecision, Body(..., embed=True, description="Принятое решение на ревью")
+]
 
 
 class TaskBase(BaseModel):
-    """Базовая API схема задачи"""
-
     ticket_id: UUID | None = Field(None, description="Тикет на основе которого создана задача")
     project_id: UUID | None = Field(None, description="Проект в рамках которого создана задача")
     title: str = Field(..., description="Тема задачи")
@@ -51,13 +52,17 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
-    """API схема для создания задачи"""
+    """
+    Создать задачу.
+    """
 
     mark_as_todo: bool = Field(False, description="Готова ли задача к выполнению")
 
 
 class TaskResponse(TaskBase):
-    """API схема ответа задачи"""
+    """
+    Представление задачи.
+    """
 
     id: UUID = Field(..., description="Уникальный ID задачи")
     created_at: datetime = Field(..., description="Дата создания задачи")
@@ -72,14 +77,19 @@ class TaskResponse(TaskBase):
     actual_hours: Decimal = Field(..., description="Потрачено часов (факт)")
     started_at: datetime | None = Field(None, description="Дата начала выполнения задачи")
     completed_at: datetime | None = Field(None, description="Дата завершения задачи")
+    working_since: datetime | None = Field(
+        None, description="Время начала работы последней рабочей сессии"
+    )
     created_by: UUID = Field(..., description="Пользователь создавший задачу")
     attachments: list[AttachmentResponse] = Field(
         default_factory=list, description="Медиа контент приложенный к задаче"
     )
 
 
-class TaskEdit(BaseModel):
-    """API схема для редактирования задачи"""
+class TaskUpdate(BaseModel):
+    """
+    Отредактировать задачу.
+    """
 
     title: str | None = Field(None, description="Тема задачи")
     description: str | None = Field(None, description="Формулировка задачи")
@@ -96,14 +106,10 @@ class TaskEdit(BaseModel):
     due_date: date | None = Field(None, description="Срок выполнения (deadline)")
 
 
-class TaskReview(BaseModel):
-    """API схема для ревью задачи"""
-
-    action: Literal["approve", "reject"] = Field(..., description="Принять или отклонить задачу")
-
-
 class TaskViewResponse(BaseModel):
-    """Облегчённая модель для представления задачи"""
+    """
+    Облегчённая модель для представления задачи.
+    """
 
     id: UUID = Field(..., description="Уникальный ID задачи")
     created_at: datetime = Field(..., description="Дата создания задачи")
@@ -129,7 +135,9 @@ class TaskViewResponse(BaseModel):
     tag: list[Tag] = Field(default_factory=list, description="Теги для маркировки и поиска")
 
 
-# ============================== Канбан доски ==============================
+# ==============================
+# Канбан доски с задачами
+# ==============================
 
 
 class KanbanContext(BaseModel):

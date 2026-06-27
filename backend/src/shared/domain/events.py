@@ -31,5 +31,5 @@ class EventPublisher(Protocol):
     async def publish(self, event: Event) -> None:
         """Опубликовать доменное событие"""
 
-    async def pyblish_all(self, events: list[Event]) -> None:
+    async def publish_all(self, events: list[Event]) -> None:
         """Опубликовать сразу несколько событий (удобно после сохранения агрегата)"""

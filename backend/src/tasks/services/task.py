@@ -1,16 +1,15 @@
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from src.activity_logs.recorder import ActivityLogRecorder
 from src.iam.domain.authz import Subject
+from src.iam.domain.entities import User
 from src.iam.domain.exceptions import PermissionDeniedError
 from src.iam.domain.repos import UserRepository
-from src.iam.schemas import CurrentUser
 from src.projects.domain.repos import ProjectRepository
 from src.shared.domain.events import EventPublisher
 from src.shared.domain.exceptions import InvalidStateError, NotFoundError
+from src.shared.domain.repos import UnitOfWork, finalize, get_or_raise_404
 from src.tickets.domain.entities import Ticket
 from src.tickets.domain.repos import TicketRepository
 from src.tickets.domain.vo import Tag
@@ -20,13 +19,13 @@ from ..domain.entities import Task
 from ..domain.repos import TaskRepository
 from ..domain.vo import TaskNumber, TaskStatus
 from ..mappers import map_task_to_response
-from ..schemas import TaskCreate, TaskEdit, TaskResponse, TaskReview
+from ..schemas import ReviewDecision, TaskCreate, TaskResponse, TaskUpdate
 
 
 class TaskService:
     def __init__(
             self,
-            session: AsyncSession,
+            uow: UnitOfWork,
             task_repo: TaskRepository,
             ticket_repo: TicketRepository,
             user_repo: UserRepository,
@@ -35,7 +34,7 @@ class TaskService:
             activity_log_recorder: ActivityLogRecorder,
             event_publisher: EventPublisher,
     ) -> None:
-        self.session = session
+        self.uow = uow
         self.task_repo = task_repo
         self.ticket_repo = ticket_repo
         self.user_repo = user_repo
@@ -49,7 +48,7 @@ class TaskService:
             data: TaskCreate, ticket: Ticket | None = None
     ) -> UUID | None:
         """
-        Определение правильного ID проекта для привязи к задаче
+        Определение правильного ID проекта для привязи к задаче.
         """
 
         project_id = data.project_id
@@ -93,11 +92,14 @@ class TaskService:
 
             project_key = project.key
 
+        ticket_id = None if ticket is None else ticket.id
         sequence = await self.task_repo.get_next_sequence(
-            ticket_id=None if ticket is None else ticket.id, project_id=project_id
+            ticket_id=ticket_id, project_id=project_id
         )
+
+        ticket_number = None if ticket is None else ticket.number
         task_number = TaskNumber.create(
-            ticket_number=None if ticket is None else ticket.number,
+            ticket_number=ticket_number,
             project_key=project_key,
             sequence=sequence,
         )
@@ -119,61 +121,55 @@ class TaskService:
 
         await self.task_repo.create(task)
 
-        events = list(task.collect_events())
-        await self.activity_log_recorder.record_all(events)
-        await self.session.commit()
-
-        await self.event_publisher.pyblish_all(events)
+        await finalize(
+            self.uow, task,
+            event_publisher=self.event_publisher,
+            activity_recorder=self.activity_log_recorder
+        )
 
         return map_task_to_response(task)
 
     async def change_status(
             self, task_id: UUID, new_status: TaskStatus, current_subject: Subject
     ) -> TaskResponse:
-        """Изменение статуса задачи"""
+        """
+        Изменение статуса задачи.
+        """
 
-        # 1. Получение и проверка задачи на существование
-        task = await self.task_repo.read(task_id)
-        if task is None:
-            raise NotFoundError(f"Task with ID {task_id} not found")
+        task = await get_or_raise_404(self.task_repo.read, task_id, Task)
 
-        # 2. Проверка прав на изменение статуса задачи
-        permission = can_move_status(
-            task=task,
-            new_status=new_status,
-            user_id=current_subject.user_id,
-            user_role=current_subject.role
+        permission = await self.task_authz_service.can_change_status(
+            subject=current_subject, task=task, new_status=new_status
         )
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
 
-        # 3. Изменение статуса задачи и обновление сущности
-        task.change_status(new_status=new_status, changed_by=current_subject.user_id)
+        task.change_status(new_status=new_status, changed_by=current_subject.id)
         await self.task_repo.update(task)
-        await self.session.commit()
 
-        # 4. Публикация доменных событий
-        for event in task.collect_events():
-            await self.event_publisher.publish(event)
+        await finalize(
+            self.uow, task,
+            event_publisher=self.event_publisher,
+            activity_recorder=self.activity_log_recorder
+        )
 
         return map_task_to_response(task)
 
-    async def edit(self, task_id: UUID, data: TaskEdit, current_user: CurrentUser) -> TaskResponse:
-        """Редактирование задачи"""
+    async def edit(
+            self, task_id: UUID, data: TaskUpdate, current_subject: Subject
+    ) -> TaskResponse:
+        """
+        Редактировать содержание задачи.
+        """
 
-        # 1. Получение задачи и проверка её на существование
-        task = await self.task_repo.read(task_id)
-        if task is None or task.is_deleted:
-            raise NotFoundError(f"Task with ID {task_id} not found")
+        task = await get_or_raise_404(self.task_repo.read, task_id, Task)
 
-        # 2. Проверка прав на редактирование задачи
-        permission = can_edit_task(
-            task=task, user_id=current_user.user_id, user_role=current_user.role
+        permission = await self.task_authz_service.can_edit_task(
+            subject=current_subject, task=task
         )
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
 
-        # 3. Редактирование задачи и обновление сущности
         task.edit(
             title=data.title,
             description=data.description,
@@ -183,153 +179,131 @@ class TaskService:
             due_date=data.due_date,
         )
         await self.task_repo.update(task)
-        await self.session.commit()
 
-        # 4. публикация доменных событий
-        for event in task.collect_events():
-            await self.event_publisher.publish(event)
+        await finalize(
+            self.uow, task,
+            event_publisher=self.event_publisher,
+            activity_recorder=self.activity_log_recorder
+        )
 
         return map_task_to_response(task)
 
     async def assign_to(
-            self, task_id: UUID, assignee_id: UUID, current_user: CurrentUser
+            self, task_id: UUID, assignee_id: UUID, current_subject: Subject
     ) -> TaskResponse:
-        """Назначить исполнителя на задачу"""
+        """
+        Назначить исполнителя на задачу.
+        """
 
-        # 1. Получение и проверка задачи на существование
-        task = await self.task_repo.read(task_id)
-        if task is None:
-            raise NotFoundError(f"Task with ID {task_id} not found")
+        task = await get_or_raise_404(self.task_repo.read, task_id, Task)
+        assignee = await get_or_raise_404(self.user_repo.read, assignee_id, User)
 
-        # 2. Получение исполнителя и проверка его на существование
-        assignee = await self.user_repo.read(assignee_id)
-        if assignee is None or assignee.is_deleted:
-            raise NotFoundError(f"User with ID {assignee_id} not found")
-
-        # 3. Поверка прав на назначение исполнителя
-        permission = can_assign_task(
-            task=task,
-            assignee_role=assignee.role,
-            user_id=current_user.user_id,
-            user_role=current_user.role
+        permission = await self.task_authz_service.can_assign_task(
+            subject=current_subject, task=task, assignee=assignee
         )
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
 
-        # 4. Назначение исполнителя и обновление сущности
-        task.assign_to(assignee_id=assignee_id, assigned_by=current_user.user_id)
+        task.assign_to(assignee_id=assignee_id, assigned_by=current_subject.id)
         await self.task_repo.update(task)
-        await self.session.commit()
 
-        # 5. Публикация доменных событий
-        for event in task.collect_events():
-            await self.event_publisher.publish(event)
+        await finalize(
+            self.uow, task,
+            event_publisher=self.event_publisher,
+            activity_recorder=self.activity_log_recorder
+        )
 
         return map_task_to_response(task)
 
     async def request_review(
-            self, task_id: UUID, reviewer_id: UUID, current_user: CurrentUser
+            self, task_id: UUID, reviewer_id: UUID, current_subject: Subject
     ) -> TaskResponse:
-        """Запросить ревью задачи"""
+        """
+        Запросить ревью на задачу у пользователя.
+        """
 
-        # 1. Получение и проверка задачи на существование
-        task = await self.task_repo.read(task_id)
-        if task is None:
-            raise NotFoundError(f"Task with ID {task_id} not found")
+        task = await get_or_raise_404(self.task_repo.read, task_id, Task)
+        reviewer = await get_or_raise_404(self.user_repo.read, reviewer_id, User)
 
-        # 2. Получение и проверка га существование указанного проверяющего задачи
-        reviewer = await self.user_repo.read(reviewer_id)
-        if reviewer is None or reviewer.is_deleted:
-            raise NotFoundError(f"Reviewer with ID {reviewer_id} not found")
-
-        # 2. Проверка прав на запрос ревью задачи
-        permission = can_request_review(
-            task=task,
-            reviewer_role=reviewer.role,
-            user_id=current_user.user_id,
-            user_role=current_user.role,
+        permission = await self.task_authz_service.can_review_task(
+            subject=current_subject, task=task, reviewer=reviewer
         )
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
 
-        # 3. Запрос ревью и обновление состояния задачи
-        task.request_review(reviewer_id=reviewer_id, requested_by=current_user.user_id)
+        task.request_review(reviewer_id=reviewer_id, requested_by=current_subject.id)
         await self.task_repo.update(task)
-        await self.session.commit()
 
-        # 4. Публикация доменных событий
-        for event in task.collect_events():
-            await self.event_publisher.publish(event)
+        await finalize(
+            self.uow, task,
+            event_publisher=self.event_publisher,
+            activity_recorder=self.activity_log_recorder
+        )
 
         return map_task_to_response(task)
 
     async def review(
-            self, task_id: UUID, data: TaskReview, current_user: CurrentUser
+            self, task_id: UUID, decision: ReviewDecision, current_subject: Subject
     ) -> TaskResponse:
-        """Провести ревью задачи"""
+        """
+        Провести ревью задачи.
+        """
 
-        # 1. Получение и проверка задачи на существование
-        task = await self.task_repo.read(task_id)
-        if task is None:
-            raise NotFoundError(f"Task with ID {task_id} not found")
+        task = await get_or_raise_404(self.task_repo.read, task_id, Task)
 
-        # 2. Проверка прав на ревью задачи
-        permission = can_review_task(
-            task=task, user_id=current_user.user_id, user_role=current_user.role
+        permission = await self.task_authz_service.can_review_task(
+            subject=current_subject, task=task
         )
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
 
-        # 3. Перевод задачи к новому статусу и обновление сущности
-        if data.action == "approve":
-            task.approve_review(approved_by=current_user.user_id)
-        if data.action == "reject":
-            task.reject_review(rejected_by=current_user.user_id)
-
+        task.complete_review(decision, reviewed_by=current_subject.id)
         await self.task_repo.update(task)
-        await self.session.commit()
 
-        # 4. Публикация доменных событий
-        for event in task.collect_events():
-            await self.event_publisher.publish(event)
+        await finalize(
+            self.uow, task,
+            event_publisher=self.event_publisher,
+            activity_recorder=self.activity_log_recorder
+        )
 
         return map_task_to_response(task)
 
-    async def archive(self, task_id: UUID, current_user: CurrentUser) -> TaskResponse:
-        """Архивирование задачи"""
+    async def archive(self, task_id: UUID, current_subject: Subject) -> TaskResponse:
+        """
+        Перенос задачи в архив.
+        """
 
-        # 1. Получение и проверка на существование
-        task = await self.task_repo.read(task_id)
-        if task is None:
-            raise NotFoundError(f"Task with ID {task_id} not found")
+        task = await get_or_raise_404(self.task_repo.read, task_id, Task)
 
-        # 2. Проверка прав на архивирование
-        permission = can_archive_task(
-            task=task, user_id=current_user.user_id, user_role=current_user.role
+        permission = await self.task_authz_service.can_archive_task(
+            subject=current_subject, task=task
         )
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
 
-        # 3. Архивация и обновление сущности
-        task.archive(archived_by=current_user.user_id)
+        task.archive(archived_by=current_subject.id)
         await self.task_repo.update(task)
-        await self.session.commit()
 
-        # 4. Публикация доменных событий
-        for event in task.collect_events():
-            await self.event_publisher.publish(event)
+        await finalize(
+            self.uow, task,
+            event_publisher=self.event_publisher,
+            activity_recorder=self.activity_log_recorder
+        )
 
         return map_task_to_response(task)
 
     async def add_actual_hours(self, task_id: UUID, hours: Decimal) -> None:
-        """Добавление фактических трудозатрат по задаче"""
+        """
+        Добавить факт потраченного времени на задачу.
+        """
 
-        # 1. Получение и проверка на существование
-        task = await self.task_repo.read(task_id)
-        if task is None:
-            raise NotFoundError(f"Task with ID {task_id} not found")
+        task = await get_or_raise_404(self.task_repo.read, task_id, Task)
 
-        # 2. Добавление часов + обновление состояния
         task.add_actual_hours(hours)
         await self.task_repo.update(task)
-        await self.session.commit()
+
+        await finalize(
+            self.uow, task,
+            event_publisher=self.event_publisher,
+            activity_recorder=self.activity_log_recorder
+        )

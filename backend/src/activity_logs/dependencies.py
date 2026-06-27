@@ -9,6 +9,7 @@ from src.shared.schemas import Page
 
 from .domain.repos import ActivityLogRepository
 from .infra.repos import SqlActivityLogRepository
+from .recorder import ActivityLogRecorder
 
 
 def get_activity_log_repo(session: SessionDep) -> SqlActivityLogRepository:
@@ -16,6 +17,13 @@ def get_activity_log_repo(session: SessionDep) -> SqlActivityLogRepository:
 
 
 ActivityLogRepoDep = Annotated[ActivityLogRepository, Depends(get_activity_log_repo)]
+
+
+def get_activity_log_recorder(activity_log_repo: ActivityLogRepoDep) -> ActivityLogRecorder:
+    return ActivityLogRecorder(activity_log_repo)
+
+
+ActivityLogRecorderDep = Annotated[ActivityLogRepository, Depends(get_activity_log_recorder)]
 
 
 async def get_activity_logs_page(

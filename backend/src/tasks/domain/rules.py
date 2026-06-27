@@ -10,7 +10,7 @@ from .entities import Task
 from .vo import TaskStatus
 
 
-class RequireStaffRule:
+class IsStaffRule:
     ALLOWED_USER_ROLES: ClassVar[set[UserRole]] = {
         UserRole.ADMIN,
         UserRole.SUPPORT_MANAGER,
@@ -31,7 +31,7 @@ class RequireStaffRule:
         return PermissionResult(False, "Only staff can create tasks")
 
 
-class RequireProjectStaffRule:
+class IsProjectStaffRule:
     ALLOWED_PROJECT_ROLES: ClassVar[set[ProjectRole]] = {
         ProjectRole.CONTRIBUTOR, ProjectRole.MANAGER, ProjectRole.OWNER
     }

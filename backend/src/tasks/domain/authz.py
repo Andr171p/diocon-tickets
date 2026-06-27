@@ -9,8 +9,8 @@ from .entities import Task
 from .rules import (
     IsTaskCreator,
     IsTaskReviewer,
-    RequireProjectStaffRule,
-    RequireStaffRule,
+    IsProjectStaffRule,
+    IsStaffRule,
     TaskAssigneeStatusRule,
     TaskEditingRule,
     TaskReviewerStatusRule,
@@ -25,11 +25,11 @@ class TaskAuthZService:
     async def can_create_task(
             self, subject: Subject, project_id: UUID | None = None
     ) -> PermissionResult:
-        rules = [RequireStaffRule(subject)]
+        rules = [IsStaffRule(subject)]
 
         if project_id is not None:
             project_membership = await self.project_membership_repo.find(project_id, subject.id)
-            rules.append(RequireProjectStaffRule(project_membership))
+            rules.append(IsProjectStaffRule(project_membership))
 
         auth_policy = AnyOf(*rules)
         return auth_policy.check()
@@ -64,7 +64,7 @@ class TaskAuthZService:
                     ),
                     AllOf(
                         ProjectMembershipExistsRule(project_member),
-                        RequireProjectStaffRule(project_member),
+                        IsProjectStaffRule(project_member),
                     ),
                 )
             )
@@ -73,7 +73,7 @@ class TaskAuthZService:
             return auth_policy.check()
 
         rules.extend((
-            RequireStaffRule(subject),
+            IsStaffRule(subject),
             AnyOf(
                 TaskAssigneeStatusRule(subject, task, new_status),
                 TaskReviewerStatusRule(subject, task, new_status)
@@ -86,7 +86,7 @@ class TaskAuthZService:
     async def can_assign_task(
             self, subject: Subject, task: Task, assignee: User
     ) -> PermissionResult:
-        rules = [IsAdminRule(subject), RequireStaffRule(subject), RequireStaffRule(assignee)]
+        rules = [IsAdminRule(subject), IsStaffRule(subject), IsStaffRule(assignee)]
 
         if task.project_id is not None:
             current_member = await self.project_membership_repo.find(task.project_id, subject.id)
@@ -96,7 +96,27 @@ class TaskAuthZService:
             for member in {current_member, assignee_member}:
                 member_rules.extend((
                     ProjectMembershipExistsRule(member),
-                    RequireProjectStaffRule(member),
+                    IsProjectStaffRule(member),
+                ))
+
+            rules.append(AllOf(*member_rules))
+
+        auth_policy = AnyOf(*rules)
+        return auth_policy.check()
+
+    async def can_request_review(
+            self, subject: Subject, task: Task, reviewer: User
+    ) -> PermissionResult:
+        rules = [IsAdminRule(subject), IsStaffRule(subject)]
+
+        if task.project_id is not None:
+            current_member = await self.project_membership_repo.find(task.project_id, subject.id)
+            reviewer_member = await self.project_membership_repo.find(task.project_id, reviewer.id)
+            member_rules = []
+            for member in {current_member, reviewer_member}:
+                member_rules.extend((
+                    ProjectMembershipExistsRule(member),
+                    IsProjectStaffRule(member),
                 ))
 
             rules.append(AllOf(*member_rules))
@@ -145,9 +165,9 @@ class TaskAuthZService:
             project_member = await self.project_membership_repo.find(project_id, subject.id)
             auth_policy = AllOf(
                 ProjectMembershipExistsRule(project_member),
-                RequireProjectStaffRule(project_member),
+                IsProjectStaffRule(project_member),
             )
             return auth_policy.check()
 
-        auth_policy = RequireStaffRule(subject)
+        auth_policy = IsStaffRule(subject)
         return auth_policy.check()

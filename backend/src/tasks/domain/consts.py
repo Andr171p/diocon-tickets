@@ -1,4 +1,4 @@
-from .vo import TaskStatus
+from .vo import ReviewDecision, TaskStatus
 
 # Возможные переходы между статусами задачи
 ALLOWED_STATUS_TRANSITIONS: dict[TaskStatus: set[TaskStatus]] = {
@@ -95,4 +95,11 @@ TASK_STATUS_LABEL_MAP: dict[TaskStatus, str] = {
     TaskStatus.BLOCKED: "Приостановлено",
     TaskStatus.DONE: "Выполнено",
     TaskStatus.CANCELLED: "Отменено",
+}
+
+# Маппинг решения ревью в статус задачи
+REVIEW_DECISION_TO_TASK_STATUS_MAP: dict[ReviewDecision, TaskStatus] = {
+    ReviewDecision.DONE: TaskStatus.DONE,
+    ReviewDecision.TO_FIX: TaskStatus.TO_FIX,
+    ReviewDecision.TO_TEST: TaskStatus.TO_TEST,
 }

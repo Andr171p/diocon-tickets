@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ...media.infra.models import AttachmentOrm
+    from src.media.infra.models import AttachmentOrm
 
 from datetime import date, datetime
 from uuid import UUID
@@ -10,8 +10,9 @@ from sqlalchemy import Date, DateTime, Enum, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ...core.database import Base
-from ...tickets.domain.vo import Priority
+from src.core.database import Base
+from src.shared.domain.vo import Priority
+
 from ..domain.vo import TaskStatus
 
 
@@ -37,6 +38,7 @@ class TaskOrm(Base):
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    working_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_by: Mapped[UUID]
 

@@ -1,28 +1,42 @@
+from typing import Annotated, Self
+
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
+from typing_extensions import Doc
+
 from src.media.domain.entities import Attachment
-from src.shared.domain.entities import Entity
+from src.shared.domain.entities import AggregateRoot
 from src.shared.domain.exceptions import InvalidStateError, InvariantViolationError
 from src.shared.domain.vo import Priority, Tag
 from src.shared.utils.time import current_datetime
 
-from .consts import ALLOWED_ASSIGN_STATUSES, ALLOWED_EDIT_STATUSES, ALLOWED_STATUS_TRANSITIONS
+from .consts import (
+    ALLOWED_ASSIGN_STATUSES,
+    ALLOWED_EDIT_STATUSES,
+    REVIEW_DECISION_TO_TASK_STATUS_MAP,
+)
 from .events import (
     TaskArchived,
     TaskAssigned,
+    TaskCompleted,
     TaskCreated,
     TaskReviewRequested,
     TaskStatusChanged,
     TaskUnassigned,
+    TaskWorkingFinished,
+    TaskWorkingStarted,
 )
-from .vo import StoryPoints, TaskNumber, TaskStatus
+from .vo import ReviewDecision, StoryPoints, TaskNumber, TaskStatus
+from .workflow import task_workflow
+
+SECS_IN_HOURS = 3600.0
 
 
 @dataclass(kw_only=True)
-class Task(Entity):
+class Task(AggregateRoot):
     """
     Задача для сотрудника.
     Используется для детализации работ, например по большому тикету.
@@ -37,17 +51,23 @@ class Task(Entity):
 
     status: TaskStatus
     priority: Priority
-    story_points: StoryPoints | None = None
+    story_points: Annotated[
+        StoryPoints | None, Doc("Условная единица для оценки объёма работ")
+    ] = None
 
-    assignee_id: UUID | None = None
-    reviewer_id: UUID | None = None
+    assignee_id: Annotated[UUID | None, Doc("Исполнитель задачи")] = None
+    reviewer_id: Annotated[UUID | None, Doc("Тот кто проверяет задачу")] = None
 
-    estimated_hours: Decimal | None = None
-    actual_hours: Decimal = Decimal(0)
+    estimated_hours: Annotated[Decimal | None, Doc("Предварительные трудозатраты (часы)")] = None
+    actual_hours: Annotated[Decimal, Doc("Факт потраченных часов")] = Decimal(0)
 
-    due_date: date | None = None  # Срок выполнения
-    started_at: datetime | None = None
-    completed_at: datetime | None = None
+    due_date: Annotated[date | None, Doc("Дедлайн")] = None
+
+    started_at: Annotated[datetime | None, Doc("Время начала выполнения")] = None
+    completed_at: Annotated[datetime | None, Doc("Время завершения")] = None
+    working_since: Annotated[
+        datetime | None, Doc("Время начала работы последней рабочей сессии")
+    ] = None
 
     created_by: UUID
 
@@ -85,21 +105,26 @@ class Task(Entity):
             due_date: date | None = None,
             estimated_hours: Decimal | None = None,
             tags: list[Tag] | None = None,
-    ) -> "Task":
+    ) -> Self:
         task_id = uuid4()
+        title = title.strip()
+        description = None if description is None else description.strip()
+        estimated_hours = None if estimated_hours is None else Decimal(estimated_hours)
+        unique_tags = set() if tags is None else set(tags)
+
         task = cls(
             id=task_id,
             ticket_id=ticket_id,
             project_id=project_id,
             number=number,
-            title=title.strip(),
-            description=None if description is None else description.strip(),
+            title=title,
+            description=description,
             status=TaskStatus.BACKLOG,
             priority=priority,
             due_date=due_date,
-            estimated_hours=None if estimated_hours is None else Decimal(estimated_hours),
+            estimated_hours=estimated_hours,
             created_by=created_by,
-            tags={} if tags is None else set(tags),
+            tags=unique_tags,
         )
         task.register_event(
             TaskCreated(
@@ -119,50 +144,14 @@ class Task(Entity):
         if new_status == self.status:
             return
 
-        allowed_next_statuses = ALLOWED_STATUS_TRANSITIONS.get(new_status, [])
-        if new_status not in allowed_next_statuses:
-            raise InvalidStateError(
-                f"Invalid status transition from {self.status} to {new_status}. "
-                f"Allowed transitions: {', '.join(allowed_next_statuses)}."
-            )
-
-        # Задача не может быть в работе без назначенного исполнителя
-        if new_status == TaskStatus.IN_PROGRESS and self.assignee_id is None:
-            raise InvariantViolationError(
-                "Task cannot be in 'IN_PROGRESS' status without an assignee"
-            )
+        transition = task_workflow.resolve(self.status, new_status)
+        for action in transition.actions:
+            action(self, changed_by)
 
         old_status = self.status
         self.status = new_status
         self.updated_at = current_datetime()
 
-        # Снятие исполнителя при переводе в начальный статус
-        if new_status in {TaskStatus.BACKLOG, TaskStatus.TODO}:
-            old_assignee = self.assignee_id
-            self.assignee_id = None
-            self.register_event(
-                TaskUnassigned(
-                    task_id=self.id,
-                    number=self.number,
-                    old_assignee=old_assignee,
-                    unassigned_by=changed_by,
-                )
-            )
-
-        # Сброс ревьювера при возврате в работу
-        if new_status in {TaskStatus.IN_PROGRESS, TaskStatus.TODO, TaskStatus.BACKLOG}:
-            self.reviewer_id = None
-
-        if new_status == TaskStatus.IN_PROGRESS and self.started_at is None:
-            self.started_at = current_datetime()
-
-        if new_status == TaskStatus.DONE and self.completed_at is None:
-            self.completed_at = current_datetime()
-
-        if old_status == TaskStatus.DONE and new_status != TaskStatus.DONE:
-            self.completed_at = None
-
-        self.updated_at = current_datetime()
         self.register_event(
             TaskStatusChanged(
                 task_id=self.id,
@@ -174,25 +163,23 @@ class Task(Entity):
         )
 
     def assign_to(self, assignee_id: UUID, assigned_by: UUID) -> None:
-        """Назначение исполнителя на задачу"""
+        """
+        Назначить исполнителя на задачу.
+        """
 
-        # 1. Если исполнитель не переназначен, то состояние не меняется
         if self.assignee_id == assignee_id:
             return
 
-        # 2. Проверка валидный статус
         if self.status not in ALLOWED_ASSIGN_STATUSES:
             raise InvalidStateError(
                 f"Cannot assign task in status '{self.status.value}'. "
                 f"Allowed statuses: {', '.join(s.value for s in ALLOWED_ASSIGN_STATUSES)}"
             )
 
-        # 3. Назначение исполнителя
         old_assignee = self.assignee_id
         self.assignee_id = assignee_id
         self.updated_at = current_datetime()
 
-        # 4. Регистрация доменного события
         self.register_event(
             TaskAssigned(
                 task_id=self.id,
@@ -272,7 +259,8 @@ class Task(Entity):
 
     def add_actual_hours(self, hours: Decimal) -> None:
         """
-        Добавление факта затраченных часов
+        Добавить фактические часы.
+        Обновляет счётчик трудозатрат.
         """
 
         if hours <= 0:
@@ -286,19 +274,16 @@ class Task(Entity):
 
     def request_review(self, reviewer_id: UUID, requested_by: UUID) -> None:
         """
-        Запросить ревью задачи
+        Запросить ревью задачи у другого пользователя.
         """
 
-        # Исполнитель не может проверять свою задачу
         if self.assignee_id == reviewer_id:
             raise ValueError("Reviewer cannot be the same as assignee")
 
-        # Назначение ответственного за задачу
         old_reviewer = self.reviewer_id
         self.reviewer_id = reviewer_id
         self.updated_at = current_datetime()
 
-        # Переход в статус TO_REVIEW, если задача была в IN_PROGRESS
         self.change_status(TaskStatus.TO_REVIEW, requested_by)
 
         self.register_event(
@@ -311,28 +296,22 @@ class Task(Entity):
             )
         )
 
-    def approve_review(self, approved_by: UUID) -> None:
+    def complete_review(self, decision: ReviewDecision, reviewed_by: UUID) -> None:
         """
-        Согласовать задачу (проверяющий проверил задачу).
-        """
-
-        self.change_status(TaskStatus.DONE, approved_by)
-
-    def reject_review(self, rejected_by: UUID) -> None:
-        """
-        Отклонить задачу (вернуть на доработку).
+        Повести ревью задачи.
         """
 
-        self.change_status(TaskStatus.IN_PROGRESS, rejected_by)
+        next_status = REVIEW_DECISION_TO_TASK_STATUS_MAP[decision]
+        self.change_status(next_status, reviewed_by)
 
     def archive(self, archived_by: UUID) -> None:
-        """Архивирование/Soft-delete задачи"""
+        """
+        Архивирование задачи (мягкое удаление).
+        """
 
-        # 1. При повторном архивировании не должно меняться состояние
         if self.is_deleted:
             return
 
-        # 2. Изменение состояние сущности
         self.deleted_at = current_datetime()
 
         self.register_event(
@@ -341,5 +320,113 @@ class Task(Entity):
                 ticket_id=self.ticket_id,
                 created_by=self.created_by,
                 archived_by=archived_by,
+            )
+        )
+
+    def start_work(self, started_by: UUID) -> None:
+        """
+        Начать работу над задачей.
+        Не меняет статус - отвечает только за начало рабочй сессии.
+        """
+
+        if self.assignee_id is None:
+            raise InvariantViolationError(
+                "Task cannot enter a working status without an assignee."
+            )
+
+        if self.started_at is None:
+            self.started_at = current_datetime()
+
+        if self.working_since is not None:
+            return
+
+        self.working_since = current_datetime()
+
+        self.register_event(
+            TaskWorkingStarted(
+                task_id=self.id,
+                number=self.number,
+                assignee_id=self.assignee_id,
+                working_since=self.working_since,
+                started_by=started_by,
+            )
+        )
+
+    def finish_work(self, finished_by: UUID) -> None:
+        """
+        Завершение работы над задачей, производит расчёт затраченного времени.
+        """
+
+        if self.started_at is None or self.working_since is None:
+            return
+
+        if self.assignee_id is None:
+            raise InvalidStateError("Cannot finish unassigned task")
+
+        now = current_datetime()
+        duration = (now - self.working_since).total_seconds() / SECS_IN_HOURS
+        self.actual_hours += Decimal(f"{duration}")
+
+        self.working_since = None
+
+        self.register_event(
+            TaskWorkingFinished(
+                task_id=self.id,
+                number=self.number,
+                assignee_id=self.assignee_id,
+                actual_hours=self.actual_hours,
+                finished_by=finished_by,
+            )
+        )
+
+    def complete(self, completed_by: UUID) -> None:
+        """
+        Выполнить задачу (фиксирует финально время).
+        """
+
+        if self.completed_at is None:
+            self.completed_at = current_datetime()
+
+        self.register_event(
+            TaskCompleted(
+                task_id=self.id,
+                number=self.number,
+                completed_by=completed_by,
+                completed_at=self.completed_at,
+            )
+        )
+
+    def reopen(self) -> None:
+        """
+        Переоткрыть задачу - задача была выполнена и снова вернулась в работу.
+        """
+
+        self.completed_at = None
+        self.started_at = current_datetime()
+
+    def reset_reviewer(self) -> None:
+        """
+        Убрать ревьювера с задачи.
+        """
+
+        self.reviewer_id = None
+
+    def unassign(self, unassigned_by: UUID) -> None:
+        """
+        Снять исполнителя с задачи.
+        """
+
+        if self.assignee_id is None:
+            return
+
+        old_assignee = self.assignee_id
+        self.assignee_id = None
+
+        self.register_event(
+            TaskUnassigned(
+                task_id=self.id,
+                number=self.number,
+                old_assignee=old_assignee,
+                unassigned_by=unassigned_by,
             )
         )

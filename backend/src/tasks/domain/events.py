@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
 from uuid import UUID
 
 from src.activity_logs.domain.models import ActivityLog
@@ -41,7 +43,7 @@ class TaskAssigned(Event):
 
     task_id: UUID
     ticket_id: UUID | None = None
-    old_assignee: UUID
+    old_assignee: UUID | None = None
     new_assignee: UUID
     assigned_by: UUID
 
@@ -59,6 +61,32 @@ class TaskUnassigned(Event):
 
 
 @dataclass(frozen=True, kw_only=True)
+class TaskWorkingStarted(Event):
+    """
+    Началась работа над задачей.
+    """
+
+    task_id: UUID
+    number: TaskNumber
+    assignee_id: UUID
+    working_since: datetime
+    started_by: UUID
+
+
+@dataclass(frozen=True, kw_only=True)
+class TaskWorkingFinished(Event):
+    """
+    Работа над задачей окончена/приостановлена.
+    """
+
+    task_id: UUID
+    number: TaskNumber
+    assignee_id: UUID
+    actual_hours: Decimal
+    finished_by: UUID
+
+
+@dataclass(frozen=True, kw_only=True)
 class TaskReviewRequested(Event):
     """
     Исполнитель запросил проверку своей задачи.
@@ -69,6 +97,18 @@ class TaskReviewRequested(Event):
     reviewer_id: UUID
     requested_by: UUID
     old_reviewer: UUID | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class TaskCompleted(Event):
+    """
+    Задача успешно выполнена.
+    """
+
+    task_id: UUID
+    number: TaskNumber
+    completed_by: UUID
+    completed_at: datetime
 
 
 @dataclass(frozen=True, kw_only=True)

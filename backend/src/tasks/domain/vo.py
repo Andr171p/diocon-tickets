@@ -33,6 +33,20 @@ class TaskStatus(StrEnum):
     def is_finished(self) -> bool:
         return self in {TaskStatus.DONE, TaskStatus.CANCELLED}
 
+    @property
+    def is_working(self) -> bool:
+        return self is TaskStatus.IN_PROGRESS
+
+
+class ReviewDecision(StrEnum):
+    """
+    Решение принятое в результате ревью.
+    """
+
+    DONE = auto()
+    TO_FIX = auto()
+    TO_TEST = auto()
+
 
 @dataclass(frozen=True)
 class StoryPoints(ValueObject):

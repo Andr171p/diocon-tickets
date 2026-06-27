@@ -1,7 +1,8 @@
 from faststream.rabbit import RabbitQueue
 from faststream.rabbit.fastapi import Logger, RabbitRouter
 
-from ...timetracking.domain.events import WorklogApproved
+from src.timetracking.domain.events import WorklogApproved
+
 from ..dependencies import TaskServiceDep
 
 router = RabbitRouter()
