@@ -9,8 +9,8 @@ from src.shared.dependencies import EventPublisherDep, PaginationDep, SessionDep
 from src.shared.domain.exceptions import NotFoundError
 from src.shared.schemas import Page
 
-from .domain.repos import ProjectMembershipRepository, ProjectRepository
-from .infra.repos import SqlMembershipRepository, SqlProjectRepository
+from .domain.repos import ProjectMemberRepository, ProjectRepository
+from .infra.repos import SqlProjectMemberRepository, SqlProjectRepository
 from .mappers import map_project_to_response
 from .schemas import ProjectResponse
 from .services import ProjectMembershipService, ProjectService
@@ -20,12 +20,12 @@ def get_project_repo(session: SessionDep) -> SqlProjectRepository:
     return SqlProjectRepository(session)
 
 
-def get_membership_repo(session: SessionDep) -> SqlMembershipRepository:
-    return SqlMembershipRepository(session)
+def get_membership_repo(session: SessionDep) -> SqlProjectMemberRepository:
+    return SqlProjectMemberRepository(session)
 
 
 ProjectRepoDep = Annotated[ProjectRepository, Depends(get_project_repo)]
-MembershipRepoDep = Annotated[ProjectMembershipRepository, Depends(get_membership_repo)]
+MembershipRepoDep = Annotated[ProjectMemberRepository, Depends(get_membership_repo)]
 
 
 def get_project_service(
@@ -37,7 +37,7 @@ def get_project_service(
     return ProjectService(
         session=session,
         project_repo=project_repo,
-        membership_repo=membership_repo,
+        member_repo=membership_repo,
         event_publisher=event_publisher,
     )
 

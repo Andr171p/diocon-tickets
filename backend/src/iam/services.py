@@ -98,7 +98,7 @@ class AuthService:
             )
         else:
             raise ValueError(
-                f"Invite registration is not supported for the role - {invitation.assigned_role}"
+                f"Invite registration is not supported for the project_role - {invitation.assigned_role}"
             )
 
         # 4. Сохранение пользователя + пометка приглашения как использованное
@@ -195,7 +195,7 @@ class InvitationService:
         if invitation is None:
             logger.info("Invitation is not found, planned_start creating new")
 
-            if assigned_role.is_internal():
+            if assigned_role.is_staff():
                 invitation = invite_internal(
                     invited_by=invited_by, email=email, assigned_role=assigned_role
                 )
@@ -217,7 +217,7 @@ class InvitationService:
         invite_url = f"{settings.frontend_url}/auth/invite/accept?token={invitation.token}"
         context = {
             "email": email,
-            "role": assigned_role.value.replace("_", " ").title(),
+            "project_role": assigned_role.value.replace("_", " ").title(),
             "invite_url": invite_url,
             "expires_in_days": INVITATION_EXPIRE_IN_DAYS,
             "invited_by": f"{invited_by}",

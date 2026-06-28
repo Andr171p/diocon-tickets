@@ -60,7 +60,7 @@ def create_access_token(
         "type": "access",
         "jti": f"{uuid4()}",
         "email": email,
-        "role": user_role.value,
+        "project_role": user_role.value,
     }
     if counterparty_id is not None:
         payload["counterparty_id"] = f"{counterparty_id}"

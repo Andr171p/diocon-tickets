@@ -57,7 +57,7 @@ class TestCreateForCounterparty:
         number = TicketNumber.create(total_tickets, counterparty_name=russian_name)
 
         assert f"{number}" == excepted_number
-        assert number.is_internal is False
+        assert number.is_staff is False
 
     def test_create_with_short_name(self):
         total_tickets = 0
@@ -116,7 +116,7 @@ class TestCreateForProject:
         assert number.prefix == "PRJ123"
         assert number.value.startswith("PRJ123-")
         assert number.sequence == "00000011"
-        assert number.is_internal is False
+        assert number.is_staff is False
         assert f"{number}" == "PRJ123-26-00000011"
 
 

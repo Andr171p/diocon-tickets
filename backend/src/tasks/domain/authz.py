@@ -1,16 +1,16 @@
 from uuid import UUID
 
-from src.iam.domain.authz import AllOf, AnyOf, IsAdminRule, PermissionResult, Subject
+from src.iam.domain.authz import AllOf, AnyOf, PermissionResult, Subject
 from src.iam.domain.entities import User
-from src.projects.domain.repos import ProjectMembershipRepository
-from src.projects.domain.rules import IsProjectOwnerOrManagerRule, ProjectMembershipExistsRule
+from src.iam.domain.rules import IsAdminRule, IsStaffRule
+from src.projects.domain.repos import ProjectMemberRepository
+from src.projects.domain.rules import IsProjectOwnerOrManagerRule, ProjectMemberExistsRule
 
 from .entities import Task
 from .rules import (
+    IsProjectStaffRule,
     IsTaskCreator,
     IsTaskReviewer,
-    IsProjectStaffRule,
-    IsStaffRule,
     TaskAssigneeStatusRule,
     TaskEditingRule,
     TaskReviewerStatusRule,
@@ -19,7 +19,7 @@ from .vo import TaskStatus
 
 
 class TaskAuthZService:
-    def __init__(self, project_membership_repo: ProjectMembershipRepository) -> None:
+    def __init__(self, project_membership_repo: ProjectMemberRepository) -> None:
         self.project_membership_repo = project_membership_repo
 
     async def can_create_task(
@@ -41,7 +41,7 @@ class TaskAuthZService:
             project_member = await self.project_membership_repo.find(task.project_id, subject.id)
             rules.extend([
                 AllOf(
-                    ProjectMembershipExistsRule(project_member),
+                    ProjectMemberExistsRule(project_member),
                     IsProjectOwnerOrManagerRule(project_member)
                 )
             ])
@@ -59,11 +59,11 @@ class TaskAuthZService:
             rules.append(
                 AnyOf(
                     AllOf(
-                        ProjectMembershipExistsRule(project_member),
+                        ProjectMemberExistsRule(project_member),
                         IsProjectOwnerOrManagerRule(project_member),
                     ),
                     AllOf(
-                        ProjectMembershipExistsRule(project_member),
+                        ProjectMemberExistsRule(project_member),
                         IsProjectStaffRule(project_member),
                     ),
                 )
@@ -95,7 +95,7 @@ class TaskAuthZService:
             member_rules = []
             for member in {current_member, assignee_member}:
                 member_rules.extend((
-                    ProjectMembershipExistsRule(member),
+                    ProjectMemberExistsRule(member),
                     IsProjectStaffRule(member),
                 ))
 
@@ -115,7 +115,7 @@ class TaskAuthZService:
             member_rules = []
             for member in {current_member, reviewer_member}:
                 member_rules.extend((
-                    ProjectMembershipExistsRule(member),
+                    ProjectMemberExistsRule(member),
                     IsProjectStaffRule(member),
                 ))
 
@@ -131,7 +131,7 @@ class TaskAuthZService:
             project_member = await self.project_membership_repo.find(task.project_id, subject.id)
             rules.append(
                 AllOf(
-                    ProjectMembershipExistsRule(project_member),
+                    ProjectMemberExistsRule(project_member),
                     IsProjectOwnerOrManagerRule(project_member),
                 )
             )
@@ -148,7 +148,7 @@ class TaskAuthZService:
             project_member = await self.project_membership_repo.find(task.project_id, subject.id)
             rules.append(
                 AllOf(
-                    ProjectMembershipExistsRule(project_member),
+                    ProjectMemberExistsRule(project_member),
                     IsProjectOwnerOrManagerRule(project_member),
                 )
             )
@@ -164,7 +164,7 @@ class TaskAuthZService:
         if project_id is not None:
             project_member = await self.project_membership_repo.find(project_id, subject.id)
             auth_policy = AllOf(
-                ProjectMembershipExistsRule(project_member),
+                ProjectMemberExistsRule(project_member),
                 IsProjectStaffRule(project_member),
             )
             return auth_policy.check()

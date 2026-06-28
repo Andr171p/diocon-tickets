@@ -2,33 +2,11 @@ from typing import ClassVar
 
 from src.iam.domain.authz import PermissionResult, Subject
 from src.iam.domain.entities import User
-from src.iam.domain.vo import UserRole
-from src.projects.domain.entities import ProjectMembership
+from src.projects.domain.entities import ProjectMember
 from src.projects.domain.vo import ProjectRole
 
 from .entities import Task
 from .vo import TaskStatus
-
-
-class IsStaffRule:
-    ALLOWED_USER_ROLES: ClassVar[set[UserRole]] = {
-        UserRole.ADMIN,
-        UserRole.SUPPORT_MANAGER,
-        UserRole.SUPPORT_AGENT,
-        UserRole.DEVELOPER,
-        UserRole.FINANCE,
-        UserRole.ACCOUNT_MANAGER,
-    }
-
-    def __init__(self, subject: Subject | User) -> None:
-        self.subject = subject
-
-    def check(self) -> PermissionResult:
-        for user_role in self.ALLOWED_USER_ROLES:
-            if self.subject.has_role(user_role):
-                return PermissionResult(True)
-
-        return PermissionResult(False, "Only staff can create tasks")
 
 
 class IsProjectStaffRule:
@@ -36,7 +14,7 @@ class IsProjectStaffRule:
         ProjectRole.CONTRIBUTOR, ProjectRole.MANAGER, ProjectRole.OWNER
     }
 
-    def __init__(self, membership: ProjectMembership | None = None) -> None:
+    def __init__(self, membership: ProjectMember | None = None) -> None:
         self.membership = membership
 
     def check(self) -> PermissionResult:
@@ -49,7 +27,7 @@ class IsProjectStaffRule:
 
         return PermissionResult(
             False,
-            "Project role must be one of: "
+            "Project project_role must be one of: "
             f"{', '.join(r.value for r in self.ALLOWED_PROJECT_ROLES)}",
         )
 

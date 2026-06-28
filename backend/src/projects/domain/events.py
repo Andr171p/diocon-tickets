@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from ...shared.domain.events import Event
-from .vo import ProjectRole
+from src.shared.domain.events import Event
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -17,21 +16,19 @@ class ProjectCreated(Event):
 
 
 @dataclass(frozen=True, kw_only=True)
-class ProjectMembershipCreated(Event):
+class ProjectMemberCreated(Event):
     """Участник добавлен в проект"""
 
     project_id: UUID
-    project_role: ProjectRole
     user_id: UUID
     created_by: UUID
 
 
 @dataclass(frozen=True, kw_only=True)
-class ProjectMembershipRemoved(Event):
+class ProjectMemberRemoved(Event):
     """Участник проекта удалён"""
 
     project_id: UUID
-    project_role: ProjectRole
     user_id: UUID
     removed_by: UUID
 

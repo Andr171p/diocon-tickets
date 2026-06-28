@@ -107,12 +107,24 @@ class AnyOf:
         return PermissionResult(False, final_reason)
 
 
-class IsAdminRule:
-    def __init__(self, subject: Subject) -> None:
-        self.subject = subject
+class Not:
+    """
+    Инвертирует результат проверки одного или нескольких правил.
+    """
+
+    def __init__(self, *rules: AuthorizationRule) -> None:
+        self._rules = rules
 
     def check(self) -> PermissionResult:
-        if self.subject.has_role(UserRole.ADMIN):
-            return PermissionResult(True)
+        if len(self._rules) == 1:
+            permission = self._rules[0].check()
+        else:
+            permission = AllOf(*self._rules).check()
 
-        return PermissionResult(False, "Admin required")
+        if permission.allowed:
+            return PermissionResult(
+                False,
+                f"Condition must be false: {permission.reason or 'all sub-rules returned true'}"
+            )
+
+        return PermissionResult(True)

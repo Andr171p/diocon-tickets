@@ -1,19 +1,18 @@
-import random
-import string
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.iam.domain.authz import Subject
 from src.iam.domain.exceptions import PermissionDeniedError
 from src.shared.domain.events import EventPublisher
 from src.shared.domain.exceptions import AlreadyExistsError, NotFoundError
+from src.shared.domain.repos import UnitOfWork, finalize, get_or_raise_404
 from src.shared.schemas import Page
 
 from ..domain.authz import ProjectAuthZService
 from ..domain.entities import Project
-from ..domain.repos import ProjectMembershipRepository, ProjectRepository
+from ..domain.repos import ProjectMemberRepository, ProjectRepository
+from ..domain.services import create_project, generate_key_suggestions
 from ..domain.vo import ProjectKey, ProjectRole
 from ..mappers import (
     map_project_stage_to_response,
@@ -35,23 +34,16 @@ from ..schemas import (
 class ProjectService:
     def __init__(
             self,
-            session: AsyncSession,
+            uow: UnitOfWork,
             project_repo: ProjectRepository,
-            membership_repo: ProjectMembershipRepository,
+            member_repo: ProjectMemberRepository,
             event_publisher: EventPublisher,
     ) -> None:
-        self.session = session
+        self.uow = uow
         self.project_repo = project_repo
-        self.membership_repo = membership_repo
-        self.authz_service = ProjectAuthZService(membership_repo)
+        self.member_repo = member_repo
+        self.authz_service = ProjectAuthZService(member_repo)
         self.event_publisher = event_publisher
-
-    async def _get_project_or_404(self, project_id: UUID) -> Project:
-        project = await self.project_repo.read(project_id)
-        if project is None:
-            raise NotFoundError(f"Project with ID {project_id} not found")
-
-        return project
 
     async def generate_key_suggestions(
             self, original_key: str, max_attempts: int = 5, min_key_length: int = 3
@@ -65,37 +57,16 @@ class ProjectService:
          - original_key = "CRM" -> ["CRM1", "CRM2", "CRM3", ...]
         """
 
-        base_key = original_key.strip().upper()
-
-        if not base_key:
-            base_key = "PROJ"  # fallback
-
-        # Добавление простых числовых суффиксов
-        suggestions = [f"{base_key}{i}" for i in range(1, max_attempts + 1)]
-
-        # Если ключ короткий, то добавление вариантов с буквами
-        if len(base_key) <= min_key_length:
-            alphabet = string.ascii_uppercase
-            suggestions.extend(
-                f"{base_key}{letter}" for letter in random.sample(alphabet, len(alphabet))
-            )
-
-        # Удаление дубликатов и сохранение порядка
-        seen = set()
-        unique_suggestions = []
-        for suggestion in suggestions:
-            if suggestion not in seen:
-                seen.add(suggestion)
-                unique_suggestions.append(suggestion)
-
-        unique_suggestions = unique_suggestions[:max_attempts * 2]
-        existing_keys = await self.project_repo.get_existing_keys(unique_suggestions)
-        available = [key for key in unique_suggestions if key not in existing_keys]
-
-        return available[:max_attempts]
+        candidates = generate_key_suggestions(
+            original_key, max_attempts=max_attempts, min_key_length=min_key_length
+        )
+        existing = await self.project_repo.get_existing_keys(candidates)
+        return [key for key in candidates if key not in existing][:max_attempts]
 
     async def check_key(self, key: str) -> KeyCheckResult:
-        """Проверка ключа на уникальность перед созданием"""
+        """
+        Проверяет ключ на уникальность перед созданием.
+        """
 
         key = ProjectKey(key)
         project = await self.project_repo.get_by_key(key)
@@ -109,7 +80,7 @@ class ProjectService:
             self, data: ProjectCreate, current_subject: Subject, max_attempts: int = 5,
     ) -> ProjectDetailedResponse:
         """
-        Создание проекта с уникальным ключом
+        Создать проект с уникальным ключом.
         """
 
         permission = self.authz_service.can_create_project(current_subject)
@@ -121,34 +92,31 @@ class ProjectService:
             try:
                 project = Project.create(
                     name=data.name,
-                    key=key_candidate,
+                    key=ProjectKey(key_candidate),
                     description=data.description,
                     counterparty_id=data.counterparty_id,
                     created_by=current_subject.id,
                 )
                 await self.project_repo.create(project)
-                await self.session.flush()
+                await self.uow.flush()
 
             except IntegrityError:
-                await self.session.rollback()
+                await self.uow.rollback()
                 key_candidate = f"{original_key}{attempt}"
 
             else:
-                owner = project.create_membership(
+                owner = project.create_member(
                     user_id=current_subject.id,
                     project_role=ProjectRole.OWNER,
                     created_by=current_subject.id,
                 )
-                await self.membership_repo.create(owner)
-                await self.session.commit()
+                await self.member_repo.create(owner)
+                await finalize(self.uow, project, event_publisher=self.event_publisher)
 
-                for event in project.collect_events():
-                    await self.event_publisher.publish(event)
-
-                memberships = [owner]
+                members = [owner]
                 return map_project_to_detailed_response(
                     project, memberships=Page.create(
-                        memberships, total_items=len(memberships), page=1, size=1,
+                        members, total_items=len(members), page=1, size=1,
                     )
                 )
 
@@ -161,23 +129,20 @@ class ProjectService:
 
     async def archive(self, project_id: UUID, current_subject: Subject) -> ProjectResponse:
         """
-        Архивирование проекта (soft delete метод).
+        Перенести проект в архив (мягкое удаление).
         """
 
-        project = await self._get_project_or_404(project_id)
+        project = await get_or_raise_404(self.project_repo.read, project_id, Project)
 
-        permission = self.authz_service.can_archive_project(
-            subject=current_subject, project=project,
+        permission = await self.authz_service.can_archive_project(
+            subject=current_subject, project_id=project_id
         )
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
 
         project.archive(archived_by=current_subject.id)
         await self.project_repo.update(project)
-        await self.session.commit()
-
-        for event in project.collect_events():
-            await self.event_publisher.publish(event)
+        await finalize(self.uow, project, event_publisher=self.event_publisher)
 
         return map_project_to_response(project)
 

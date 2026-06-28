@@ -1,65 +1,91 @@
-from src.iam.domain.authz import BaseAuthContext, PermissionResult, Subject
-from src.iam.domain.entities import User
+from uuid import UUID
 
-from .entities import Project, ProjectMembership
-from .repos import ProjectMembershipRepository
+from src.iam.domain.authz import AllOf, AnyOf, Not, PermissionResult, Subject
+from src.iam.domain.entities import User
+from src.iam.domain.rules import IsAdminRule, IsStaffRule
+
+from .entities import Project, ProjectMember
+from .repos import ProjectMemberRepository
 from .rules import (
-    AddMemberContext,
-    AddMemberRule,
-    CreateProjectRule,
-    IsOwnerOrAdminRule,
-    ManageProjectRule,
-    ProjectContext,
-    RemoveMemberContext,
-    RemoveMemberRule,
+    GrantProjectRoleRule,
+    IsProjectManagerRule,
+    IsProjectOwnerOrManagerRule,
+    IsProjectOwnerRule,
+    ProjectMemberExistsRule,
+    TargetRoleAssignmentRule,
 )
 from .vo import ProjectRole
 
 
 class ProjectAuthZService:
-    def __init__(self, membership_repo: ProjectMembershipRepository) -> None:
-        self.membership_repo = membership_repo
+    def __init__(self, member_repo: ProjectMemberRepository) -> None:
+        self.member_repo = member_repo
 
     @staticmethod
     def can_create_project(subject: Subject) -> PermissionResult:
-        ctx = BaseAuthContext(subject)
-        return CreateProjectRule.check(ctx)
+        return IsStaffRule(subject).check()
 
-    @staticmethod
-    def can_archive_project(subject: Subject, project: Project) -> PermissionResult:
-        ctx = ProjectContext(subject=subject, project=project)
-        return IsOwnerOrAdminRule.check(ctx)
+    async def can_archive_project(self, subject: Subject, project_id: UUID) -> PermissionResult:
+        rules = [IsAdminRule(subject)]
 
-    async def can_manage_project(self, subject: Subject, project: Project) -> PermissionResult:
-        membership = await self.membership_repo.find(project.id, subject.id)
-        ctx = ProjectContext(subject=subject, project=project, current_membership=membership)
-        return ManageProjectRule.check(ctx)
+        member = await self.member_repo.find(project_id, subject.id)
+        rules.append(
+            AllOf(
+                ProjectMemberExistsRule(member),
+                IsProjectOwnerRule(member),
+            )
+        )
+
+        return AnyOf(*rules).check()
+
+    async def can_manage_project(self, subject: Subject, project_id: UUID) -> PermissionResult:
+        rules = [IsAdminRule(subject)]
+
+        member = await self.member_repo.find(project_id, subject.id)
+        rules.append(
+            AllOf(
+                ProjectMemberExistsRule(member),
+                AnyOf(
+                    IsProjectManagerRule(member),
+                    IsProjectOwnerRule(member),
+                )
+            )
+        )
+
+        return AnyOf(*rules).check()
 
     async def can_add_member(
             self,
             subject: Subject,
             project: Project,
             invitee: User,
-            target_role: ProjectRole,
+            target_roles: set[ProjectRole],
     ) -> PermissionResult:
-        membership = await self.membership_repo.find(project.id, subject.id)
-        ctx = AddMemberContext(
-            subject=subject,
-            project=project,
-            current_membership=membership,
-            invitee=invitee,
-            target_role=target_role,
+        member = await self.member_repo.find(project.id, subject.id)
+        actor_policy = AnyOf(
+            IsAdminRule(subject),
+            AllOf(
+                ProjectMemberExistsRule(member),
+                TargetRoleAssignmentRule(member, target_roles),
+            )
         )
-        return AddMemberRule.check(ctx)
+        invitee_policy = GrantProjectRoleRule(invitee, target_roles)
+        return AllOf(actor_policy, invitee_policy).check()
 
     async def can_remove_member(
-            self, subject: Subject, project: Project, membership_to_remove: ProjectMembership
+            self, subject: Subject, project_id: UUID, member_to_remove: ProjectMember
     ) -> PermissionResult:
-        membership = await self.membership_repo.find(project.id, subject.id)
-        ctx = RemoveMemberContext(
-            subject=subject,
-            project=project,
-            current_membership=membership,
-            membership_to_remove=membership_to_remove,
+        rules = [IsAdminRule(subject)]
+
+        actor_member = await self.member_repo.find(project_id, subject.id)
+
+        rules.append(
+            AllOf(
+                ProjectMemberExistsRule(actor_member),
+                IsProjectOwnerOrManagerRule(actor_member),
+                ProjectMemberExistsRule(member_to_remove),
+                Not(IsProjectOwnerRule(member_to_remove)),
+            )
         )
-        return RemoveMemberRule.check(ctx)
+
+        return AnyOf(*rules).check()

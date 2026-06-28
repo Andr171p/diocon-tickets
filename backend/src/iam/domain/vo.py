@@ -2,7 +2,7 @@ from typing import ClassVar
 
 import re
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import StrEnum, auto
 
 from email_validator import EmailNotValidError, validate_email
 
@@ -13,21 +13,21 @@ class UserRole(StrEnum):
     """Роли пользователей"""
 
     # Клиентские
-    CUSTOMER_ADMIN = "customer_admin"  # администратор клиентской стороны
-    CUSTOMER = "customer"  # клиент / обычный пользователь
+    CUSTOMER_ADMIN = auto()  # администратор клиентской стороны
+    CUSTOMER = auto()  # клиент / обычный пользователь
 
     # Команда поддержки
-    SUPPORT_AGENT = "support_agent"  # сотрудник поддержки (1 линия)
-    SUPPORT_MANAGER = "support_manager"  # старший сотрудник поддержки (team lead)
+    SUPPORT_AGENT = auto()  # сотрудник поддержки (1 линия)
+    SUPPORT_MANAGER = auto()  # старший сотрудник поддержки (team lead)
 
     # Команда разработки
-    DEVELOPER = "developer"
+    DEVELOPER = auto()
 
     # Бизнес роли
-    ACCOUNT_MANAGER = "account_manager"
-    FINANCE = "finance"
+    ACCOUNT_MANAGER = auto()
+    FINANCE = auto()
 
-    ADMIN = "admin"  # системный администратор
+    ADMIN = auto()  # системный администратор
 
     def is_customer(self) -> bool:
         return self.value in {self.CUSTOMER, self.CUSTOMER_ADMIN}
@@ -35,7 +35,7 @@ class UserRole(StrEnum):
     def is_support(self) -> bool:
         return self.value in {self.SUPPORT_AGENT, self.SUPPORT_MANAGER, self.ADMIN}
 
-    def is_internal(self) -> bool:
+    def is_staff(self) -> bool:
         return self.value not in {self.CUSTOMER, self.CUSTOMER_ADMIN}
 
 

@@ -42,7 +42,7 @@ class TestCreateMembership:
     def test_create_membership_with_any_role_success(self, project_factory, project_role):
         project = project_factory(status=ProjectStatus.ACTIVE)  # Явно указываем статус
         created_by = uuid4()
-        membership = project.create_membership(
+        membership = project.create_member(
             user_id=uuid4(), project_role=project_role, created_by=created_by,
         )
 
@@ -53,7 +53,7 @@ class TestCreateMembership:
         project = project_factory(status=ProjectStatus.ARCHIVED)
 
         with pytest.raises(InvalidStateError):
-            project.create_membership(
+            project.create_member(
                 user_id=uuid4(), project_role=ProjectRole.CONTRIBUTOR, created_by=uuid4(),
             )
 

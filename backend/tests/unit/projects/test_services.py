@@ -25,7 +25,7 @@ def project_service(
     return ProjectService(
         session=mock_session,
         project_repo=fake_project_repo,
-        membership_repo=fake_membership_repo,
+        member_repo=fake_membership_repo,
         user_repo=fake_user_repo,
         event_publisher=event_publisher,
     )

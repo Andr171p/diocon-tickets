@@ -1,5 +1,5 @@
 from ..shared.schemas import Page
-from .domain.entities import Project, ProjectMembership, ProjectStage
+from .domain.entities import Project, ProjectMember, ProjectStage
 from .schemas import (
     ProjectDetailedResponse,
     ProjectMembershipResponse,
@@ -8,7 +8,7 @@ from .schemas import (
 )
 
 
-def map_membership_to_response(membership: ProjectMembership) -> ProjectMembershipResponse:
+def map_membership_to_response(membership: ProjectMember) -> ProjectMembershipResponse:
     return ProjectMembershipResponse(
         project_id=membership.project_id,
         project_role=membership.project_role,
@@ -58,7 +58,7 @@ def map_project_to_response(project: Project) -> ProjectResponse:
 
 
 def map_project_to_detailed_response(
-        project: Project, memberships: Page[ProjectMembership],
+        project: Project, memberships: Page[ProjectMember],
 ) -> ProjectDetailedResponse:
     return ProjectDetailedResponse(
         id=project.id,

@@ -1,28 +1,28 @@
+from typing import Annotated, Self
+
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
+
+from typing_extensions import Doc
 
 from src.shared.domain.entities import AggregateRoot, Entity
-from src.shared.domain.exceptions import InvalidStateError, InvariantViolationError, NotFoundError
+from src.shared.domain.exceptions import InvalidStateError, InvariantViolationError
 from src.shared.utils.time import current_datetime
 
 from .events import (
     ProjectArchived,
     ProjectCreated,
-    ProjectMembershipCreated,
-    ProjectMembershipRemoved,
-    ProjectStageCompleted,
-    ProjectStageSkipped,
-    ProjectStageStarted,
+    ProjectMemberCreated,
+    ProjectMemberRemoved,
 )
 from .vo import ProjectKey, ProjectRole, ProjectStageStatus, ProjectStatus
 
 
 @dataclass(kw_only=True)
-class ProjectMembership(Entity):
+class ProjectMember(Entity):
     """
-    Пользователь внутри проекта с выделенной ролью.
-    Появляется в проекте через простое добавление.
+    Участник проекта, имеет ограниченный набор ролей в рамках одного проекта.
     """
 
     project_id: UUID
@@ -30,8 +30,15 @@ class ProjectMembership(Entity):
     user_id: UUID
     created_by: UUID
 
-    def has_role(self, role: ProjectRole) -> bool:
-        return role in self.project_roles
+    def has_role(self, project_role: ProjectRole) -> bool:
+        return project_role in self.project_roles
+
+    def grant_role(self, project_role: ProjectRole) -> None:
+        if project_role in self.project_roles:
+            return
+
+        self.project_roles.append(project_role)
+        self.updated_at = current_datetime()
 
     def remove(self, removed_by: UUID) -> None:
         if self.is_deleted:
@@ -40,9 +47,8 @@ class ProjectMembership(Entity):
         self.deleted_at = current_datetime()
 
         self.register_event(
-            ProjectMembershipRemoved(
+            ProjectMemberRemoved(
                 project_id=self.project_id,
-                project_role=self.project_role,
                 user_id=self.user_id,
                 removed_by=removed_by,
             ),
@@ -57,28 +63,24 @@ class ProjectStage(Entity):
 
     project_id: UUID
     name: str
-    order: int
+    order: Annotated[int, Doc("Порядковый номер этапа")]
 
     status: ProjectStageStatus
 
-    # Плановые даты (для планирования и диаграммы Ганта)
-    planned_start: date | None = None
-    planned_end: date | None = None
+    planned_start: Annotated[date | None, Doc("Плановая дата начала")] = None
+    planned_end: Annotated[date | None, Doc("Плановая дата завершения")] = None
 
-    # Фактические даты
-    started_at: datetime | None = None
-    completed_at: datetime | None = None
-    responsible_id: UUID | None = None  # Ответственный за этап
+    started_at: Annotated[datetime | None, Doc("Фактическое время начала")] = None
+    completed_at: Annotated[datetime | None, Doc("Фактическое время завершения")] = None
+    responsible_id: Annotated[UUID | None, Doc("Ответственный за этап")] = None
 
     description: str | None = None
-    completion_criteria: list[str] = field(default_factory=list)  # Критерии завершения
+    completion_criteria: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        # Название этапа не может быть пустым
         if not self.name.strip():
             raise ValueError("Project stage name cannot be empty")
 
-        # Порядковый номер этапа не может быть
         if self.order < 1:
             raise ValueError(
                 "Project stage order cannot be less then 1. "
@@ -99,14 +101,18 @@ class ProjectStage(Entity):
 
     @property
     def is_overdue(self) -> bool:
-        """Просрочен ли срок выполнения"""
+        """
+        Просрочен ли срок выполнения.
+        """
 
         today = current_datetime().date()
         return bool(self.planned_end is not None and today > self.planned_end)
 
     @property
     def planned_duration_days(self) -> int | None:
-        """Продолжительность этапа в днях"""
+        """
+        Плановая продолжительность этапа в днях.
+        """
 
         if self.planned_start is not None and self.planned_end is not None:
             return (self.planned_end - self.planned_start).days + 1
@@ -114,7 +120,9 @@ class ProjectStage(Entity):
         return None
 
     def establish_planned_schedule(self, start: date, end: date) -> None:
-        """Запланировать график проведения этапа"""
+        """
+        Запланировать график проведения этапа.
+        """
 
         if start > end:
             raise ValueError("Start planned date cannot be greater than planned planned_end date")
@@ -135,7 +143,9 @@ class ProjectStage(Entity):
             responsible_id: UUID | None = None,
             completion_criteria: list[str] | None = None,
     ) -> None:
-        """Обновление справочной информации этапа"""
+        """
+        Обновить справочную информацию этапа.
+        """
 
         changed = False
 
@@ -160,7 +170,9 @@ class ProjectStage(Entity):
             self.updated_at = current_datetime()
 
     def start(self) -> None:
-        """Начать этап проекта"""
+        """
+        Начать этап проекта.
+        """
 
         if self.status != ProjectStageStatus.PLANNED:
             raise InvalidStateError("Only PLANNED stage can be started")
@@ -178,7 +190,9 @@ class ProjectStage(Entity):
         self.updated_at = current_datetime()
 
     def skip(self) -> None:
-        """Пропустить запланированный этап (без выполнения)"""
+        """
+        Пропустить запланированный этап (без выполнения).
+        """
 
         if self.status in {ProjectStageStatus.COMPLETED, ProjectStageStatus.SKIPPED}:
             raise InvalidStateError(f"Cannot skip a stage with status {self.status}")
@@ -194,7 +208,7 @@ class Project(AggregateRoot):
     """
 
     name: str
-    key: ProjectKey  # Короткий уникальный ключ
+    key: ProjectKey
     description: str | None = None
     counterparty_id: UUID | None = None
     status: ProjectStatus
@@ -202,7 +216,6 @@ class Project(AggregateRoot):
     owner_id: UUID
     created_by: UUID
 
-    # Этапы проекта
     current_stage_id: UUID | None = None
     stages: list[ProjectStage] = field(default_factory=list)
 
@@ -214,271 +227,75 @@ class Project(AggregateRoot):
     def create(
             cls,
             name: str,
-            key: str,
+            key: ProjectKey,
             created_by: UUID,
             description: str | None = None,
             counterparty_id: UUID | None = None,
-    ) -> "Project":
-        project_id = uuid4()
+    ) -> Self:
+        stripped_name = name.strip()
         project = cls(
-            id=project_id,
-            name=name.strip(),
-            key=ProjectKey(key),
+            name=stripped_name,
+            key=key,
             description=description,
             counterparty_id=counterparty_id,
             owner_id=created_by,
             status=ProjectStatus.ACTIVE,
             created_by=created_by,
         )
-
         project.register_event(
             ProjectCreated(
-                project_id=project_id,
+                project_id=project.id,
                 name=name,
                 owner_id=project.owner_id,
                 created_by=created_by,
                 counterparty_id=counterparty_id,
             )
         )
-
         return project
 
-    def create_membership(
-            self, user_id: UUID, project_role: ProjectRole, created_by: UUID
-    ) -> ProjectMembership:
-        """Создание участника в проекте"""
+    def create_member(
+            self, user_id: UUID, project_roles: list[ProjectRole], created_by: UUID
+    ) -> ProjectMember:
+        """
+        Создание участника в проекте (фабричный метод).
+        """
 
-        # Нельзя создавать участников в архивном проекте
         if self.status == ProjectStatus.ARCHIVED:
             raise InvalidStateError("Cannot add member in ARCHIVED project")
 
-        membership = ProjectMembership(
+        unique_project_roles = set(project_roles)
+
+        if len(unique_project_roles) > len(ProjectRole):
+            raise InvariantViolationError("Too many project roles granted")
+
+        member = ProjectMember(
             project_id=self.id,
+            project_roles=list(project_roles),
             user_id=user_id,
-            project_role=project_role,
             created_by=created_by,
         )
 
         self.register_event(
-            ProjectMembershipCreated(
+            ProjectMemberCreated(
                 project_id=self.id,
-                project_role=project_role,
                 user_id=user_id,
                 created_by=created_by,
             )
         )
 
-        return membership
+        return member
 
     def archive(self, archived_by: UUID) -> None:
-        """Архивация проекта"""
-
-        if not self.is_deleted:
-            self.status = ProjectStatus.ARCHIVED
-            self.deleted_at = current_datetime()
-
-            self.register_event(
-                ProjectArchived(project_id=self.id, archived_by=archived_by)
-            )
-
-    def _sort_stages(self) -> None:
-        """Сортировка этапов проекта по их порядку"""
-
-        self.stages.sort(key=lambda x: x.order)
-
-    def add_stage(
-            self,
-            name: str,
-            description: str | None = None,
-            order: int | None = None,
-            planned_start: date | None = None,
-            planned_end: date | None = None,
-    ) -> ProjectStage:
-        """Добавление этапа в проект, по умолчанию добавление в коней списка этапов"""
-
-        # Определение и валидация порядка этапа
-        if order is None:
-            order = len(self.stages) + 1
-        elif order < 1:
-            raise ValueError("Stage order must be >= 1")
-
-        # Проверка порядка на уникальность
-        if any(stage.order == order for stage in self.stages):
-            raise InvariantViolationError(f"Stage with order {order} already exists")
-
-        # Создание этапа
-        stage = ProjectStage(
-            project_id=self.id,
-            name=name.strip(),
-            description=description.strip(),
-            order=order,
-            status=ProjectStageStatus.PLANNED,
-            planned_start=planned_start,
-            planned_end=planned_end,
-        )
-        self.stages.append(stage)
-        self.updated_at = current_datetime()
-
-        # Сортировка по порядку
-        self._sort_stages()
-
-        return stage
-
-    def reorder_stages(self, new_order: list[UUID]) -> None:
-        """Изменение порядка этапов"""
-
-        if len(new_order) != len(self.stages):
-            raise ValueError("New order must contain all stages")
-
-        # Проверка того, что все ID переданных этапов существуют
-        stage_dict = {stage.id: stage for stage in self.stages}
-
-        if set(new_order) != set(stage_dict.keys()):
-            raise ValueError("Invalid stage IDs in new order")
-
-        # Применение нового порядка
-        self.stages = [stage_dict[stage_id] for stage_id in new_order]
-
-        # Пересчёт порядка у всех этапов
-        for i, stage in enumerate(self.stages, start=1):
-            stage.order = i
-
-    def _get_next_stage_order_to_start(self) -> int | None:
         """
-        Возвращает порядковый номер следующего этапа, который можно начать.
-        Все предыдущие этапы должны быть завершены.
+        Архивирование проекта (мягкое удаление).
         """
 
-        sorted_stages = sorted(self.stages, key=lambda x: x.order)
-        if not sorted_stages:
-            return None
+        if self.is_deleted:
+            return
 
-        for stage in sorted_stages:
-            if stage.status == ProjectStageStatus.PLANNED:
-                # Все предыдущие этапы должны быть завершены
-                all_previous_completed = all(
-                    prev_stage.status == ProjectStageStatus.COMPLETED
-                    for prev_stage in sorted_stages
-                    if prev_stage.order < stage.order
-                )
-                if all_previous_completed:
-                    return stage.order
-
-            # Есть активный этап - новый начинать нельзя
-            elif stage.status == ProjectStageStatus.ACTIVE:
-                return None
-
-        return None
-
-    def find_stage(self, stage_id: UUID) -> ProjectStage | None:
-        return next((stage for stage in self.stages if stage.id == stage_id), None)
-
-    def start_stage(self, stage_id: UUID, started_by: UUID) -> None:
-        """Начать новую стадию проекта, необходимо закончить предыдущею"""
-
-        stage = self.find_stage(stage_id)
-        if not stage:
-            raise NotFoundError(f"Stage with ID {stage_id} does not exist in project")
-
-        # Можно начать только следующий по порядку этап
-        excepted_order = self._get_next_stage_order_to_start()
-        if excepted_order is None:
-            raise InvalidStateError(
-                "No stage can be started right now "
-                "(maybe project is completed or an active stage exists)"
-            )
-
-        if stage.order != excepted_order:
-            raise InvalidStateError(
-                f"Cannot planned_start stage '{stage.name}' with order {stage.order}. "
-                f"Excepted stage order - {excepted_order}"
-            )
-
-        stage.start()
-        self.current_stage_id = stage.id
-        self.updated_at = current_datetime()
+        self.status = ProjectStatus.ARCHIVED
+        self.deleted_at = current_datetime()
 
         self.register_event(
-            ProjectStageStarted(
-                project_id=self.id,
-                stage_id=stage.id,
-                started_by=started_by,
-            )
+            ProjectArchived(project_id=self.id, archived_by=archived_by)
         )
-
-    def _is_project_finalized(self) -> bool:
-        """Завершён ли проект (все этапа должны быть пройдены)."""
-
-        return all(
-            stage.status in {ProjectStageStatus.COMPLETED, ProjectStageStatus.SKIPPED}
-            for stage in self.stages
-        )
-
-    def complete_stage(self, stage_id: UUID, completed_by: UUID) -> None:
-        """Успешное завершение этапа проекта"""
-
-        stage = self.find_stage(stage_id)
-        if stage is None:
-            raise NotFoundError(f"Stage with ID {stage_id} does not exist in project")
-
-        # Этап должен быть активным для успешного завершения
-        if stage.status != ProjectStageStatus.ACTIVE:
-            raise InvalidStateError("Only ACTIVE stages can be completed")
-
-        stage.complete()
-
-        # Если это был последний этап - то проект успешно завершён
-        # Перевод в статус - COMPLETED
-        if self._is_project_finalized():
-            self.status = ProjectStatus.COMPLETED
-
-        # Обнуление текущей стадии, так как этап успешно завершён
-        if self.current_stage_id == stage.id:
-            self.current_stage_id = None
-
-        self.updated_at = current_datetime()
-
-        self.register_event(
-            ProjectStageCompleted(
-                project_id=self.id,
-                stage_id=stage.id,
-                completed_by=completed_by,
-            )
-        )
-
-    def skip_stage(self, stage_id: UUID, skipped_by: UUID) -> None:
-        """Пропуск этапа проекта"""
-
-        stage = self.find_stage(stage_id)
-        if stage is None:
-            raise NotFoundError(f"Stage with ID {stage_id} does not exist in project")
-
-        stage.skip()
-        self.updated_at = current_datetime()
-
-        if self.current_stage_id == stage.id:
-            self.current_stage_id = None
-
-        if self._is_project_finalized():
-            self.status = ProjectStatus.COMPLETED
-
-        self.register_event(
-            ProjectStageSkipped(
-                project_id=self.id,
-                stage_id=stage.id,
-                skipped_by=skipped_by,
-            )
-        )
-
-    def remove_stage(self, stage_id: UUID) -> None:
-        """Удаление этапа проекта"""
-
-        stage = self.find_stage(stage_id)
-        if stage is None:
-            raise NotFoundError(f"Stage with ID {stage_id} does not exist in project")
-
-        self.stages = [stage for stage in self.stages if stage.id != stage_id]
-
-        self._sort_stages()
-        for i, stage in enumerate(self.stages, start=1):
-            stage.order = i

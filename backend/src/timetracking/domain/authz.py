@@ -49,7 +49,7 @@ def can_edit_worklog(worklog: Worklog, user_id: UUID, user_role: UserRole) -> Pe
 def can_create_timesheet(user_role: UserRole) -> PermissionResult:
     """Может ли пользователь сформировать ЛУРВ"""
 
-    if not user_role.is_internal():
+    if not user_role.is_staff():
         return PermissionResult(False, "Only internal staff can create timesheet")
 
     return PermissionResult(True)

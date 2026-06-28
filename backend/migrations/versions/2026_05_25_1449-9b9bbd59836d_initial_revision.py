@@ -165,7 +165,7 @@ def upgrade() -> None:
     sa.Column('username', sa.String(), nullable=True),
     sa.Column('full_name', sa.String(), nullable=True),
     sa.Column('avatar_url', sa.String(), nullable=True),
-    sa.Column('role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'DEVELOPER', 'ACCOUNT_MANAGER', 'FINANCE', 'ADMIN', name='userrole'), nullable=False),
+    sa.Column('project_role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'DEVELOPER', 'ACCOUNT_MANAGER', 'FINANCE', 'ADMIN', name='userrole'), nullable=False),
     sa.Column('counterparty_id', sa.Uuid(), nullable=True),
     sa.Column('password_hash', sa.String(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),

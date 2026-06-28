@@ -1,7 +1,7 @@
 __all__ = [
-    "ProjectMembershipService",
+    "ProjectMemberService",
     "ProjectService",
 ]
 
-from .membership import ProjectMembershipService
+from .member import ProjectMemberService
 from .project import ProjectService

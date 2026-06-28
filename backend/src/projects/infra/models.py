@@ -9,20 +9,20 @@ from ...core.database import Base
 from ..domain.vo import ProjectRole, ProjectStageStatus, ProjectStatus
 
 
-class ProjectMembershipOrm(Base):
-    __tablename__ = "project_memberships"
+class ProjectMemberOrm(Base):
+    __tablename__ = "project_members"
 
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), unique=False)
     user_id: Mapped[UUID]
-    project_role: Mapped[ProjectRole] = mapped_column(Enum(ProjectRole))
+    project_roles: Mapped[set[ProjectRole]] = mapped_column(JSONB)
     created_by: Mapped[UUID]
 
-    project: Mapped["ProjectOrm"] = relationship(back_populates="memberships")
+    project: Mapped["ProjectOrm"] = relationship(back_populates="members")
 
     __table_args__ = (
-        UniqueConstraint("project_id", "user_id", name="uq_membership"),
-        Index("ix_project_memberships_project_role", "project_id", "project_role"),
-        Index("ix_project_memberships_user", "user_id"),
+        UniqueConstraint("project_id", "user_id", name="uq_project_member"),
+        Index("ix_project_members_project_role", "project_id", "project_role"),
+        Index("ix_project_members_user", "user_id"),
     )
 
 
@@ -75,7 +75,7 @@ class ProjectOrm(Base):
         back_populates="project", lazy="selectin", uselist=True, cascade="all, delete-orphan"
     )
 
-    memberships: Mapped[list["ProjectMembershipOrm"]] = relationship(
+    members: Mapped[list["ProjectMemberOrm"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
 

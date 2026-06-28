@@ -22,6 +22,8 @@ class UnitOfWork(Protocol):
 
     async def rollback(self) -> None: ...
 
+    async def flush(self) -> None: ...
+
 
 class Repository[EntityT: Entity](Protocol):
 
@@ -41,7 +43,7 @@ class Repository[EntityT: Entity](Protocol):
 
 
 async def get_or_raise_404[EntityT: Entity](
-        loader: Callable[[UUID, ...], Awaitable[EntityT | None]],
+        loader: Callable[[UUID], Awaitable[EntityT | None]],
         uid: UUID,
         aggregate_type: type[EntityT],
 ) -> EntityT:
