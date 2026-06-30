@@ -24,7 +24,7 @@ async def on_ticket_created(
     for notification in notifications:
         await service.notify(notification)
 
-@router.subscriber("tickets.assigned")
+@router.subscriber(queue=RabbitQueue("tickets.assigned", durable=True))
 async def on_ticket_assigned(
         event: TicketAssigned,
         target_resolver: Annotated[TargetResolver, Depends(get_target_resolver)],
