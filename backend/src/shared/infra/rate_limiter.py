@@ -81,8 +81,8 @@ class RateLimitResult:
 
     allowed: bool
     current: int
-    remaining: int | None  # None при ошибке
-    reset_at: float  # Unix timestamp
+    remaining: int | None
+    reset_at: float
 
 
 class RateLimiter:

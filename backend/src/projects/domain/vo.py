@@ -1,10 +1,10 @@
-from typing import ClassVar
+from typing import ClassVar, Self
 
 import re
 from dataclasses import dataclass
 from enum import StrEnum, auto
 
-from ...shared.domain.vo import ValueObject
+from src.shared.domain.vo import ValueObject
 
 
 class ProjectStatus(StrEnum):
@@ -29,12 +29,36 @@ class ProjectStageStatus(StrEnum):
 class ProjectRole(StrEnum):
     """Роли внутри конкретного проекта"""
 
-    OWNER = "owner"  # Полный контроль над проектом
-    MANAGER = "manager"  # Может управлять участниками, настройками
-    CONTRIBUTOR = "contributor"  # Обычный участник (агент, разработчик)
-    VIEWER = "viewer"  # только просмотр (аудитор)
-    CUSTOMER = "customer"  # клиент (принадлежит контрагенту)
-    CUSTOMER_MANAGER = "customer_manager"  # расширенные права (менеджер со стороны клиента)
+    OWNER = auto()
+    MANAGER = auto()  # Может управлять участниками, настройками
+    CONTRIBUTOR = auto()  # Обычный участник (агент, разработчик)
+    VIEWER = auto()  # только просмотр (аудитор)
+    CUSTOMER = auto()  # клиент (принадлежит контрагенту)
+    CUSTOMER_MANAGER = auto()  # расширенные права (менеджер со стороны клиента)
+
+    @property
+    def is_staff(self) -> bool:
+        return self in {self.CONTRIBUTOR, self.MANAGER, self.OWNER}
+
+    @property
+    def is_customer(self) -> bool:
+        return self in {self.CUSTOMER, self.CUSTOMER_MANAGER}
+
+    @classmethod
+    def staff_roles(cls) -> set[Self]:
+        """
+        Набор ролей для внутренних сотрудников.
+        """
+
+        return {cls.CONTRIBUTOR, cls.MANAGER, cls.OWNER}
+
+    @classmethod
+    def customer_roles(cls) -> set[Self]:
+        """
+        Набор ролей для внешних клиентов.
+        """
+
+        return {cls.VIEWER, cls.CUSTOMER, cls.CUSTOMER_MANAGER}
 
 
 @dataclass(frozen=True)
@@ -56,16 +80,14 @@ class ProjectKey(ValueObject):
     value: str
 
     def __post_init__(self) -> None:
-        # 1. Ключ не может быть пустым
         if not self.value:
             raise ValueError("Project key cannot be empty")
 
-        # 2. Нормализация строки
         cleaned = re.sub(r"[^A-Za-z0-9]", "", self.value.upper().strip())
         if not self.PATTERN.match(cleaned):
             raise ValueError(
                 f"Invalid project key format: '{self.value}'. "
-                "Key must be 2-10 characters long, start with a letter (A-Z), "
+                "Key must be 2-10 characters long, planned_start with a letter (A-Z), "
                 "and contain only letters and digits (no spaces, underscores, or Cyrillic)."
             )
 

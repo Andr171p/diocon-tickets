@@ -90,7 +90,7 @@ class CounterpartyService:
             email=data.email,
             address=data.address,
         )
-        await self.repository.upsert(counterparty)
+        await self.repository.update(counterparty)
         await self.session.commit()
 
         return map_counterparty_to_response(counterparty)
@@ -141,7 +141,7 @@ class CounterpartyService:
             email=data.email,
             messengers=data.messengers,
         )
-        await self.repository.upsert(counterparty)
+        await self.repository.update(counterparty)
         await self.session.commit()
 
         return map_counterparty_to_response(counterparty)
@@ -173,7 +173,7 @@ class CounterpartyService:
 
         # 2. Удаление контактного лица и обновление сущности
         counterparty.remove_contact_person(Phone(phone), email)
-        await self.repository.upsert(counterparty)
+        await self.repository.update(counterparty)
         await self.session.commit()
 
         return map_counterparty_to_response(counterparty)

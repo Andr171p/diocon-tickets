@@ -61,7 +61,7 @@ class ReactionService:
         else:
             # 3.3. Пользователь нажал на другую реакцию меняем тип
             existing.toggle(reaction_type, current_user.role)
-            await self.reaction_repo.upsert(existing)
+            await self.reaction_repo.update(existing)
             events_to_publish.extend(existing.collect_events())
 
         await self.session.commit()

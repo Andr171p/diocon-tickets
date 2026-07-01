@@ -37,7 +37,7 @@ def create_customer(
     """Создание клиента - тот кто публикует тикеты"""
 
     if user_role in {UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER}:
-        raise InvariantViolationError("Invalid role chosen for customer")
+        raise InvariantViolationError("Invalid project_role chosen for customer")
     return User(
         email=email,
         password_hash=SecretStr(password_hash),
@@ -58,7 +58,7 @@ def create_support(
     """Создание агента поддержки - тот кто получает тикеты и назначает их исполнителям"""
 
     if user_role not in {UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER}:
-        raise InvariantViolationError("Invalid role chosen for support")
+        raise InvariantViolationError("Invalid project_role chosen for support")
 
     return User(
         email=email,
@@ -120,7 +120,7 @@ def invite_support(
     """Создание приглашения для сотрудника поддержки"""
 
     if assigned_role not in {UserRole.SUPPORT_MANAGER, UserRole.SUPPORT_AGENT}:
-        raise InvariantViolationError("Invalid role assignment for support")
+        raise InvariantViolationError("Invalid project_role assignment for support")
 
     return Invitation(
         email=email,
@@ -136,7 +136,7 @@ def invite_customer(
     """Создание приглашения для клиента"""
 
     if assigned_role not in {UserRole.CUSTOMER, UserRole.CUSTOMER_ADMIN}:
-        raise InvariantViolationError("Invalid role assignment for customer")
+        raise InvariantViolationError("Invalid project_role assignment for customer")
 
     return Invitation(
         email=email,
@@ -150,8 +150,8 @@ def invite_customer(
 def invite_internal(invited_by: UUID, email: str, assigned_role: UserRole) -> Invitation:
     """Создание приглашения для внутреннего сотрудника"""
 
-    if not assigned_role.is_internal():
-        raise InvariantViolationError("Invalid role assignment for internal user")
+    if not assigned_role.is_staff():
+        raise InvariantViolationError("Invalid project_role assignment for internal user")
 
     return Invitation(
         email=email,

@@ -10,7 +10,7 @@ from src.iam.domain.vo import UserRole
 from src.notifications.domain.entities import Notification, UserPreference
 from src.notifications.domain.vo import NotificationType
 from src.products.domain.entities import SoftwareProduct
-from src.projects.domain.entities import Project, ProjectMembership
+from src.projects.domain.entities import Project, ProjectMember
 from src.projects.domain.vo import ProjectKey, ProjectRole
 from src.shared.infra.repos import InMemoryRepository
 from src.shared.schemas import Page, Pagination
@@ -116,7 +116,7 @@ class InMemoryInvitationRepository(InMemoryRepository[Invitation]):
         return None
 
 
-class InMemoryMembershipRepository(InMemoryRepository[ProjectMembership]):
+class InMemoryMembershipRepository(InMemoryRepository[ProjectMember]):
 
     @override
     async def paginate(
@@ -124,7 +124,7 @@ class InMemoryMembershipRepository(InMemoryRepository[ProjectMembership]):
             pagination: Pagination,
             project_id: UUID | None = None,
             include_project_roles: list[ProjectRole] | None = None,
-    ) -> Page[ProjectMembership]:
+    ) -> Page[ProjectMember]:
         all_memberships = list(self.data.values())
 
         filtered_memberships = [
@@ -145,14 +145,14 @@ class InMemoryMembershipRepository(InMemoryRepository[ProjectMembership]):
             size=pagination.size,
         )
 
-    async def find(self, project_id: UUID, user_id: UUID) -> ProjectMembership | None:
+    async def find(self, project_id: UUID, user_id: UUID) -> ProjectMember | None:
         for membership in self.data.values():
             if membership.project_id == project_id and membership.user_id == user_id:
                 return membership
 
         return None
 
-    async def get_by_user(self, user_id: UUID) -> list[ProjectMembership]:
+    async def get_by_user(self, user_id: UUID) -> list[ProjectMember]:
         return [
             membership
             for membership in self.data.values()
@@ -176,7 +176,7 @@ class InMemoryProjectRepository(InMemoryRepository[Project]):
                 existing.add(key)
         return existing
 
-    async def get_membership(self, project_id: UUID, user_id: UUID) -> ProjectMembership | None:
+    async def get_membership(self, project_id: UUID, user_id: UUID) -> ProjectMember | None:
         for project in self.data.values():
             if project.id == project_id:
                 return next(

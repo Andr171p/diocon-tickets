@@ -3,12 +3,8 @@ from uuid import UUID, uuid4
 import pytest
 
 from src.iam.domain.vo import UserRole
-from src.projects.domain.entities import Project, ProjectMembership
-from src.projects.domain.services import (
-    ProjectAccessService,
-    generate_project_key,
-    get_allowed_project_roles_for_user,
-)
+from src.projects.domain.entities import Project, ProjectMember
+from src.projects.domain.services import ProjectAccessService
 from src.projects.domain.vo import ProjectRole
 from src.tickets.domain.entities import Ticket
 from src.tickets.domain.vo import TicketNumber, TicketStatus
@@ -63,7 +59,7 @@ def active_project(created_by, counterparty_id):
 def make_membership(
         project_id: UUID, user_id: UUID, project_role: ProjectRole, is_deleted: bool = False
 ):
-    return ProjectMembership(
+    return ProjectMember(
         project_id=project_id,
         user_id=user_id,
         project_role=project_role,
@@ -235,7 +231,7 @@ class TestCanAddMembers:
         )
 
         assert permission.allowed is False
-        assert "OWNER role cannot be assigned" in permission.reason
+        assert "OWNER project_role cannot be assigned" in permission.reason
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("target_user_role", [UserRole.CUSTOMER, UserRole.CUSTOMER_ADMIN])
@@ -256,11 +252,11 @@ class TestCanAddMembers:
             )
 
             assert permission.allowed is False
-            assert "cannot be assigned project role" in permission.reason
+            assert "cannot be assigned project project_role" in permission.reason
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "target_user_role", [user_role for user_role in UserRole if user_role.is_internal()]
+        "target_user_role", [user_role for user_role in UserRole if user_role.is_staff()]
     )
     async def test_internal_user_cannot_get_customer_role(
             self, access_service, active_project, target_user_role
@@ -279,7 +275,7 @@ class TestCanAddMembers:
             )
 
             assert permission.allowed is False
-            assert "cannot be assigned project role" in permission.reason
+            assert "cannot be assigned project project_role" in permission.reason
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(("target_user_role", "target_project_role"), VALID_ROLES_SET)

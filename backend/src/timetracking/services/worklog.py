@@ -140,7 +140,7 @@ class WorklogService:
             entry_date=data.entry_date,
             description=data.description,
         )
-        await self.worklog_repo.upsert(worklog)
+        await self.worklog_repo.update(worklog)
         await self.session.commit()
 
         return map_worklog_to_response(worklog)

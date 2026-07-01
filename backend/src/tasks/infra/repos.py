@@ -4,11 +4,12 @@ from uuid import UUID
 from sqlalchemy import and_, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from ...media.infra.repo import AttachmentMapper
-from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
-from ...shared.schemas import Page, Pagination
-from ...shared.utils.time import current_datetime
-from ...tickets.domain.vo import Priority, Tag
+from src.media.infra.repo import AttachmentMapper
+from src.shared.domain.vo import Priority, Tag
+from src.shared.infra.repos import ModelMapper, SqlAlchemyRepository
+from src.shared.schemas import Page, Pagination
+from src.shared.utils.time import current_datetime
+
 from ..domain.entities import Task
 from ..domain.repos import TaskView
 from ..domain.vo import StoryPoints, TaskNumber, TaskStatus
@@ -40,6 +41,7 @@ class TaskMapper(ModelMapper[Task, TaskOrm]):
             due_date=model.due_date,
             started_at=model.started_at,
             completed_at=model.completed_at,
+            working_since=model.working_since,
             created_by=model.created_by,
             tags={Tag(name=tag["name"], color=tag["color"]) for tag in model.tags},
             attachments=[
@@ -71,6 +73,7 @@ class TaskMapper(ModelMapper[Task, TaskOrm]):
             due_date=entity.due_date,
             started_at=entity.started_at,
             completed_at=entity.completed_at,
+            working_since=entity.working_since,
             created_by=entity.created_by,
             tags=[{"name": tag.name, "color": tag.color} for tag in entity.tags],
         )

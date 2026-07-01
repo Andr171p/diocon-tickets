@@ -5,8 +5,9 @@ from uuid import UUID
 from pydantic import SecretStr
 from sqlalchemy import select
 
-from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
-from ...shared.schemas import Page, Pagination
+from src.shared.infra.repos import ModelMapper, SqlAlchemyRepository
+from src.shared.schemas import Page, Pagination
+
 from ..domain.entities import Invitation, User
 from ..domain.vo import FullName, Username, UserRole
 from .models import InvitationOrm, UserOrm
@@ -52,11 +53,11 @@ class SqlUserRepository(SqlAlchemyRepository[User, UserOrm]):
 
     @override
     async def paginate(
-            self, params: Pagination, include_roles: list[UserRole] | None = None
+            self, params: Pagination, roles: list[UserRole] | None = None
     ) -> Page[User]:
         stmt = select(self.model)
-        if include_roles is not None:
-            stmt = stmt.where(self.model.role.in_(include_roles))
+        if roles is not None:
+            stmt = stmt.where(self.model.role.in_(roles))
 
         return await self._paginate(stmt, params)
 

@@ -1,18 +1,26 @@
 from typing import Annotated
 
-from fastapi import Depends, Query, WebSocket, status
+from collections.abc import Iterable
+from uuid import UUID
+
+from fastapi import Depends, Query
 from fastapi.security import OAuth2PasswordBearer
 
-from ..core.redis import redis_client
-from ..core.settings import settings
-from ..shared.dependencies import SessionDep
-from ..shared.infra.mail import SmtpMailSender
+from src.core.redis import redis_client
+from src.core.settings import settings
+from src.shared.dependencies import PaginationDep, SessionDep
+from src.shared.domain.exceptions import NotFoundError
+from src.shared.infra.mail import SmtpMailSender
+from src.shared.schemas import Page
+
+from .domain.authz import Subject
 from .domain.exceptions import PermissionDeniedError, UnauthorizedError
 from .domain.repos import InvitationRepository, TokenBlacklist, UserRepository
-from .domain.vo import UserRole
+from .domain.vo import Email, UserRole
 from .infra.blacklist import RedisTokenBlacklist
 from .infra.repos import SqlInvitationRepository, SqlUserRepository
-from .schemas import CurrentUser
+from .mappers import map_user_to_response
+from .schemas import CurrentUser, UserResponse
 from .security import validate_token
 from .services import AuthService, InvitationService
 
@@ -23,7 +31,7 @@ oauth2_scheme = OAuth2PasswordBearer(
 )
 
 
-def get_user_repo(session: SessionDep) -> UserRepository:
+def get_user_repo(session: SessionDep) -> SqlUserRepository:
     return SqlUserRepository(session)
 
 
@@ -31,11 +39,8 @@ def get_token_blacklist() -> TokenBlacklist:
     return RedisTokenBlacklist(redis_client)
 
 
-def get_invitation_repo(session: SessionDep) -> InvitationRepository:
+def get_invitation_repo(session: SessionDep) -> SqlInvitationRepository:
     return SqlInvitationRepository(session)
-
-
-UserRepoDep = Annotated[UserRepository, Depends(get_user_repo)]
 
 
 def get_auth_service(
@@ -47,9 +52,6 @@ def get_auth_service(
     return AuthService(
         session, user_repo=user_repo, invitation_repo=invitation_repo, blacklist=blacklist
     )
-
-
-AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 
 
 def get_mail_sender() -> SmtpMailSender:
@@ -68,95 +70,85 @@ def get_invitation_service(
     return InvitationService(session, repository=repository, mail_sender=mail_sender)
 
 
+AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+UserRepoDep = Annotated[UserRepository, Depends(get_user_repo)]
 InvitationServiceDep = Annotated[InvitationService, Depends(get_invitation_service)]
 
 
-async def get_current_user(
+async def get_current_subject(
         token: Annotated[str, Depends(oauth2_scheme)],
         blacklist: Annotated[TokenBlacklist, Depends(get_token_blacklist)],
-) -> CurrentUser:
-    """Получение текущего пользователя"""
-
-    # 1. Валидация токена
+) -> Subject:
     payload = validate_token(token)
-    jti, user_id = payload.get("jti"), payload.get("sub")
+    jti, sid, stype = payload.get("jti"), payload.get("sub"), payload.get("type")
 
-    # 2. Проверка на наличие в чёрных списках
     if jti is None or await blacklist.is_revoked(jti):
         raise UnauthorizedError("Token has been revoked or missing jti")
-    if user_id is None:
+
+    if sid is None:
         raise UnauthorizedError("Invalid token: missing sub claim")
 
-    return CurrentUser(
-        user_id=user_id,
-        email=payload.get("email"),
-        role=payload.get("role"),
+    return Subject(
+        id=sid,
+        type=stype,
+        email=Email(payload["email"]) if "email" in payload else None,
+        roles=payload.get("roles", []),
         counterparty_id=payload.get("counterparty_id"),
+        scopes=payload.get("scopes", []),
     )
 
 
-def require_role(*allowed_roles: UserRole):
-    """Зависимость для ограничения доступа по ролям"""
+def get_current_user(current_subject: Subject = Depends(get_current_subject)) -> CurrentUser:
+    if not current_subject.is_user:
+        raise PermissionDeniedError("Not a user")
 
-    def checker(current_user: CurrentUser = Depends(get_current_user)):
-        if current_user.role not in allowed_roles:
-            raise PermissionDeniedError("Insufficient permissions")
-        return current_user
+    return CurrentUser(
+        id=current_subject.id,
+        email=f"{current_subject.email}",
+        roles=current_subject.roles,
+        counterparty_id=current_subject.counterparty_id,
+    )
 
-    return checker
 
-
+CurrentSubjectDep = Annotated[Subject, Depends(get_current_subject)]
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
 
 
-def get_current_support_user(current_user: CurrentUserDep) -> CurrentUser:
-    """Зависимость для эндпоинтов, доступных только сотрудникам поддержки"""
+async def get_me_or_404(current_user: CurrentUserDep, user_repo: UserRepoDep) -> UserResponse:
+    user = await user_repo.read(current_user.id)
+    if user is None:
+        raise NotFoundError(f"User with ID {current_user.id} not found")
 
-    if current_user.role not in {UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER, UserRole.ADMIN}:
-        raise PermissionDeniedError("Access restricted to support staff only")
-
-    return current_user
-
-
-def get_current_customer_admin(current_user: CurrentUserDep) -> CurrentUser:
-    """Зависимость для эндпоинтов, доступных только админов клиента и выше"""
-
-    if current_user.role not in {
-        UserRole.CUSTOMER_ADMIN, UserRole.SUPPORT_AGENT, UserRole.SUPPORT_MANAGER, UserRole.ADMIN
-    }:
-        raise PermissionDeniedError("Access restricted to customer admin or higher")
-
-    return current_user
+    return map_user_to_response(user)
 
 
-CurrentSupportUserDep = Annotated[CurrentUser, Depends(get_current_support_user)]
-CurrentCustomerAdminDep = Annotated[CurrentUser, Depends(get_current_customer_admin)]
+async def get_user_or_404(user_id: UUID, user_repo: UserRepoDep) -> UserResponse:
+    user = await user_repo.read(user_id)
+    if user is None:
+        raise NotFoundError(f"User with ID {user_id} not found")
+
+    return map_user_to_response(user)
 
 
-async def get_current_user_from_ws(
-        websocket: WebSocket,
-        token: str | None = Query(None, description="Access токен"),
-        blacklist: TokenBlacklist = Depends(get_token_blacklist),
-) -> CurrentUser | None:
-    # 1. Получение access токена из текущего соединения
-    token = token or websocket.query_params.get("token")
-    if token is None:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
-        return None
+async def get_users_page(
+        pagination: PaginationDep,
+        user_repo: UserRepoDep,
+        role: Annotated[
+            list[UserRole] | None, Query(..., description="Фильтр по ролям")
+        ] = None,
+) -> Page[UserResponse]:
+    page = await user_repo.paginate(pagination, roles=role)
+    return page.to_response(map_user_to_response)
 
-    # 2. Декодирование токена и проверка нет ли его в черном списке
-    payload = validate_token(token)
-    jti, user_id = payload.get("jti"), payload.get("sub")
-    is_revoked = await blacklist.is_revoked(jti)
-    if jti is None or is_revoked or user_id is None:
-        await websocket.close(
-            code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token or blacklisted"
-        )
-        return None
 
-    return CurrentUser(
-        user_id=user_id,
-        email=payload.get("email"),
-        role=payload.get("role"),
-        counterparty_id=payload.get("counterparty_id"),
-    )
+ActiveUserDep = Annotated[UserResponse, Depends(get_me_or_404)]
+UserByIdDep = Annotated[UserResponse, Depends(get_user_or_404)]
+UsersPageDep = Annotated[Page[UserResponse], Depends(get_users_page)]
+
+
+def require_role(allowed_roles: Iterable[UserRole]):
+
+    def checker(current_subject: CurrentSubjectDep):
+        return any(current_subject.has_role(allowed_role) for allowed_role in allowed_roles)
+
+    return checker

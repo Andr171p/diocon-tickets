@@ -157,7 +157,7 @@ class TestCreateTokensForUser:
         assert access_payload["sub"] == f"{user.id}"
         assert access_payload["type"] == "access"
         assert access_payload["email"] == user.email
-        assert access_payload["role"] == user.role
+        assert access_payload["project_role"] == user.role
 
         if user.counterparty_id is not None:
             assert "counterparty_id" in access_payload
@@ -444,7 +444,7 @@ class TestInvitationServiceSendInvitation:
         invited_by = uuid4()
         email = fake.email()
 
-        with pytest.raises(ValueError, match="Invalid invite params"):
+        with pytest.raises(ValueError, match="Invalid invite pagination"):
             await mock_invitation_service.send_invitation(
                 invited_by=invited_by,
                 email=email,

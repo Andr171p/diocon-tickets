@@ -2,11 +2,13 @@ from typing import Annotated
 
 from fastapi import Depends, Query
 
-from ..iam.dependencies import UserRepoDep
-from ..projects.dependencies import ProjectAccessServiceDep, ProjectRepoDep
-from ..shared.dependencies import EventPublisherDep, SessionDep
-from ..tickets.dependencies import TicketRepoDep
-from ..tickets.domain.vo import Priority
+from src.activity_logs.dependencies import ActivityLogRecorderDep
+from src.iam.dependencies import UserRepoDep
+from src.projects.dependencies import ProjectRepoDep
+from src.shared.dependencies import EventPublisherDep, SessionDep
+from src.tickets.dependencies import TicketRepoDep
+from src.tickets.domain.vo import Priority
+
 from .domain.repos import TaskRepository
 from .infra.repos import SqlTaskRepository
 from .schemas import KanbanFilters
@@ -26,7 +28,7 @@ def get_task_service(
         ticket_repo: TicketRepoDep,
         user_repo: UserRepoDep,
         project_repo: ProjectRepoDep,
-        project_access_service: ProjectAccessServiceDep,
+        activity_log_recorder: ActivityLogRecorderDep,
         event_publisher: EventPublisherDep,
 ) -> TaskService:
     return TaskService(
@@ -35,15 +37,16 @@ def get_task_service(
         ticket_repo=ticket_repo,
         user_repo=user_repo,
         project_repo=project_repo,
-        project_access_service=project_access_service,
+        task_authz_service=...,
+        activity_log_recorder=activity_log_recorder,
         event_publisher=event_publisher,
     )
 
 
 def get_task_board_service(
-        task_repo: TaskRepoDep, project_access_service: ProjectAccessServiceDep
+        task_repo: TaskRepoDep,
 ) -> TaskBoardService:
-    return TaskBoardService(task_repo=task_repo, project_access_service=project_access_service)
+    return TaskBoardService(task_repo=task_repo, project_access_service=...)
 
 
 TaskServiceDep = Annotated[TaskService, Depends(get_task_service)]

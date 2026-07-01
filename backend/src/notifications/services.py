@@ -47,7 +47,7 @@ class NotificationService:
 
         if not notification.read:
             notification.mark_as_read(read_by)
-            await self.repository.upsert(notification)
+            await self.repository.update(notification)
             await self.session.commit()
         else:
             logger.warning("Notification with ID %s already marked as read", notification_id)

@@ -4,38 +4,39 @@ from uuid import UUID
 
 from sqlalchemy import and_, exists, or_, select
 
-from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
-from ...shared.schemas import Page, Pagination
-from ..domain.entities import Project, ProjectMembership, ProjectStage
+from src.shared.infra.repos import ModelMapper, SqlAlchemyRepository
+from src.shared.schemas import Page, Pagination
+
+from ..domain.entities import Project, ProjectMember, ProjectStage
 from ..domain.vo import ProjectKey, ProjectRole
-from .models import ProjectMembershipOrm, ProjectOrm, ProjectStageOrm
+from .models import ProjectMemberOrm, ProjectOrm, ProjectStageOrm
 
 
-class ProjectMembershipMapper(ModelMapper[ProjectMembership, ProjectMembershipOrm]):
+class ProjectMembershipMapper(ModelMapper[ProjectMember, ProjectMemberOrm]):
     @staticmethod
-    def to_entity(model: ProjectMembershipOrm) -> ProjectMembership:
-        return ProjectMembership(
+    def to_entity(model: ProjectMemberOrm) -> ProjectMember:
+        return ProjectMember(
             id=model.id,
             created_at=model.created_at,
             updated_at=model.updated_at,
             deleted_at=model.deleted_at,
             project_id=model.project_id,
             user_id=model.user_id,
-            project_role=model.project_role,
+            project_roles=model.project_roles,
             created_by=model.created_by,
         )
 
     @staticmethod
-    def from_entity(entity: ProjectMembership) -> ProjectMembershipOrm:
-        return ProjectMembershipOrm(
+    def from_entity(entity: ProjectMember) -> ProjectMemberOrm:
+        return ProjectMemberOrm(
             id=entity.id,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
             deleted_at=entity.deleted_at,
             user_id=entity.user_id,
             project_id=entity.project_id,
-            project_role=entity.project_role,
-            created_by=entity.created_by,
+            project_roles=entity.project_roles,
+            added_by=entity.created_by,
         )
 
 
@@ -148,9 +149,9 @@ class SqlProjectRepository(SqlAlchemyRepository[Project, ProjectOrm]):
         stmt = select(self.model)
         membership_exists = exists().where(
             and_(
-                ProjectMembershipOrm.project_id == self.model.id,
-                ProjectMembershipOrm.user_id == user_id,
-                ProjectMembershipOrm.deleted_at.is_(None),
+                ProjectMemberOrm.project_id == self.model.id,
+                ProjectMemberOrm.user_id == user_id,
+                ProjectMemberOrm.deleted_at.is_(None),
             )
         )
 
@@ -163,8 +164,8 @@ class SqlProjectRepository(SqlAlchemyRepository[Project, ProjectOrm]):
         return await self._paginate(stmt, pagination)
 
 
-class SqlMembershipRepository(SqlAlchemyRepository[ProjectMembership, ProjectMembershipOrm]):
-    model = ProjectMembershipOrm
+class SqlProjectMemberRepository(SqlAlchemyRepository[ProjectMember, ProjectMemberOrm]):
+    model = ProjectMemberOrm
     model_mapper = ProjectMembershipMapper
 
     @override
@@ -173,7 +174,7 @@ class SqlMembershipRepository(SqlAlchemyRepository[ProjectMembership, ProjectMem
             pagination: Pagination,
             project_id: UUID | None = None,
             include_project_roles: list[ProjectRole] | None = None,
-    ) -> Page[ProjectMembership]:
+    ) -> Page[ProjectMember]:
         # 1. Базовый запрос для получения всех участников
         stmt = select(self.model)
 
@@ -186,7 +187,7 @@ class SqlMembershipRepository(SqlAlchemyRepository[ProjectMembership, ProjectMem
 
         return await self._paginate(stmt, pagination)
 
-    async def find(self, project_id: UUID, user_id: UUID) -> ProjectMembership | None:
+    async def find(self, project_id: UUID, user_id: UUID) -> ProjectMember | None:
         stmt = select(self.model).where(
             (self.model.project_id == project_id) & (self.model.user_id == user_id)
         )
@@ -194,7 +195,7 @@ class SqlMembershipRepository(SqlAlchemyRepository[ProjectMembership, ProjectMem
         model = result.scalar_one_or_none()
         return None if model is None else self.model_mapper.to_entity(model)
 
-    async def get_by_user(self, user_id: UUID) -> list[ProjectMembership]:
+    async def get_by_user(self, user_id: UUID) -> list[ProjectMember]:
         stmt = select(self.model).where(
             (self.model.user_id == user_id) & (self.model.deleted_at.is_(None))
         )

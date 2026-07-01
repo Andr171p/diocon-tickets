@@ -10,7 +10,7 @@ R = TypeVar("R", bound=BaseModel)
 
 
 class Pagination(BaseModel):
-    """Параметры пагинации, которые приходят от клиента (query params)"""
+    """Параметры пагинации, которые приходят от клиента (query pagination)"""
 
     page: PositiveInt = Field(default=1, ge=1, description="Номер страницы, начинается с 1")
     size: PositiveInt = Field(

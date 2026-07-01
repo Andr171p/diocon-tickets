@@ -3,9 +3,10 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from ...shared.domain.repo import Repository
-from ...shared.schemas import Page, Pagination
-from ...tickets.domain.vo import Priority, Tag
+from src.shared.domain.repos import Repository
+from src.shared.domain.vo import Priority, Tag
+from src.shared.schemas import Page, Pagination
+
 from .entities import Task
 from .vo import TaskNumber, TaskStatus
 

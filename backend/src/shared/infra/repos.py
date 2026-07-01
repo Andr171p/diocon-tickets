@@ -4,7 +4,8 @@ from uuid import UUID
 from sqlalchemy import Select, delete, exists, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...core.database import Base
+from src.core.database import Base
+
 from ..domain.entities import Entity
 from ..schemas import Page, Pagination
 from ..utils.time import current_datetime
@@ -88,18 +89,7 @@ class SqlAlchemyRepository[EntityT: Entity, ModelT: Base]:
             size=params.size,
         )
 
-    async def update(self, uid: UUID, **kwargs) -> EntityT | None:
-        stmt = (
-            update(self.model)
-            .values(**kwargs)
-            .where(self.model.id == uid)
-            .returning(self.model)
-        )
-        result = await self.session.execute(stmt)
-        model = result.scalar_one_or_none()
-        return None if model is None else self.model_mapper.to_entity(model)
-
-    async def upsert(self, entity: EntityT) -> None:
+    async def update(self, entity: EntityT) -> None:
         model = self.model_mapper.from_entity(entity)
         await self.session.merge(model)
 
@@ -140,22 +130,7 @@ class InMemoryRepository[EntityT: Entity]:
             items=items[:params.size],
         )
 
-    async def update(self, uid: UUID, **kwargs) -> EntityT | None:
-        entity = self.data.get(uid)
-        if entity is None:
-            return None
-
-        for key, value in kwargs.items():
-            if key in {"id", "created_at"}:
-                continue
-            if hasattr(entity, key):
-                setattr(entity, key, value)
-
-        entity.updated_at = current_datetime()
-        self.data[uid] = entity
-        return entity
-
-    async def upsert(self, entity: EntityT) -> None:
+    async def update(self, entity: EntityT) -> None:
         self.data[entity.id] = entity
 
     async def delete(self, uid: UUID) -> None:

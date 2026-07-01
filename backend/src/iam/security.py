@@ -7,17 +7,17 @@ from uuid import UUID, uuid4
 import jwt
 from passlib.context import CryptContext
 
-from ..core.settings import settings
-from ..shared.utils.time import current_datetime
+from src.core.settings import settings
+from src.shared.utils.time import current_datetime
+
 from .domain.exceptions import UnauthorizedError
 from .domain.vo import UserRole
 
-# Хеширование паролей
-MEMORY_COST = 100  # Размер выделяемой памяти в MB
+MEMORY_COST = 100
 TIME_COST = 2
 PARALLELISM = 2
 SALT_SIZE = 16
-ROUNDS = 14  # Количество раундов для хеширования
+ROUNDS = 14
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +51,6 @@ def create_access_token(
         user_role: UserRole,
         counterparty_id: UUID | None = None,
 ) -> str:
-    """Выпуск access токена"""
-
     now = current_datetime()
     expires_at = now + timedelta(minutes=settings.jwt.access_token_expires_in_minutes)
     payload = {
@@ -62,7 +60,7 @@ def create_access_token(
         "type": "access",
         "jti": f"{uuid4()}",
         "email": email,
-        "role": user_role.value,
+        "project_role": user_role.value,
     }
     if counterparty_id is not None:
         payload["counterparty_id"] = f"{counterparty_id}"
@@ -71,8 +69,6 @@ def create_access_token(
 
 
 def create_refresh_token(user_id: UUID) -> str:
-    """Выпуск refresh токена"""
-
     now = current_datetime()
     expires_at = now + timedelta(days=settings.jwt.refresh_token_expires_in_days)
     payload = {
@@ -86,8 +82,6 @@ def create_refresh_token(user_id: UUID) -> str:
 
 
 def validate_token(token: str) -> dict[str, Any]:
-    """Декодирование и проверка подписи токена"""
-
     try:
         return jwt.decode(
             token,

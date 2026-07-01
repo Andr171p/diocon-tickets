@@ -2,44 +2,40 @@ from typing import ClassVar
 
 import re
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import StrEnum, auto
 
-from ...shared.domain.vo import ValueObject
+from email_validator import EmailNotValidError, validate_email
+
+from src.shared.domain.vo import ValueObject
 
 
 class UserRole(StrEnum):
     """Роли пользователей"""
 
     # Клиентские
-    CUSTOMER_ADMIN = "customer_admin"  # администратор клиентской стороны
-    CUSTOMER = "customer"  # клиент / обычный пользователь
+    CUSTOMER_ADMIN = auto()  # администратор клиентской стороны
+    CUSTOMER = auto()  # клиент / обычный пользователь
 
     # Команда поддержки
-    SUPPORT_AGENT = "support_agent"  # сотрудник поддержки (1 линия)
-    SUPPORT_MANAGER = "support_manager"  # старший сотрудник поддержки (team lead)
+    SUPPORT_AGENT = auto()  # сотрудник поддержки (1 линия)
+    SUPPORT_MANAGER = auto()  # старший сотрудник поддержки (team lead)
 
     # Команда разработки
-    DEVELOPER = "developer"
+    DEVELOPER = auto()
 
     # Бизнес роли
-    ACCOUNT_MANAGER = "account_manager"
-    FINANCE = "finance"
+    ACCOUNT_MANAGER = auto()
+    FINANCE = auto()
 
-    ADMIN = "admin"  # системный администратор
+    ADMIN = auto()  # системный администратор
 
     def is_customer(self) -> bool:
-        """Является ли клиентом"""
-
         return self.value in {self.CUSTOMER, self.CUSTOMER_ADMIN}
 
     def is_support(self) -> bool:
-        """Является ли поддержкой"""
-
         return self.value in {self.SUPPORT_AGENT, self.SUPPORT_MANAGER, self.ADMIN}
 
-    def is_internal(self) -> bool:
-        """Является ли роль внутренней"""
-
+    def is_staff(self) -> bool:
         return self.value not in {self.CUSTOMER, self.CUSTOMER_ADMIN}
 
 
@@ -153,7 +149,7 @@ class Username(ValueObject):
         if not self.PATTERN.match(cleaned):
             raise ValueError(
                 "Username can only contains letters, numbers, periods, hyphens and underscores. "
-                "Cannot start or end with a special character, "
+                "Cannot planned_start or planned_end with a special character, "
                 "cannot contain two special characters in a row."
             )
 
@@ -174,3 +170,44 @@ class Username(ValueObject):
         if isinstance(other, str):
             return self.value == other.strip().lower()
         return NotImplemented
+
+
+@dataclass(frozen=True, slots=True)
+class Email:
+    value: str = field(compare=True, hash=True)
+
+    def __post_init__(self) -> None:
+        if not self.value.strip():
+            raise ValueError("Email cannot be empty")
+
+        try:
+            validation = validate_email(self.value, check_deliverability=False)
+            normalized = validation.normalized
+        except EmailNotValidError as e:
+            raise ValueError("Invalid email address") from e
+
+        object.__setattr__(self, "value", normalized)
+
+    def __str__(self) -> str:
+        return self.value
+
+    def __repr__(self) -> str:
+        return f"Email({self.value!r})"
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Email):
+            return self.value == other.value
+
+        if isinstance(other, str):
+            try:
+                validation = validate_email(self.value, check_deliverability=False)
+            except EmailNotValidError:
+                return False
+            else:
+                return self.value == validation.normalized
+
+        return NotImplemented
+
+    @property
+    def domain(self) -> str:
+        return self.value.split("@")[-1]

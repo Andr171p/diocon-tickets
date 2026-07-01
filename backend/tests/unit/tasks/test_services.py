@@ -5,7 +5,7 @@ import pytest
 from src.iam.domain.exceptions import PermissionDeniedError
 from src.iam.domain.vo import UserRole
 from src.iam.schemas import CurrentUser
-from src.projects.domain.entities import ProjectMembership, Project
+from src.projects.domain.entities import ProjectMember, Project
 from src.projects.domain.vo import ProjectRole
 from src.shared.domain.exceptions import NotFoundError
 from src.tasks.domain.vo import TaskStatus
@@ -57,7 +57,7 @@ async def created_project(fake_project_repo, fake_membership_repo, current_suppo
     )
     await fake_project_repo.create(project)
 
-    membership = ProjectMembership(
+    membership = ProjectMember(
         project_id=project.id,
         user_id=current_support_user.user_id,
         project_role=ProjectRole.CONTRIBUTOR,
@@ -178,10 +178,10 @@ class TestMoveTo:
         task = make_task(assignee_id=current_support_user.user_id, status=TaskStatus.TODO)
         await fake_task_repo.create(task)
 
-        response = await task_service.move_to(
+        response = await task_service.change_status(
             task_id=task.id,
             new_status=TaskStatus.IN_PROGRESS,
-            current_user=current_support_user
+            current_subject=current_support_user
         )
 
         assert response.status == TaskStatus.IN_PROGRESS
@@ -200,10 +200,10 @@ class TestMoveTo:
         await fake_task_repo.create(task)
 
         with pytest.raises(PermissionDeniedError):
-            await task_service.move_to(
+            await task_service.change_status(
                 task_id=task.id,
                 new_status=TaskStatus.IN_PROGRESS,
-                current_user=current_support_user
+                current_subject=current_support_user
             )
 
         mock_session.commit.assert_not_awaited()
@@ -217,10 +217,10 @@ class TestMoveTo:
         """
 
         with pytest.raises(NotFoundError):
-            await task_service.move_to(
+            await task_service.change_status(
                 task_id=uuid4(),
                 new_status=TaskStatus.IN_PROGRESS,
-                current_user=current_support_user,
+                current_subject=current_support_user,
             )
 
         mock_session.commit.assert_not_awaited()

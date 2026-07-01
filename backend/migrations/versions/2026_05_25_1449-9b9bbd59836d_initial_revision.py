@@ -102,7 +102,7 @@ def upgrade() -> None:
     sa.Column('number', sa.String(), nullable=False),
     sa.Column('title', sa.String(), nullable=False),
     sa.Column('description', sa.String(), nullable=True),
-    sa.Column('status', sa.Enum('BACKLOG', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'REVIEW', 'DONE', 'CANCELLED', name='taskstatus'), nullable=False),
+    sa.Column('status', sa.Enum('BACKLOG', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'TO_REVIEW', 'DONE', 'CANCELLED', name='taskstatus'), nullable=False),
     sa.Column('priority', sa.Enum('LOW', 'MEDIUM', 'HIGH', 'CRITICAL', name='priority'), nullable=False),
     sa.Column('story_points', sa.Integer(), nullable=True),
     sa.Column('assignee_id', sa.Uuid(), nullable=True),
@@ -165,7 +165,7 @@ def upgrade() -> None:
     sa.Column('username', sa.String(), nullable=True),
     sa.Column('full_name', sa.String(), nullable=True),
     sa.Column('avatar_url', sa.String(), nullable=True),
-    sa.Column('role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'DEVELOPER', 'ACCOUNT_MANAGER', 'FINANCE', 'ADMIN', name='userrole'), nullable=False),
+    sa.Column('project_role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'DEVELOPER', 'ACCOUNT_MANAGER', 'FINANCE', 'ADMIN', name='userrole'), nullable=False),
     sa.Column('counterparty_id', sa.Uuid(), nullable=True),
     sa.Column('password_hash', sa.String(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
@@ -183,7 +183,7 @@ def upgrade() -> None:
     sa.Column('user_id', sa.Uuid(), nullable=False),
     sa.Column('project_role', sa.Enum('OWNER', 'MANAGER', 'CONTRIBUTOR', 'VIEWER', 'CUSTOMER', 'CUSTOMER_MANAGER', name='projectrole'), nullable=False),
     sa.Column('added_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('added_by', sa.Uuid(), nullable=False),
+    sa.Column('created_by', sa.Uuid(), nullable=False),
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
@@ -263,7 +263,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('comment_id', 'author_id', 'reaction_type', name='uq_comment_reaction')
     )
     op.create_index('ix_reactions_comment_author', 'reactions', ['comment_id', 'author_id'], unique=False)
-    # ### end Alembic commands ###
+    # ### planned_end Alembic commands ###
 
 
 def downgrade() -> None:
@@ -291,4 +291,4 @@ def downgrade() -> None:
     op.drop_table('invitations')
     op.drop_table('counterparties')
     op.drop_table('attachments')
-    # ### end Alembic commands ###
+    # ### planned_end Alembic commands ###

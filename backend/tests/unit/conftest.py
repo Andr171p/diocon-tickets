@@ -13,8 +13,8 @@ from src.iam.domain.repos import InvitationRepository, TokenBlacklist, UserRepos
 from src.iam.domain.vo import FullName, UserRole
 from src.notifications.domain.repos import NotificationRepository, PreferenceRepository
 from src.products.domain.repo import ProductRepository
-from src.projects.domain.entities import Project, ProjectMembership
-from src.projects.domain.repos import MembershipRepository, ProjectRepository
+from src.projects.domain.entities import Project, ProjectMember
+from src.projects.domain.repos import ProjectMemberRepository, ProjectRepository
 from src.projects.domain.services import ProjectAccessService
 from src.projects.domain.vo import ProjectRole
 from src.shared.domain.events import EventPublisher
@@ -74,7 +74,7 @@ def fake_project_repo() -> ProjectRepository:
 
 
 @pytest.fixture
-def fake_membership_repo() -> MembershipRepository:
+def fake_membership_repo() -> ProjectMemberRepository:
     return InMemoryMembershipRepository()
 
 
@@ -219,11 +219,12 @@ def membership_factory(fake_membership_repo):
     async def _make_membership(
             user_id: UUID, project_id: UUID, project_role: ProjectRole, **overrides
     ):
-        membership = ProjectMembership(
+        membership = ProjectMember(
             user_id=user_id,
             project_id=project_id,
             project_role=project_role,
-            created_by=overrides.pop("created_by", overrides.pop("added_by", uuid4())),
+            added_by=overrides.pop("created_by", uuid4()),
+            added_at=overrides.pop("added_at", current_datetime())
         )
         await fake_membership_repo.create(membership)
         return membership

@@ -75,7 +75,7 @@ async def get_attachment(attachment_id: UUID, repository: AttachmentRepoDep) -> 
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Удалить файл (Soft-delete)"
 )
-async def delete_attachment(attachment_id: UUID, repository: AttachmentRepoDep) -> None:
+async def delete_attachment(attachment_id: UUID, project_repo: AttachmentRepoDep) -> None:
     ...
 
 

@@ -1,3 +1,7 @@
-from .project import ProjectService
+__all__ = [
+    "ProjectMemberService",
+    "ProjectService",
+]
 
-__all__ = ["ProjectService"]
+from .member import ProjectMemberService
+from .project import ProjectService

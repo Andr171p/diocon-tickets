@@ -3,7 +3,7 @@ from uuid import UUID
 
 from ...iam.domain.services import PermissionResult
 from ...iam.domain.vo import UserRole
-from ...projects.domain.repos import MembershipRepository
+from ...projects.domain.repos import ProjectMemberRepository
 from .constants import NON_COMMENTABLE_STATUSES
 from .entities import Ticket
 from .vo import TicketStatus
@@ -54,7 +54,7 @@ def can_create_ticket(
     """Может ли пользователь создавать тикет"""
 
     # 1. Внутренние сотрудники могут создавать любые тикеты
-    if user_role.is_internal():
+    if user_role.is_staff():
         return PermissionResult(True)
 
     # 2. Клиенты могут создавать тикеты только в рамках своего контрагента
@@ -223,7 +223,7 @@ class TicketScopeService:
     """
 
     def __init__(
-            self, project_membership_repo: MembershipRepository
+            self, project_membership_repo: ProjectMemberRepository
     ) -> None:
         self.project_membership_repo = project_membership_repo
 
