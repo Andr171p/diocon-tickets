@@ -59,9 +59,9 @@ class TaskWorkflow:
 
 task_workflow = (
     TaskWorkflow()
-    # =============
-    # From backlog
-    # =============
+    # ===================
+    # Переходы из backlog
+    # ===================
     .allow(
         TaskStatus.BACKLOG, TaskStatus.TODO,
         Task.start_work
@@ -70,9 +70,9 @@ task_workflow = (
         TaskStatus.BACKLOG, TaskStatus.CANCELLED,
         Task.unassign, Task.reset_reviewer,
     )
-    # ============
-    # From todo
-    # ============
+    # ===============================
+    # Переходы из готовы к выполнению
+    # ===============================
     .allow(
         TaskStatus.TODO, TaskStatus.BACKLOG,
         Task.unassign, Task.reset_reviewer,
