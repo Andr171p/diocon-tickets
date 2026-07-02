@@ -37,7 +37,7 @@ class FeedbackMapper(ModelMapper[Feedback, FeedbackOrm]):
             deleted_at=entity.deleted_at,
             ticket_id=entity.ticket_id,
             author_id=entity.author_id,
-            rating=entity.rating, 
+            rating=entity.rating,
             comment=entity.comment,
         )
     
