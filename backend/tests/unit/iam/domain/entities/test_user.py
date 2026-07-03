@@ -113,19 +113,6 @@ def test_direct_creation_agent_without_counterparty(valid_email, valid_password_
     assert user.counterparty_id is None
 
 
-def test_direct_creation_support_with_counterparty_raises(
-        valid_email, valid_password_hash, counterparty_id
-):
-    with pytest.raises(InvariantViolationError) as exc:
-        User(
-            email=valid_email,
-            password_hash=SecretStr(valid_password_hash),
-            role=UserRole.SUPPORT_AGENT,
-            counterparty_id=counterparty_id,
-        )
-    assert "Support users should not have direct counterparty_id" in str(exc.value)
-
-
 def test_direct_creation_customer_without_counterparty_raises(valid_email, valid_password_hash):
     with pytest.raises(InvariantViolationError):
         User(

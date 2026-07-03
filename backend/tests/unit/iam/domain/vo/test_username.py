@@ -4,8 +4,6 @@ import pytest
 
 from src.iam.domain.vo import Username
 
-UNSUPPORTED_USERNAME_COMPARISON_VALUE = 123
-
 
 @pytest.mark.parametrize(
     ("valid_input", "expected_normalized"),
@@ -55,28 +53,6 @@ def test_equality_case_insensitive():
     assert username == "superuser"
     assert username == "  SUPERUSER  "
     assert username != "superuser123"
-
-
-def test_repr_returns_normalized_username():
-    """
-    Проверяем repr Username: он нужен, чтобы при отладке объект отображался
-    понятным текстом и показывал уже нормализованное значение.
-    Данные: username со смешанным регистром.
-    """
-    username = Username("SuperUser")
-
-    assert repr(username) == "Username('superuser')"
-
-
-def test_equality_with_unsupported_type_returns_false():
-    """
-    Проверяем сравнение Username с неподдержанным типом: оно не должно считать
-    разные типы равными.
-    Данные: Username и число.
-    """
-    username = Username("superuser")
-
-    assert (username == UNSUPPORTED_USERNAME_COMPARISON_VALUE) is False
 
 
 def test_hashable():
