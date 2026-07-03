@@ -13,7 +13,6 @@ def map_feedback_to_response(feedback: Feedback) -> FeedbackResponse:
         id=feedback.id,
         created_at=feedback.created_at,
         updated_at=feedback.updated_at,
-        is_archived=feedback.is_deleted,
         ticket_id=feedback.ticket_id,
         author_id=feedback.author_id,
         rating=feedback.rating.value,

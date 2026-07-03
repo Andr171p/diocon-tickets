@@ -46,7 +46,6 @@ class FeedbackResponse(BaseModel):
     id: UUID = Field(..., description="Уникальный ID отзыва")
     created_at: datetime = Field(..., description="Дата создания отзыва")
     updated_at: datetime = Field(..., description="Дата обновления отзыва")
-    is_archived: bool = Field(..., description="Архивирован ли отзыв")
 
     ticket_id: UUID = Field(..., description="ID тикета, к которому относится отзыв")
     author_id: UUID = Field(..., description="ID клиента, который оставил отзыв")
