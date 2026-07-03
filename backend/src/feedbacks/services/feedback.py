@@ -92,7 +92,7 @@ class FeedbackService:
         
         return map_feedback_to_response(feedback)
     
-    async def list_feedbacks(
+    async def get_feedbacks(
             self,
             pagination: Pagination,
             filters: FeedbackFilters,

@@ -58,13 +58,13 @@ async def get_feedback_by_ticket(
     response_model=FeedbackPageResponse,
     summary="Получить список отзывов",
 )
-async def list_feedbacks(
+async def get_feedbacks(
     pagination: PaginationDep,
     filters: FeedbackFiltersDep,
     current_subject: CurrentSubjectDep,
     service: FeedbackServiceDep,
 ) -> FeedbackPageResponse:
-    return await service.list_feedbacks(
+    return await service.get_feedbacks(
         pagination=pagination,
         filters=filters,
         current_subject=current_subject,
