@@ -5,6 +5,8 @@ from typing import Self
 from src.shared.domain.entities import AggregateRoot
 from src.shared.utils.time import current_datetime
 
+from .events import FeedbackCreated
+
 
 @dataclass(kw_only=True)
 class Feedback(AggregateRoot):
@@ -40,11 +42,21 @@ class Feedback(AggregateRoot):
         Создаёт новый отзыв клиента.
         """
 
-        return cls(
+        feedback = cls(
             ticket_id=ticket_id,
             author_id=author_id,
             rating=rating,
             comment=comment,
+        )
+
+        feedback.register_event(
+            FeedbackCreated(
+                feedback_id=feedback.id,
+                ticket_id=ticket_id,
+                author_id=author_id,
+                rating=feedback.rating,
+                comment=feedback.comment,
+            )
         )
     
     def edit(
