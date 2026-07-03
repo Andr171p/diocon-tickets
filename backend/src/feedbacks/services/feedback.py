@@ -102,7 +102,7 @@ class FeedbackService:
         Получить список активных отзывов.
         """
 
-        permission = self.authz_service.can_list_feedbacks(current_subject)
+        permission = self.authz_service.can_view_feedback(current_subject)
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
         

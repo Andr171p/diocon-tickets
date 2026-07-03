@@ -36,26 +36,21 @@ class FeedbackAuthZService:
     @staticmethod
     def can_view_feedback(
         subject: Subject,
-        feedback: Feedback,
+        feedback: Feedback | None = None,
     ) -> PermissionResult:
         """
-        Проверяет, может ли субъект посмотреть конкретный отзыв.
+        Проверяет, может ли субъект посмотреть отзыв или список отзывов.
         """
 
-        policy =  AnyOf(
+        if feedback is None:
+            return IsSupportRule(subject).check()
+
+        policy = AnyOf(
             IsFeedbackAuthorRule(subject, feedback),
             IsSupportRule(subject),
         )
 
         return policy.check()
-    
-    @staticmethod
-    def can_list_feedbacks(subject: Subject) -> PermissionResult:
-        """
-        Проверяет, может ли субъект смотреть общий список отзывов.
-        """
-
-        return IsSupportRule(subject).check()
     
     @staticmethod
     def can_update_feedback(
