@@ -13,57 +13,44 @@ from .schemas import (
     FeedbackUpdate,
 )
 
-router = APIRouter(tags=["Отзывы"])
+router = APIRouter(prefix="/feedbacks", tags=["Отзывы"])
 
 
 @router.post(
-    path="/tickets/{ticket_id}/feedback",
+    path="",
     status_code=status.HTTP_201_CREATED,
     response_model=FeedbackResponse,
     summary="Оставить отзыв по тикету",
 )
 async def create_feedback(
-    ticket_id: UUID,
     data: FeedbackCreate,
     current_subject: CurrentSubjectDep,
     service: FeedbackServiceDep,
 ) -> FeedbackResponse:
-    return await service.create_for_ticket(
-        ticket_id=ticket_id,
+    return await service.create_feedback(
         data=data,
         current_subject=current_subject,
     )
 
 
 @router.get(
-    path="/tickets/{ticket_id}/feedback",
+    path="",
     status_code=status.HTTP_200_OK,
-    response_model=FeedbackResponse,
-    summary="Получить отзыв по тикету",
-)
-async def get_feedback_by_ticket(
-    ticket_id: UUID,
-    current_subject: CurrentSubjectDep,
-    service: FeedbackServiceDep,
-) -> FeedbackResponse:
-    return await service.get_by_ticket(
-        ticket_id=ticket_id,
-        current_subject=current_subject,
-    )
-
-
-@router.get(
-    path="/feedbacks",
-    status_code=status.HTTP_200_OK,
-    response_model=Page[FeedbackResponse],
-    summary="Получить список отзывов",
+    response_model=FeedbackResponse | Page[FeedbackResponse],
+    summary="Получить отзыв или список отзывов",
 )
 async def get_feedbacks(
     pagination: PaginationDep,
     filters: FeedbackFiltersDep,
     current_subject: CurrentSubjectDep,
     service: FeedbackServiceDep,
-) -> Page[FeedbackResponse]:
+) -> FeedbackResponse | Page[FeedbackResponse]:
+    if filters.ticket_id is not None:
+        return await service.get_by_ticket(
+            ticket_id=filters.ticket_id,
+            current_subject=current_subject,
+        )
+    
     return await service.get_feedbacks(
         pagination=pagination,
         filters=filters,
@@ -72,7 +59,7 @@ async def get_feedbacks(
 
 
 @router.patch(
-    path="/feedbacks/{feedback_id}",
+    path="/{feedback_id}",
     status_code=status.HTTP_200_OK,
     response_model=FeedbackResponse,
     summary="Обновить отзыв",
@@ -91,7 +78,7 @@ async def update_feedback(
 
 
 @router.delete(
-    path="/feedbacks/{feedback_id}",
+    path="/{feedback_id}",
     status_code=status.HTTP_200_OK,
     response_model=FeedbackResponse,
     summary="Архивировать отзыв",

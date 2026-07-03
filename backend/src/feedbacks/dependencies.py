@@ -67,7 +67,7 @@ def get_feedback_filters(
         ] = None,
         ticket_id: Annotated[
             UUID | None,
-            Query(description="Фильтр по ID тикета"),
+            Query(alias="ticketId", description="Фильтр по ID тикета"),
         ] = None,
         author_id: Annotated[
             UUID | None,

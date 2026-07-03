@@ -35,15 +35,16 @@ class FeedbackService:
         self.authz_service = authz_service
         self.event_publisher = event_publisher
 
-    async def create_for_ticket(
+    async def create_feedback(
             self,
-            ticket_id: UUID,
             data: FeedbackCreate,
             current_subject: Subject,
     ) -> FeedbackResponse:
         """
         Создать отзыв по закрытому тикету.
         """
+
+        ticket_id = data.ticket_id
 
         ticket = await get_or_raise_404(self.ticket_repo.read, ticket_id, Ticket)
 

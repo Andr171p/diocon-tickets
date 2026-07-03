@@ -9,6 +9,8 @@ class FeedbackCreate(BaseModel):
     Схема создания отзыва по тикету.
     """
 
+    ticket_id: UUID = Field(..., description="ID тикета, к которому относится отзыв")
+
     rating: int = Field(
         ...,
         ge=1,
