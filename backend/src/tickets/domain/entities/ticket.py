@@ -274,9 +274,12 @@ class Ticket(AggregateRoot):
             description="Тикет назначен пользователю",
         )
 
+        # 5. Назначение тикета
         self.register_event(
             TicketAssigned(
                 ticket_id=self.id,
+                number=f"{self.number}",
+                title=self.title,
                 assignee_id=assignee_id,
                 assigned_by=assigned_by,
                 old_assignee=old_assignee,

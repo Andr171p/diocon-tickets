@@ -25,6 +25,8 @@ class NotificationChannel(Protocol):
 # Маппинг типов уведомлений к email шаблону
 EMAIL_TEMPLATE_MAP: dict[NotificationType, str] = {
     NotificationType.TICKET_CREATED: "email/ticket_created.html",
+    NotificationType.TICKET_ASSIGNED: "email/assigned.html",
+    NotificationType.TICKET_STATUS_CHANGED: "email/ticket_status_changed.html",
 }
 
 

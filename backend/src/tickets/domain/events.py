@@ -27,9 +27,11 @@ class TicketAssigned(Event):
     """Тикет назначен"""
 
     ticket_id: UUID
+    number: str
+    title: str
     assignee_id: UUID
     assigned_by: UUID
-    old_assignee: UUID
+    old_assignee: UUID | None = None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -86,3 +88,5 @@ class ReactionAdded(Event):
     comment_id: UUID
     author_id: UUID
     reaction_type: ReactionType
+
+

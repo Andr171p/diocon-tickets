@@ -121,6 +121,7 @@ class SqlCounterpartyRepository(SqlAlchemyRepository[Counterparty, CounterpartyO
 
     async def get_by_email(self, email: str) -> Counterparty | None:
         stmt = (
+            
             select(self.model)
             .where(
                 (self.model.email == email) &
@@ -136,7 +137,7 @@ class SqlCounterpartyRepository(SqlAlchemyRepository[Counterparty, CounterpartyO
             select(self.model)
             .where(
                 (self.model.inn == inn.value) &
-                (self.model.parent_id is None)
+                (self.model.parent_id.is_(None))
             )
         )
         result = await self.session.execute(stmt)
@@ -153,7 +154,7 @@ class SqlCounterpartyRepository(SqlAlchemyRepository[Counterparty, CounterpartyO
 
         # 2. Рекурсивная часть: присоединение детей и найденных родителей
         recursive_cte = recursive_cte.union_all(
-            select(self.model).join(recursive_cte, self.model.id == recursive_cte.c.id)
+            select(self.model).join(recursive_cte, self.model.parent_id == recursive_cte.c.id)
         )
 
         # 3. Финальный запрос из CTE

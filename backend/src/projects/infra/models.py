@@ -45,7 +45,10 @@ class ProjectStageOrm(Base):
     description: Mapped[str | None] = mapped_column(TEXT, nullable=True)
     completion_criteria: Mapped[list[str]] = mapped_column(JSONB)
 
-    project: Mapped["ProjectOrm"] = relationship(back_populates="stages")
+    project: Mapped["ProjectOrm"] = relationship(
+        back_populates="stages",
+        foreign_keys=[project_id],
+    )
 
     __table_args__ = (
         Index("ix_project_stages_project_order", "project_id", "execution_order"),
@@ -68,7 +71,11 @@ class ProjectOrm(Base):
     created_by: Mapped[UUID]
 
     stages: Mapped[list["ProjectStageOrm"]] = relationship(
-        back_populates="project", lazy="selectin", uselist=True, cascade="all, delete-orphan"
+        back_populates="project", 
+        lazy="selectin", 
+        uselist=True, 
+        cascade="all, delete-orphan",
+        foreign_keys="ProjectStageOrm.project_id",
     )
 
     members: Mapped[list["ProjectMemberOrm"]] = relationship(

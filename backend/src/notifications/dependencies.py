@@ -6,11 +6,11 @@ from ..core.broker import broker
 from ..iam.dependencies import UserRepoDep
 from ..projects.dependencies import ProjectMemberRepoDep
 from ..shared.dependencies import SessionDep, get_mail_sender
-from ..tickets.domain.events import TicketCreated
+from ..tickets.domain.events import TicketAssigned, TicketCreated
 from .channels import EmailChannel, InAppChannel, NotificationChannel
 from .domain.repos import NotificationRepository, PreferenceRepository
 from .infra.repos import SqlNotificationRepository, SqlUserPreferenceRepository
-from .policies import TicketCreatedPolicy
+from .policies import TicketAssignedPolicy, TicketCreatedPolicy
 from .resolvers import ChannelResolver, TargetResolver
 from .services import NotificationService
 
@@ -20,9 +20,14 @@ def get_target_resolver(
         project_membership_repo: ProjectMemberRepoDep,
 ) -> TargetResolver:
     target_resolver = TargetResolver()
+
     target_resolver.registry_policy(
         TicketCreated, TicketCreatedPolicy(project_membership_repo, user_repo),
     )
+    target_resolver.registry_policy(
+        TicketAssigned, TicketAssignedPolicy(),
+    )
+
     return target_resolver
 
 

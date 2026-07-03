@@ -8,7 +8,7 @@ from ..projects.domain.repos import ProjectMemberRepository
 from ..projects.domain.vo import ProjectRole
 from ..shared.domain.events import Event
 from ..shared.utils.helpers import iterate_batches
-from ..tickets.domain.events import TicketCreated
+from ..tickets.domain.events import TicketAssigned, TicketCreated
 
 
 class NotificationPolicy[EventT: Event](Protocol):
@@ -60,5 +60,22 @@ class TicketCreatedPolicy:
         else:
             async for supports in iterate_batches(self.user_repo, include_roles=[*SUPPORT_TEAM]):
                 targets.update({support.id for support in supports})
+
+        return list(targets)
+    
+
+class TicketAssignedPolicy:
+    async def get_targets(self, event: TicketAssigned) -> list[UUID]:
+        """
+        Определяем получателей уведомления о назначении тикета.
+        """
+
+        targets = {
+            event.assigned_by,
+            event.assignee_id,
+        }
+
+        if event.old_assignee is not None:
+            targets.add(event.old_assignee)
 
         return list(targets)
