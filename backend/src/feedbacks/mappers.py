@@ -1,5 +1,3 @@
-from src.shared.schemas import Page
-
 from .domain.entities import Feedback
 from .schemas import FeedbackResponse
 
@@ -18,11 +16,3 @@ def map_feedback_to_response(feedback: Feedback) -> FeedbackResponse:
         rating=feedback.rating.value,
         comment=feedback.comment,
     )
-
-
-def map_feedback_page_to_response(page: Page[Feedback]) -> Page[FeedbackResponse]:
-    """
-    Преобразовать страницу доменных отзывов в API-схему.
-    """
-
-    return page.to_response(map_feedback_to_response)

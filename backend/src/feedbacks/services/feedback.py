@@ -12,7 +12,7 @@ from src.tickets.domain.repos import TicketRepository
 from ..domain.authz import FeedbackAuthZService
 from ..domain.entities import Feedback
 from ..domain.repos import FeedbackFilters, FeedbackRepository
-from ..mappers import map_feedback_page_to_response, map_feedback_to_response
+from ..mappers import map_feedback_to_response
 from ..schemas import FeedbackCreate, FeedbackResponse, FeedbackUpdate
 
 
@@ -111,7 +111,7 @@ class FeedbackService:
             filters=filters,
         )
 
-        return map_feedback_page_to_response(page)
+        return page.to_response(map_feedback_to_response)
     
     async def update(
             self,
