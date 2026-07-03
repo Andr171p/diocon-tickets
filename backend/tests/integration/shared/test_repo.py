@@ -88,7 +88,7 @@ class TestSqlAlchemyRepository:
         await session.commit()
 
         sample_entity.value = "refreshed-value"
-        await example_repo.update(sample_entity)
+        await example_repo.upsert(sample_entity)
         await session.commit()
 
         entity = await example_repo.read(sample_entity.id)

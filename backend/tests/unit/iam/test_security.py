@@ -52,7 +52,7 @@ class TestValidateToken:
 
             assert payload["sub"] == str(user_id)
             assert payload["email"] == email
-            assert payload["project_role"] == user_role.value
+            assert payload["role"] == user_role.value
             assert payload["type"] == "access"
             assert "counterparty_id" not in payload
 
@@ -75,7 +75,7 @@ class TestValidateToken:
 
             assert payload["sub"] == str(user_id)
             assert payload["email"] == email
-            assert payload["project_role"] == user_role.value
+            assert payload["role"] == user_role.value
             assert payload["type"] == "access"
             assert payload["counterparty_id"] == str(counterparty_id)
 
@@ -90,7 +90,7 @@ class TestValidateToken:
             assert payload["sub"] == str(user_id)
             assert payload["type"] == "refresh"
             assert "email" not in payload
-            assert "project_role" not in payload
+            assert "role" not in payload
             assert "counterparty_id" not in payload
 
             assert isinstance(payload["iat"], (int, float))
@@ -154,7 +154,7 @@ class TestCreateAccessToken:
 
             assert payload["sub"] == f"{user_id}"
             assert payload["email"] == email
-            assert payload["project_role"] == user_role.value
+            assert payload["role"] == user_role.value
             assert payload["type"] == "access"
 
             assert payload["iat"] == expected_iat
@@ -180,7 +180,7 @@ class TestCreateAccessToken:
 
             assert payload["sub"] == f"{user_id}"
             assert payload["email"] == email
-            assert payload["project_role"] == user_role.value
+            assert payload["role"] == user_role.value
             assert payload["type"] == "access"
 
             assert payload["iat"] == expected_iat
@@ -205,7 +205,7 @@ class TestCreateRefreshToken:
             assert payload["sub"] == f"{user_id}"
             assert payload["type"] == "refresh"
             assert "email" not in payload
-            assert "project_role" not in payload
+            assert "role" not in payload
 
             assert payload["iat"] == expected_iat
             assert payload["exp"] == expected_exp

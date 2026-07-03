@@ -4,7 +4,7 @@ from scripts.regsetup import description
 from src.products.domain.vo import ProductCategory, ProductStatus
 from src.products.infra.models import SoftwareProductOrm
 from src.products.infra.repo import SoftwareProductMapper, SqlProductRepository
-from src.shared.schemas import Pagination
+from src.shared.schemas import PageParams
 
 
 @pytest.fixture
@@ -81,7 +81,7 @@ class TestPaginate:
         """
 
         page = await product_repo.paginate(
-            pagination=Pagination(page=1, size=10),
+            pagination=PageParams(page=1, size=10),
             category=ProductCategory.ERP,
             status=ProductStatus.ACTIVE,
         )
@@ -104,7 +104,7 @@ class TestPaginate:
 
         search_query = "бухгалтер"
         page = await product_repo.paginate(
-            pagination=Pagination(page=1, size=10), search=search_query
+            pagination=PageParams(page=1, size=10), search=search_query
         )
 
         assert all(
