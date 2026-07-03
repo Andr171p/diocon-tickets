@@ -24,7 +24,7 @@ class FeedbackRepository(Repository[Feedback]):
     Конткракт репозитория для работа с отзывами.
     """
 
-    async def find_by_ticket(self, ticket_id: UUID) -> Feedback | None:
+    async def get_by_ticket(self, ticket_id: UUID) -> Feedback | None:
         """
         Получить активный отзыв по тикету.
         Возвращает None, если отзыв не найден или архивирован.

@@ -54,7 +54,7 @@ class FeedbackService:
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
         
-        existing_feedback = await self.feedback_repo.find_by_ticket(ticket_id)
+        existing_feedback = await self.feedback_repo.get_by_ticket(ticket_id)
         if existing_feedback is not None:
             raise AlreadyExistsError(f"Feedback for ticket {ticket_id} already exists")
         
@@ -79,7 +79,7 @@ class FeedbackService:
         Получить активный отзыв по тикету.
         """
 
-        feedback = await self.feedback_repo.find_by_ticket(ticket_id)
+        feedback = await self.feedback_repo.get_by_ticket(ticket_id)
         if feedback is None:
             raise NotFoundError(f"Feedback for ticket {ticket_id} not found")
         
