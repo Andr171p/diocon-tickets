@@ -58,6 +58,8 @@ class Feedback(AggregateRoot):
                 comment=feedback.comment,
             )
         )
+
+        return feedback
     
     def edit(
         self,
@@ -77,9 +79,12 @@ class Feedback(AggregateRoot):
             self.rating = rating
             is_edited = True
 
-        if comment is not None and comment != self.comment:
-            self.comment = self._normalize_comment(comment)
-            is_edited = True
+        if comment is not None:
+            normalized_comment = self._normalize_comment(comment)
+
+            if normalized_comment != self.comment:
+                self.comment = normalized_comment
+                is_edited = True
 
         if is_edited:
             self.updated_at = current_datetime()
