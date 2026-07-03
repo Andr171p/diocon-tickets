@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, ForeignKey, UniqueConstraint
+from sqlalchemy import CheckConstraint, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.database import Base
@@ -13,10 +13,7 @@ class FeedbackOrm(Base):
 
     __tablename__ = "feedbacks"
 
-    ticket_id: Mapped[UUID] = mapped_column(
-        ForeignKey("tickets.id", ondelete="CASCADE"),
-        nullable=False,
-    )
+    ticket_id: Mapped[UUID] = mapped_column(nullable=False)
     author_id: Mapped[UUID] = mapped_column(nullable=False)
     rating: Mapped[int] = mapped_column(nullable=False)
     comment: Mapped[str | None] = mapped_column(nullable=True)
