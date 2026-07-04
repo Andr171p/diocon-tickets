@@ -42,7 +42,7 @@ def postgres_container():
 
 @pytest.fixture(scope="session")
 def redis_container():
-    container = RedisContainer("redis:7-alpine")
+    container = RedisContainer("redis_client:7-alpine")
     container.start()
     yield container
     container.stop()
@@ -53,7 +53,7 @@ def redis_url(redis_container):
     host = redis_container.get_container_host_ip()
     port = redis_container.get_exposed_port(6379)
 
-    return f"redis://{host}:{port}/0"
+    return f"redis_client://{host}:{port}/0"
 
 
 @pytest.fixture

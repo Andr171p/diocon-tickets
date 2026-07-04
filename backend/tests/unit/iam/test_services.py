@@ -17,7 +17,7 @@ from src.iam.domain.services import (
     invite_support,
 )
 from src.iam.domain.vo import UserRole
-from src.iam.schemas import Tokens, UserCreateForm
+from src.iam.schemas import Tokens, UserCreate
 from src.iam.security import hash_password, validate_token
 from src.iam.services import AuthService, InvitationService, create_tokens_for_user
 from src.shared.domain.exceptions import AlreadyExistsError, NotFoundError
@@ -37,7 +37,7 @@ def mock_auth_service(mock_session, fake_user_repo, fake_invitation_repo, fake_t
         session=mock_session,
         user_repo=fake_user_repo,
         invitation_repo=fake_invitation_repo,
-        blacklist=fake_token_blacklist,
+        token_store=fake_token_blacklist,
     )
 
 
@@ -63,7 +63,7 @@ def mock_invitation_for_customer(sample_counterparty_id):
 
 @pytest.fixture
 def sample_form_data(sample_password):
-    return UserCreateForm(
+    return UserCreate(
         username="customer1", full_name="Иванов Иван Иванович", password=sample_password,
     )
 
@@ -298,8 +298,8 @@ class TestInvitationServiceSendInvitation:
         email = fake.email()
         assigned_role = UserRole.SUPPORT_AGENT
 
-        invitation = await mock_invitation_service.send_invitation(
-            invited_by=invited_by, email=email, assigned_role=assigned_role
+        invitation = await mock_invitation_service.create(
+            invited_by=invited_by, email=email, granyed_roles=assigned_role
         )
 
         # 2. Проверка успешного создания и записи приглашения
@@ -308,7 +308,7 @@ class TestInvitationServiceSendInvitation:
         mock_session.commit.assert_awaited_once()
         assert created_invitation is not None
         assert created_invitation.invited_by == invited_by
-        assert created_invitation.assigned_role == assigned_role
+        assert created_invitation.granted_roles == assigned_role
         assert created_invitation.email == email
 
         # 3. Проверка отправки письма
@@ -331,10 +331,10 @@ class TestInvitationServiceSendInvitation:
         assigned_role = UserRole.CUSTOMER
         counterparty_id = uuid4()
 
-        invitation = await mock_invitation_service.send_invitation(
+        invitation = await mock_invitation_service.create(
             invited_by=invited_by,
             email=email,
-            assigned_role=assigned_role,
+            granyed_roles=assigned_role,
             counterparty_id=counterparty_id,
         )
 
@@ -344,7 +344,7 @@ class TestInvitationServiceSendInvitation:
         mock_session.commit.assert_awaited_once()
         assert created_invitation is not None
         assert created_invitation.invited_by == invited_by
-        assert created_invitation.assigned_role == assigned_role
+        assert created_invitation.granted_roles == assigned_role
         assert created_invitation.email == email
         assert created_invitation.counterparty_id == counterparty_id
 
@@ -373,8 +373,8 @@ class TestInvitationServiceSendInvitation:
         await fake_invitation_repo.create(invitation)
 
         # 2. Попытка отправки приглашения
-        sent_invitation = await mock_invitation_service.send_invitation(
-            invited_by=invited_by, email=email, assigned_role=assigned_role
+        sent_invitation = await mock_invitation_service.create(
+            invited_by=invited_by, email=email, granyed_roles=assigned_role
         )
 
         mock_session.commit.assert_not_called()
@@ -395,10 +395,10 @@ class TestInvitationServiceSendInvitation:
         email = fake.email()
 
         with pytest.raises(ValueError, match="Invalid invite pagination"):
-            await mock_invitation_service.send_invitation(
+            await mock_invitation_service.create(
                 invited_by=invited_by,
                 email=email,
-                assigned_role=UserRole.CUSTOMER,
+                granyed_roles=UserRole.CUSTOMER,
             )
 
 

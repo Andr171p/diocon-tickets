@@ -54,7 +54,6 @@ async def ip_identifier(request: Request) -> str:  # noqa: RUF029
     Идентификация клиента по IP адресу (учитывает X-Forwarded-For при наличии прокси)
     """
 
-    # Проверка на наличие прокси
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded is not None:
         return forwarded.split(",")[0].strip()
@@ -117,7 +116,7 @@ class RateLimiter:
                 reset_at=reset_at,
             )
         except RedisError:
-            logger.exception("Error occurred while redis rate limit check key")
+            logger.exception("Error occurred while redis_client rate limit check key")
             reset_at = (now_ms / 1000.0) + window_seconds
             return RateLimitResult(allowed=True, current=1, remaining=None, reset_at=reset_at)
 

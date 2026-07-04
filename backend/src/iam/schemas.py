@@ -1,13 +1,22 @@
+from typing import Annotated
+
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, PositiveInt
+from fastapi import Body
+from pydantic import BaseModel, EmailStr, Field, PositiveInt
 
 from .domain.vo import UserRole
 
+RefreshToken = Annotated[
+    str, Body(..., embed=True, description="Refresh токен для получения новой пары JWT")
+]
+
 
 class Tokens(BaseModel):
-    """Пара токенов access и refresh"""
+    """
+    Пара токенов access и refresh.
+    """
 
     access_token: str = Field(..., description="Access токен")
     refresh_token: str = Field(..., description="Refresh токен")
@@ -17,51 +26,43 @@ class Tokens(BaseModel):
     )
 
 
-class UserCreateForm(BaseModel):
-    """Форма для создания пользователя"""
+class UserCreate(BaseModel):
+    """
+    Форма для создания/регистрации пользователя.
+    """
 
     username: str | None = Field(
-        None, description="Никнейм пользователя", examples=["IvanIvanov"]
+        None, description="Никнейм пользователя", examples=["i.i.ivanov"]
     )
     full_name: str | None = Field(
         None, max_length=150, description="ФИО", examples=["Иванов Иван Иванович"]
     )
-    password: str = Field(..., min_length=6, description="Пароль, который придумал пользователь")
+    password: str = Field(
+        ..., min_length=6, max_length=30, description="Пароль, который придумал пользователь"
+    )
 
 
 class UserResponse(BaseModel):
-    """Модель для API ответа с данными о пользователе"""
+    """
+    Полная информация о пользователе.
+    """
 
-    id: UUID = Field(..., description="Уникальный ID пользователя")
+    id: UUID = Field(..., description="Уникальный идентификатор пользователя")
     created_at: datetime = Field(..., description="Дата регистрации")
     updated_at: datetime = Field(..., description="Дата обновления")
-    email: EmailStr = Field(..., description="Привязанный email адрес")
+
+    email: EmailStr = Field(..., description="Email адрес (уникальный)")
     username: str | None = Field(None, description="Никнейм пользователя")
     full_name: str | None = Field(None, description="ФИО")
     avatar_url: str | None = Field(None, description="URL адрес изображения")
-    role: UserRole = Field(..., description="Роль пользователя в системе")
+
+    roles: set[UserRole] = Field(
+        ..., description="Назначенные роли", examples=[{"support_agent", "developer"}]
+    )
     counterparty_id: UUID | None = Field(
         None, description="Контрагент к которому относится пользователь"
     )
     is_active: bool = Field(True, description="Активен ли пользователь")
-
-
-class TokenData(BaseModel):
-    """Информация и сохранённом refresh токене пользователя"""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    user_id: UUID
-    token: str
-    expires_at: datetime
-    revoked: bool
-    revoked_at: datetime | None = None
-
-
-class TokensRefresh(BaseModel):
-    """Запрос для обновления токенов"""
-
-    refresh_token: str = Field(..., description="Refresh токен")
 
 
 class LogoutRequest(BaseModel):
@@ -79,31 +80,31 @@ class CurrentUser(BaseModel):
     counterparty_id: UUID | None = Field(None, description="ID контрагента (для клиентов)")
 
 
-class InvitationCreate(BaseModel):
-    """Создание приглашения"""
-
+class InvitationBase(BaseModel):
     email: EmailStr = Field(..., description="Email пользователя")
-    assigned_role: UserRole = Field(
-        ..., description="Роль, которая будет установлена пользователю после принятия приглашения"
+    granted_roles: set[UserRole] = Field(
+        ..., description="Роли, которые будут назначены пользователю после принятия приглашения"
     )
     counterparty_id: UUID | None = Field(
-        None, description="Для клиентов необходимо указать ID контрагента"
+        None, description="Для клиентов необходимо указать контрагента"
     )
 
 
-class InvitationResponse(BaseModel):
-    """API схема ответа для созданного приглашения"""
+class InvitationCreate(InvitationBase):
+    """
+    Создать приглашение для пользователя.
+    """
+
+
+class InvitationResponse(InvitationBase):
+    """
+    Полная информация о приглашении.
+    """
 
     id: UUID = Field(..., description="Уникальный ID приглашения")
     created_at: datetime = Field(..., description="Дата создания")
-    invited_by: UUID = Field(..., description="ID пользователя, создавшего приглашение")
-    email: EmailStr = Field(..., description="Email приглашённого")
-    assigned_role: UserRole = Field(
-        ..., description="Роль, которая будет установлена пользователю после принятия приглашения"
-    )
-    counterparty_id: UUID | None = Field(
-        None, description="Для клиентов необходимо указать ID контрагента"
-    )
+
+    invited_by: UUID = Field(..., description="Тот, кто создал приглашение")
     expires_at: datetime = Field(..., description="Дата истечения срока")
     used_at: datetime | None = Field(None, description="Дата, когда использовали приглашение")
     is_used: bool = Field(..., description="Использовано ли приглашение")

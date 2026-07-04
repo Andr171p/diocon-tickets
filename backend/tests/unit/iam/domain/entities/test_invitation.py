@@ -35,13 +35,13 @@ def test_can_create_customer_invitation(
     invitation = Invitation(
         email="client@example.com",
         invited_by=admin_id,
-        assigned_role=UserRole.CUSTOMER,
+        granted_roles=UserRole.CUSTOMER,
         counterparty_id=counterparty_id,
         expires_at=future_expires_at,
     )
 
     assert invitation.email == "client@example.com"
-    assert invitation.assigned_role == UserRole.CUSTOMER
+    assert invitation.granted_roles == UserRole.CUSTOMER
     assert invitation.counterparty_id == counterparty_id
     assert invitation.is_used is False
     assert invitation.used_at is None
@@ -54,7 +54,7 @@ def test_can_create_support_invitation_without_counterparty(
     invitation = Invitation(
         email="agent@example.com",
         invited_by=admin_id,
-        assigned_role=UserRole.SUPPORT_AGENT,
+        granted_roles=UserRole.SUPPORT_AGENT,
         counterparty_id=None,
         expires_at=future_expires_at,
     )
@@ -70,7 +70,7 @@ def test_customer_invitation_without_counterparty_raises_error(
         Invitation(
             email="client@example.com",
             invited_by=admin_id,
-            assigned_role=UserRole.CUSTOMER,
+            granted_roles=UserRole.CUSTOMER,
             counterparty_id=None,
             expires_at=future_expires_at,
         )
@@ -84,7 +84,7 @@ def test_customer_admin_invitation_without_counterparty_raises_error(
         Invitation(
             email="admin@example.com",
             invited_by=admin_id,
-            assigned_role=UserRole.CUSTOMER_ADMIN,
+            granted_roles=UserRole.CUSTOMER_ADMIN,
             counterparty_id=None,
             expires_at=future_expires_at,
         )
@@ -97,7 +97,7 @@ def test_support_invitation_with_counterparty_raises_error(
         Invitation(
             email="agent@example.com",
             invited_by=admin_id,
-            assigned_role=UserRole.SUPPORT_AGENT,
+            granted_roles=UserRole.SUPPORT_AGENT,
             counterparty_id=counterparty_id,
             expires_at=future_expires_at,
         )
@@ -110,7 +110,7 @@ def test_is_valid_true_when_not_used_and_not_expired(
     invitation = Invitation(
         email="test@example.com",
         invited_by=admin_id,
-        assigned_role=UserRole.SUPPORT_AGENT,
+        granted_roles=UserRole.SUPPORT_AGENT,
         expires_at=future_expires_at,
     )
     assert invitation.is_valid is True
@@ -120,7 +120,7 @@ def test_is_valid_false_when_used(admin_id: uuid.UUID, future_expires_at: dateti
     invitation = Invitation(
         email="test@example.com",
         invited_by=admin_id,
-        assigned_role=UserRole.SUPPORT_AGENT,
+        granted_roles=UserRole.SUPPORT_AGENT,
         expires_at=future_expires_at,
     )
     invitation.mark_as_used()
@@ -131,7 +131,7 @@ def test_is_valid_false_when_expired(admin_id: uuid.UUID, past_expires_at: datet
     invitation = Invitation(
         email="test@example.com",
         invited_by=admin_id,
-        assigned_role=UserRole.SUPPORT_AGENT,
+        granted_roles=UserRole.SUPPORT_AGENT,
         expires_at=past_expires_at,
     )
     assert invitation.is_valid is False
@@ -141,7 +141,7 @@ def test_is_valid_false_when_used_and_expired(admin_id: uuid.UUID, past_expires_
     invitation = Invitation(
         email="test@example.com",
         invited_by=admin_id,
-        assigned_role=UserRole.SUPPORT_AGENT,
+        granted_roles=UserRole.SUPPORT_AGENT,
         expires_at=past_expires_at,
     )
     invitation.mark_as_used()
@@ -153,7 +153,7 @@ def test_mark_as_used_sets_fields_correctly(admin_id: uuid.UUID, future_expires_
     invitation = Invitation(
         email="test@example.com",
         invited_by=admin_id,
-        assigned_role=UserRole.ADMIN,
+        granted_roles=UserRole.ADMIN,
         expires_at=future_expires_at,
     )
 
@@ -171,13 +171,13 @@ def test_token_generated_by_default_factory(admin_id: uuid.UUID, future_expires_
     first_invitation = Invitation(
         email="a@example.com",
         invited_by=admin_id,
-        assigned_role=UserRole.SUPPORT_AGENT,
+        granted_roles=UserRole.SUPPORT_AGENT,
         expires_at=future_expires_at,
     )
     second_invitation = Invitation(
         email="b@example.com",
         invited_by=admin_id,
-        assigned_role=UserRole.SUPPORT_AGENT,
+        granted_roles=UserRole.SUPPORT_AGENT,
         expires_at=future_expires_at,
     )
 
@@ -194,7 +194,7 @@ def test_admin_and_manager_can_have_no_counterparty(
     invitation = Invitation(
         email="test@example.com",
         invited_by=admin_id,
-        assigned_role=role,
+        granted_roles=role,
         counterparty_id=None,
         expires_at=future_expires_at,
     )

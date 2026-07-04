@@ -1,5 +1,3 @@
-# Модуль для маппинга доменных моделей в API схемы
-
 from .domain.entities import Invitation, User
 from .schemas import InvitationResponse, UserResponse
 
@@ -9,11 +7,11 @@ def map_user_to_response(user: User) -> UserResponse:
         id=user.id,
         created_at=user.created_at,
         updated_at=user.updated_at,
-        email=user.email,
-        username=f"{user.username}",
-        full_name=f"{user.full_name}",
+        email=user.email.value,
+        username=user.username.value,
+        full_name=user.full_name.value,
         avatar_url=user.avatar_url,
-        role=user.role,
+        roles=user.roles,
         counterparty_id=user.counterparty_id,
         is_active=user.is_active,
     )
@@ -24,8 +22,8 @@ def map_invitation_to_response(invitation: Invitation) -> InvitationResponse:
         id=invitation.id,
         created_at=invitation.created_at,
         invited_by=invitation.invited_by,
-        email=invitation.email,
-        assigned_role=invitation.assigned_role,
+        email=invitation.email.value,
+        granted_roles=invitation.granted_roles,
         counterparty_id=invitation.counterparty_id,
         expires_at=invitation.expires_at,
         used_at=invitation.used_at,

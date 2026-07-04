@@ -64,7 +64,7 @@ def upgrade() -> None:
     sa.Column('email', sa.String(), nullable=False),
     sa.Column('token', sa.String(), nullable=False),
     sa.Column('invited_by', sa.Uuid(), nullable=False),
-    sa.Column('assigned_role', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'DEVELOPER', 'ACCOUNT_MANAGER', 'FINANCE', 'ADMIN', name='userrole'), nullable=False),
+    sa.Column('granted_roles', sa.Enum('CUSTOMER_ADMIN', 'CUSTOMER', 'SUPPORT_AGENT', 'SUPPORT_MANAGER', 'DEVELOPER', 'ACCOUNT_MANAGER', 'FINANCE', 'ADMIN', name='userrole'), nullable=False),
     sa.Column('counterparty_id', sa.Uuid(), nullable=True),
     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('used_at', sa.DateTime(timezone=True), nullable=True),

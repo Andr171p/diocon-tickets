@@ -1,5 +1,6 @@
-from dataclasses import dataclass
 from typing import ClassVar
+
+from dataclasses import dataclass
 
 from src.shared.domain.vo import ValueObject
 

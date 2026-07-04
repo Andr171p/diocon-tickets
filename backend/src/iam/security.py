@@ -1,6 +1,9 @@
 from typing import Any
 
+import asyncio
 import logging
+import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from uuid import UUID, uuid4
 
@@ -11,7 +14,7 @@ from src.core.settings import settings
 from src.shared.utils.time import current_datetime
 
 from .domain.exceptions import UnauthorizedError
-from .domain.vo import UserRole
+from .domain.vo import Email, UserRole
 
 MEMORY_COST = 100
 TIME_COST = 2
@@ -32,23 +35,44 @@ pwd_context = CryptContext(
     deprecated="auto"
 )
 
+MAX_WORKERS = max(1, (os.cpu_count() or 2) // 2)
+
+# В `lifespan` вызвать `crypto_executor.shutdown(wait=True)`
+crypto_executor = ThreadPoolExecutor(max_workers=MAX_WORKERS, thread_name_prefix="crypto_worker")
+
+
+async def hash_password_async(password: str) -> str:
+    """
+    Асинхронное хэширует пароль в отдельном потоке.
+    """
+
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(crypto_executor, hash_password, password)
+
+
+async def verify_password_async(plain_password: str, password_hash: str) -> bool:
+    """
+    Асинхронно сверяет хеш пароля в отдельном потоке.
+    """
+
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        crypto_executor, verify_password, plain_password, password_hash
+    )
+
 
 def hash_password(password: str) -> str:
-    """Создание хеша для пароля"""
-
     return pwd_context.hash(password)
 
 
 def verify_password(plain_password: str, password_hash: str) -> bool:
-    """Сверяет ожидаемый пароль с хэшем пароля"""
-
     return pwd_context.verify(plain_password, password_hash)
 
 
 def create_access_token(
         user_id: UUID,
-        email: str,
-        user_role: UserRole,
+        email: Email,
+        user_roles: set[UserRole],
         counterparty_id: UUID | None = None,
 ) -> str:
     now = current_datetime()
@@ -59,8 +83,8 @@ def create_access_token(
         "iat": now.timestamp(),
         "type": "access",
         "jti": f"{uuid4()}",
-        "email": email,
-        "project_role": user_role.value,
+        "email": f"{email}",
+        "roles": list(user_roles),
     }
     if counterparty_id is not None:
         payload["counterparty_id"] = f"{counterparty_id}"

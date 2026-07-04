@@ -1,48 +1,41 @@
 from typing import Protocol, override
 
+from dataclasses import dataclass
 from uuid import UUID
 
-from ...shared.domain.repo import Repository
-from ...shared.schemas import Page, Pagination
+from src.shared.domain.repos import Repository
+from src.shared.schemas import Page, Pagination
+
 from ..domain.vo import UserRole
 from .entities import Invitation, User
+from .vo import Email
+
+
+@dataclass(frozen=True)
+class UserFilters:
+    roles: set[UserRole] | None = None
+    counterparty_id: UUID | None = None
 
 
 class UserRepository(Repository[User]):
 
     @override
     async def paginate(
-            self, params: Pagination, roles: list[UserRole] | None = None
+            self, pagination: Pagination, filters: UserFilters | None = None
     ) -> Page[User]: ...
 
-    async def get_by_email(self, email: str) -> User | None: ...
-
-    async def get_customer_admins(
-            self, counterparty_id: UUID, role: UserRole | None = None
-    ) -> list[User]:
-        """
-        Получение всех администраторов клиента привязанных к контрагенту
-        """
-
-    async def get_customers(self, counterparty_id: UUID) -> Page[User]:
-        """
-        Получение всех клиентов привязанных к контрагенту
-        """
+    async def get_by_email(self, email: Email) -> User | None: ...
 
 
-class TokenBlacklist(Protocol):
+class TokenStore(Protocol):
 
-    async def revoke(self, jti: UUID, user_id: UUID, exp: int, reason: str) -> bool:
-        """Отзыв токена (добавление токена в черный список)"""
+    async def revoke(self, jti: UUID, user_id: UUID, exp: int, reason: str) -> bool: ...
 
-    async def is_revoked(self, jti: UUID) -> bool:
-        """Проверка токена на отзыв"""
+    async def is_revoked(self, jti: UUID) -> bool: ...
 
 
 class InvitationRepository(Repository[Invitation]):
 
     async def get_by_token(self, token: str) -> Invitation | None: ...
 
-    async def get_active_by_email_and_role(
-            self, email: str, user_role: UserRole
-    ) -> Invitation | None: ...
+    async def get_active(self, email: Email, roles: set[UserRole]) -> Invitation | None: ...

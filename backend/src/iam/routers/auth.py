@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Path, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from ..dependencies import AuthServiceDep, CurrentUserDep, oauth2_scheme
-from ..schemas import CurrentUser, LogoutRequest, Tokens, TokensRefresh, UserCreateForm
+from ..schemas import CurrentUser, LogoutRequest, Tokens, TokensRefresh, UserCreate
 
 router = APIRouter(prefix="/auth", tags=["Авторизация"])
 
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/auth", tags=["Авторизация"])
 )
 async def register(
         token: Annotated[str, Path(..., description="Токен из пригласительного письма")],
-        data: UserCreateForm,
+        data: UserCreate,
         service: AuthServiceDep,
 ) -> Tokens:
     return await service.register(token, data)

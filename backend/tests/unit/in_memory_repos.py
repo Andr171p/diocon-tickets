@@ -109,7 +109,7 @@ class InMemoryInvitationRepository(InMemoryRepository[Invitation]):
         for invitation in self.data.values():
             if (
                 invitation.email == email
-                and invitation.assigned_role == user_role
+                and invitation.granted_roles == user_role
                 and not invitation.is_used
             ):
                 return invitation

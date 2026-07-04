@@ -8,19 +8,21 @@ from fastapi.security import OAuth2PasswordBearer
 
 from src.core.redis import redis_client
 from src.core.settings import settings
-from src.shared.dependencies import PaginationDep, SessionDep
+from src.shared.dependencies import EventPublisherDep, PaginationDep, SessionDep
 from src.shared.domain.exceptions import NotFoundError
+from src.shared.domain.repos import get_or_raise_404
 from src.shared.infra.mail import SmtpMailSender
 from src.shared.schemas import Page
 
 from .domain.authz import Subject
+from .domain.entities import Invitation
 from .domain.exceptions import PermissionDeniedError, UnauthorizedError
-from .domain.repos import InvitationRepository, TokenBlacklist, UserRepository
+from .domain.repos import InvitationRepository, TokenStore, UserRepository
 from .domain.vo import Email, UserRole
-from .infra.blacklist import RedisTokenBlacklist
 from .infra.repos import SqlInvitationRepository, SqlUserRepository
-from .mappers import map_user_to_response
-from .schemas import CurrentUser, UserResponse
+from .infra.token_store import RedisTokenStore
+from .mappers import map_invitation_to_response, map_user_to_response
+from .schemas import CurrentUser, InvitationResponse, UserResponse
 from .security import validate_token
 from .services import AuthService, InvitationService
 
@@ -35,22 +37,29 @@ def get_user_repo(session: SessionDep) -> SqlUserRepository:
     return SqlUserRepository(session)
 
 
-def get_token_blacklist() -> TokenBlacklist:
-    return RedisTokenBlacklist(redis_client)
+def get_token_store() -> TokenStore:
+    return RedisTokenStore(redis_client)
 
 
 def get_invitation_repo(session: SessionDep) -> SqlInvitationRepository:
     return SqlInvitationRepository(session)
 
 
+UserRepoDep = Annotated[UserRepository, Depends(get_user_repo)]
+InvitationRepoDep = Annotated[InvitationRepository, Depends(get_invitation_repo)]
+
+
 def get_auth_service(
         session: SessionDep,
-        user_repo: Annotated[UserRepository, Depends(get_user_repo)],
-        invitation_repo: Annotated[InvitationRepository, Depends(get_invitation_repo)],
-        blacklist: Annotated[TokenBlacklist, Depends(get_token_blacklist)],
+        user_repo: UserRepoDep,
+        invitation_repo: InvitationRepoDep,
+        token_store: Annotated[TokenStore, Depends(get_token_store)],
 ) -> AuthService:
     return AuthService(
-        session, user_repo=user_repo, invitation_repo=invitation_repo, blacklist=blacklist
+        uow=session,
+        user_repo=user_repo,
+        invitation_repo=invitation_repo,
+        token_store=token_store,
     )
 
 
@@ -64,33 +73,38 @@ def get_mail_sender() -> SmtpMailSender:
 
 def get_invitation_service(
         session: SessionDep,
-        repository: Annotated[InvitationRepository, Depends(get_invitation_repo)],
+        invitation_repo: InvitationRepoDep,
         mail_sender: Annotated[SmtpMailSender, Depends(get_mail_sender)],
+        event_publisher: EventPublisherDep,
 ) -> InvitationService:
-    return InvitationService(session, repository=repository, mail_sender=mail_sender)
+    return InvitationService(
+        uow=session,
+        invitation_repo=invitation_repo,
+        mail_sender=mail_sender,
+        event_publisher=event_publisher,
+    )
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
-UserRepoDep = Annotated[UserRepository, Depends(get_user_repo)]
 InvitationServiceDep = Annotated[InvitationService, Depends(get_invitation_service)]
 
 
 async def get_current_subject(
         token: Annotated[str, Depends(oauth2_scheme)],
-        blacklist: Annotated[TokenBlacklist, Depends(get_token_blacklist)],
+        blacklist: Annotated[TokenStore, Depends(get_token_store)],
 ) -> Subject:
     payload = validate_token(token)
-    jti, sid, stype = payload.get("jti"), payload.get("sub"), payload.get("type")
+    jti, sub, type_ = payload.get("jti"), payload.get("sub"), payload.get("type")
 
     if jti is None or await blacklist.is_revoked(jti):
         raise UnauthorizedError("Token has been revoked or missing jti")
 
-    if sid is None:
+    if sub is None:
         raise UnauthorizedError("Invalid token: missing sub claim")
 
     return Subject(
-        id=sid,
-        type=stype,
+        id=sub,
+        type=type_,
         email=Email(payload["email"]) if "email" in payload else None,
         roles=payload.get("roles", []),
         counterparty_id=payload.get("counterparty_id"),
@@ -104,7 +118,7 @@ def get_current_user(current_subject: Subject = Depends(get_current_subject)) ->
 
     return CurrentUser(
         id=current_subject.id,
-        email=f"{current_subject.email}",
+        email=current_subject.email.value,
         roles=current_subject.roles,
         counterparty_id=current_subject.counterparty_id,
     )
@@ -130,7 +144,7 @@ async def get_user_or_404(user_id: UUID, user_repo: UserRepoDep) -> UserResponse
     return map_user_to_response(user)
 
 
-async def get_users_page(
+async def paginate_users(
         pagination: PaginationDep,
         user_repo: UserRepoDep,
         role: Annotated[
@@ -141,14 +155,23 @@ async def get_users_page(
     return page.to_response(map_user_to_response)
 
 
-ActiveUserDep = Annotated[UserResponse, Depends(get_me_or_404)]
-UserByIdDep = Annotated[UserResponse, Depends(get_user_or_404)]
-UsersPageDep = Annotated[Page[UserResponse], Depends(get_users_page)]
-
-
 def require_role(allowed_roles: Iterable[UserRole]):
 
     def checker(current_subject: CurrentSubjectDep):
-        return any(current_subject.has_role(allowed_role) for allowed_role in allowed_roles)
+        return current_subject.has_any_role(allowed_roles)
 
     return checker
+
+
+async def get_invitation_or_404(
+        invitation_id: UUID, invitation_repo: InvitationRepoDep
+) -> InvitationResponse:
+    invitation = await get_or_raise_404(invitation_repo.read, invitation_id, Invitation)
+    return map_invitation_to_response(invitation)
+
+
+async def paginate_invitations(
+        pagination: PaginationDep, invitation_repo: InvitationRepoDep
+) -> Page[InvitationResponse]:
+    page = await invitation_repo.paginate(pagination)
+    return page.to_response(map_invitation_to_response)

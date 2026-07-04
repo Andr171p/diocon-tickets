@@ -1,130 +1,145 @@
+from typing import Any
+
 import logging
 from datetime import timedelta
 from uuid import UUID
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from src.core.settings import settings
+from src.shared.domain.events import EventPublisher
+from src.shared.domain.exceptions import AlreadyExistsError, NotFoundError
+from src.shared.domain.repos import UnitOfWork, get_or_raise_404
+from src.shared.infra.mail import MailSender
+from src.shared.utils.time import get_expiration_timestamp
 
-from ..core.settings import settings
-from ..shared.domain.exceptions import AlreadyExistsError, NotFoundError
-from ..shared.infra.mail import SmtpMailSender
-from ..shared.utils.time import get_expiration_timestamp
 from .constants import INVITATION_EXPIRE_IN_DAYS, INVITATION_SUBJECT, INVITATION_TEXT
+from .domain.authz import Subject, can_create_invitation, can_revoke_invitation
 from .domain.entities import Invitation, User
-from .domain.exceptions import InvitationExpiredError, UnauthorizedError
-from .domain.repos import InvitationRepository, TokenBlacklist, UserRepository
-from .domain.services import create_customer, create_support, invite_customer, invite_internal
-from .domain.vo import UserRole
-from .schemas import Tokens, UserCreateForm
+from .domain.exceptions import PermissionDeniedError, UnauthorizedError
+from .domain.repos import InvitationRepository, TokenStore, UserRepository
+from .domain.services import register_new_user
+from .domain.vo import Email
+from .mappers import map_invitation_to_response
+from .schemas import InvitationCreate, InvitationResponse, Tokens, UserCreate
 from .security import (
     create_access_token,
     create_refresh_token,
-    hash_password,
+    hash_password_async,
     validate_token,
-    verify_password,
+    verify_password_async,
 )
 
 logger = logging.getLogger(__name__)
 
 
 def create_tokens_for_user(user: User) -> Tokens:
-    """Выпуск пары токенов access и refresh"""
+    """
+    Выпуск пары токенов access и refresh для пользователя.
+    """
 
-    # 1. Выпуск токенов
     access_token = create_access_token(
         user_id=user.id,
-        user_role=user.role,
+        user_roles=user.roles,
         email=user.email,
         counterparty_id=user.counterparty_id,
     )
     refresh_token = create_refresh_token(user_id=user.id)
 
-    # 2. Расчёт времени истечения токенов
     access_token_expires_at = get_expiration_timestamp(
         expires_in=timedelta(minutes=settings.jwt.access_token_expires_in_minutes)
     )
 
     return Tokens(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        expires_at=access_token_expires_at,
+        access_token=access_token, refresh_token=refresh_token, expires_at=access_token_expires_at
     )
+
+
+def build_invitation_mail(invitation: Invitation) -> dict[str, Any]:
+    """
+    Формирует данные для пригласительного письма.
+    """
+
+    invite_url = f"{settings.frontend_url}/auth/invite/accept?token={invitation.token}"
+    context = {
+        "email": invitation.email,
+        "granted_roles": ...,
+        "invite_url": invite_url,
+        "expires_in_days": INVITATION_EXPIRE_IN_DAYS,
+        "app_name": settings.app.name,
+        "support_email": settings.mail.support_email,
+    }
+
+    return {
+        "to": invitation.email,
+        "subject": INVITATION_SUBJECT,
+        "plain_text": INVITATION_TEXT,
+        "template_name": "email/invitation.html",
+        "context": context,
+    }
 
 
 class AuthService:
     def __init__(
             self,
-            session: AsyncSession,
+            uow: UnitOfWork,
             user_repo: UserRepository,
             invitation_repo: InvitationRepository,
-            blacklist: TokenBlacklist,
+            token_store: TokenStore,
     ) -> None:
-        self.session = session
+        self.uow = uow
         self.user_repo = user_repo
         self.invitation_repo = invitation_repo
-        self.blacklist = blacklist
+        self.token_store = token_store
 
-    async def register(self, token: str, form_data: UserCreateForm) -> Tokens:
-        """Регистрация нового пользователя по приглашению"""
+    async def register(self, token: str, data: UserCreate) -> Tokens:
+        """
+        Регистрация нового пользователя по приглашению.
+        """
 
-        # 1. Проверка приглашения на валидность
         invitation = await self.invitation_repo.get_by_token(token)
         if invitation is None:
-            raise NotFoundError("Invitation not found")
-        if not invitation.is_valid:
-            raise InvitationExpiredError("Invitation expired or already used")
+            raise NotFoundError(f"Invitation not found by token - {token[1:]}*****")
 
-        # 2. Проверка существования пользователя (чтобы не было дубликата)
         existing_user = await self.user_repo.get_by_email(invitation.email)
         if existing_user is not None:
-            raise AlreadyExistsError(f"User with email - '{invitation.email}' already exists'")
+            raise AlreadyExistsError(f"User with email `{invitation.email}` already exists'")
 
-        # 3. Создание пользователя с определённым набором ролей и атрибутов
-        if invitation.assigned_role.is_customer():
-            user = create_customer(
-                email=invitation.email,
-                password_hash=hash_password(form_data.password),
-                counterparty_id=invitation.counterparty_id,
-                user_role=invitation.assigned_role,
-                username=form_data.username,
-                full_name=form_data.full_name,
-            )
-        elif invitation.assigned_role.is_support():
-            user = create_support(
-                email=invitation.email,
-                password_hash=hash_password(form_data.password),
-                user_role=invitation.assigned_role,
-                username=form_data.username,
-                full_name=form_data.full_name,
-            )
-        else:
-            raise ValueError(
-                f"Invite registration is not supported for the project_role - {invitation.assigned_role}"
-            )
+        password_hash = await hash_password_async(data.password)
+        user = register_new_user(
+            invitation=invitation,
+            password_hash=password_hash,
+            username=data.username,
+            full_name=data.full_name,
+        )
 
-        # 4. Сохранение пользователя + пометка приглашения как использованное
         await self.user_repo.create(user)
-        invitation.mark_as_used()
         await self.invitation_repo.update(invitation)
 
-        # 5. Выпуск пары токенов
         tokens = create_tokens_for_user(user)
-        await self.session.commit()
+        await self.uow.commit()
+
         return tokens
 
     async def authenticate(self, email: str, password: str) -> Tokens:
-        """Аутентификация пользователя по его учётным данным"""
+        """
+        Аутентификация пользователя по его учётным данным.
+        """
 
-        user = await self.user_repo.get_by_email(email)
+        user = await self.user_repo.get_by_email(Email(email))
         if user is None:
-            raise UnauthorizedError(f"User not found by email - '{email}'")
-        if not verify_password(password, user.password_hash.get_secret_value()) or \
-                not user.is_active:
+            raise UnauthorizedError(f"User not found by email - {email}")
+
+        if (
+                not await verify_password_async(password, user.password_hash.get_hashed_value()) or
+                not user.is_active
+        ):
             raise UnauthorizedError("Invalid password or user is not active")
 
         return create_tokens_for_user(user)
 
     async def refresh_tokens(self, refresh_token: str) -> Tokens:
-        """Обновление пары токенов с ротацией"""
+        """
+        Обновление пары токенов с ротацией.
+        """
 
         payload = validate_token(refresh_token)
         user_id, jti, exp = payload.get("sub"), payload.get("jti"), payload.get("exp", 0)
@@ -134,21 +149,27 @@ class AuthService:
 
         user = await self.user_repo.read(user_id)
         if user is None or not user.is_active:
-            await self.blacklist.revoke(jti, user_id=user_id, exp=exp, reason="user_inactive")
+            await self.token_store.revoke(
+                jti, user_id=user_id, exp=exp, reason="user_is_not_active"
+            )
             raise UnauthorizedError("User is not active")
 
-        await self.blacklist.revoke(jti, user_id=user_id, exp=exp, reason="refresh_tokens")
+        await self.token_store.revoke(jti, user_id=user_id, exp=exp, reason="refresh_tokens")
 
         return create_tokens_for_user(user)
 
     async def logout(self, access_token: str, refresh_token: str | None = None) -> None:
-        """Выход с текущего аккаунта"""
+        """
+        Выход с текущего аккаунта.
+        """
 
         try:
             payload = validate_token(access_token)
             jti, exp, user_id = payload.get("jti"), payload.get("exp", 0), payload.get("user_id")
+
             if jti is not None and exp:
-                await self.blacklist.revoke(jti, user_id=user_id, exp=exp, reason="user_logout")
+                await self.token_store.revoke(jti, user_id=user_id, exp=exp, reason="user_logout")
+
         except UnauthorizedError:
             logger.warning("Access token might invalid or expired")
 
@@ -161,7 +182,7 @@ class AuthService:
                     payload.get("user_id"),
                 )
                 if jti is not None and exp:
-                    await self.blacklist.revoke(
+                    await self.token_store.revoke(
                         jti, user_id=user_id, exp=exp, reason="user_logout"
                     )
             except UnauthorizedError:
@@ -171,77 +192,77 @@ class AuthService:
 class InvitationService:
     def __init__(
             self,
-            session: AsyncSession,
-            repository: InvitationRepository,
-            mail_sender: SmtpMailSender
+            uow: UnitOfWork,
+            invitation_repo: InvitationRepository,
+            mail_sender: MailSender,
+            event_publisher: EventPublisher,
     ) -> None:
-        self.session = session
-        self.repository = repository
+        self.uow = uow
+        self.invitation_repo = invitation_repo
         self.mail_sender = mail_sender
+        self.event_publisher = event_publisher
 
-    async def send_invitation(
-            self,
-            invited_by: UUID,
-            email: str,
-            assigned_role: UserRole,
-            counterparty_id: UUID | None = None,
-    ) -> Invitation:
-        """Отправка приглашения на почту"""
+    async def create(
+            self, data: InvitationCreate, current_subject: Subject
+    ) -> InvitationResponse:
+        """
+        Создаёт приглашение + публикует событие для отправки на почту.
+        """
 
-        # 1. Поиск уже существующего приглашения
-        invitation = await self.repository.get_active_by_email_and_role(email, assigned_role)
+        permission = can_create_invitation(subject=current_subject)
+        if not permission.allowed:
+            raise PermissionDeniedError(permission.reason)
 
-        # 2. Создание нового приглашения, если не нашлось существующее
+        invitation = await self.invitation_repo.get_active(Email(data.email), data.granted_roles)
+
         if invitation is None:
-            logger.info("Invitation is not found, planned_start creating new")
+            logger.info("Invitation is not found for email - `%s`, start creating new", data.email)
 
-            if assigned_role.is_staff():
-                invitation = invite_internal(
-                    invited_by=invited_by, email=email, assigned_role=assigned_role
-                )
-            elif assigned_role.is_customer() and counterparty_id is not None:
-                invitation = invite_customer(
-                    invited_by=invited_by,
-                    email=email,
-                    counterparty_id=counterparty_id,
-                    assigned_role=assigned_role,
-                )
-            else:
-                raise ValueError("Invalid invite pagination")
+            invitation = Invitation.create(
+                email=Email(data.email),
+                invited_by=current_subject.id,
+                granted_roles=data.granted_roles,
+                counterparty_id=data.counterparty_id,
+            )
+            await self.invitation_repo.create(invitation)
+            await self.uow.commit()
+        else:
+            invitation.invite()
 
-            await self.repository.create(invitation)
-            await self.session.commit()
-            logger.info("Invitation saved successfully")
+        for event in invitation.collect_events():
+            await self.event_publisher.publish(event)
 
-        # 3. Формирование письма и отправка
-        invite_url = f"{settings.frontend_url}/auth/invite/accept?token={invitation.token}"
-        context = {
-            "email": email,
-            "project_role": assigned_role.value.replace("_", " ").title(),
-            "invite_url": invite_url,
-            "expires_in_days": INVITATION_EXPIRE_IN_DAYS,
-            "invited_by": f"{invited_by}",
-            "app_name": settings.app.name,
-            "support_email": settings.mail.support_email,
-        }
-        await self.mail_sender.send(
-            to=invitation.email,
-            subject=INVITATION_SUBJECT,
-            plain_text=INVITATION_TEXT,
-            template_name="email/invitation.html",
-            context=context,
+        return map_invitation_to_response(invitation)
+
+    async def send(self, invitation_id: UUID) -> None:
+        """
+        Отправка письма на почту.
+        """
+
+        invitation = await self.invitation_repo.read(invitation_id)
+        if invitation is None:
+            logger.warning("Invitation with ID %s not found, skip send mail", invitation_id)
+            return
+
+        payload = build_invitation_mail(invitation)
+        await self.mail_sender.send(**payload)
+
+        logger.info(
+            "Invitation sent: %s -> %s (%s)",
+            invitation.invited_by, invitation.email, "; ".join(invitation.granted_roles)
         )
-        logger.info("Invitation sent: %s -> %s (%s)", invited_by, email, assigned_role)
 
-        return invitation
+    async def revoke_invitation(self, invitation_id: UUID, current_subject: Subject) -> None:
+        """
+        Отзыв ошибочно отправленного приглашения.
+        """
 
-    async def revoke_invitation(self, invitation_id: UUID) -> None:
-        """Отзыв ещё не принятого приглашения (если было отправлено по ошибке)"""
+        invitation = await get_or_raise_404(self.invitation_repo.read, invitation_id, Invitation)
 
-        invitation = await self.repository.read(invitation_id)
-        if invitation is None:
-            raise NotFoundError("Invitation not found")
+        permission = can_revoke_invitation(subject=current_subject, invitation=invitation)
+        if not permission.allowed:
+            raise PermissionDeniedError(permission.reason)
 
-        await self.repository.delete(invitation_id)
-        await self.session.commit()
+        await self.invitation_repo.delete(invitation_id)
+        await self.uow.commit()
         logger.info("Invitation deleted successfully")

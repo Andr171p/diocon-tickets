@@ -1,75 +1,72 @@
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, status
+from fastapi import Depends, status
+from faststream.rabbit import RabbitQueue
+from faststream.rabbit.fastapi import RabbitRouter
 
-from ...shared.dependencies import PaginationDep
-from ...shared.domain.exceptions import NotFoundError
-from ...shared.schemas import Page
+from src.shared.schemas import Page
+
 from ..dependencies import (
-    CurrentSupportUserDep,
+    CurrentSubjectDep,
     InvitationServiceDep,
-    get_current_support_user,
-    get_invitation_repo,
+    get_invitation_or_404,
+    paginate_invitations,
+    require_role,
 )
-from ..domain.repos import InvitationRepository
-from ..mappers import map_invitation_to_response
+from ..domain.events import UserInvited
+from ..domain.vo import UserRole
 from ..schemas import InvitationCreate, InvitationResponse
 
-router = APIRouter(
-    prefix="/invitations",
-    tags=["Приглашения"],
-    dependencies=[Depends(get_current_support_user)]
-)
+router = RabbitRouter(prefix="/invitations", tags=["Приглашения"])
 
 
 @router.post(
     path="",
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Отправка приглашения",
-    description="Приглашения можно отправлять только с ролью `support` и выше"
+    response_model=InvitationResponse,
+    summary="Создать приглашения",
+    description="Пригласительное письмо отправиться в фоне"
 )
-async def send_invitation(
-        current_user: CurrentSupportUserDep,
+async def create_invitation(
+        current_subject: CurrentSubjectDep,
         data: InvitationCreate,
-        background_tasks: BackgroundTasks,
         service: InvitationServiceDep,
-) -> dict[str, str]:
-    background_tasks.add_task(
-        service.send_invitation,
-        invited_by=current_user.user_id,
-        email=data.email,
-        assigned_role=data.assigned_role,
-        counterparty_id=data.counterparty_id,
-    )
-    return {"message": "Приглашение будет отправлено в ближайшее время"}
+) -> InvitationResponse:
+    return await service.create(data, current_subject)
+
+
+@router.subscriber(
+    queue=RabbitQueue("user.invite", durable=True),
+    description="Отправить пригласительное письмо"
+)
+async def on_user_invited(event: UserInvited, service: InvitationServiceDep) -> None:
+    await service.send(event.invitation_id)
 
 
 @router.get(
     path="/{invitation_id}",
     status_code=status.HTTP_200_OK,
     response_model=InvitationResponse,
+    dependencies=[Depends(require_role(UserRole.staff_roles()))],
     summary="Получение информации и приглашении"
 )
-async def get_invitation(
-        invitation_id: UUID, repository: InvitationRepository = Depends(get_invitation_repo)
+async def get_invitation(  # noqa: RUF029
+        invitation: InvitationResponse = Depends(get_invitation_or_404),
 ) -> InvitationResponse:
-    invitation = await repository.read(invitation_id)
-    if invitation is None:
-        raise NotFoundError(f"Invitation with ID {invitation_id} not found")
-    return map_invitation_to_response(invitation)
+    return invitation
 
 
 @router.get(
     path="",
     status_code=status.HTTP_200_OK,
     response_model=Page[InvitationResponse],
+    dependencies=[Depends(require_role(UserRole.staff_roles()))],
     summary="Получение всех приглашений",
 )
-async def get_invitations(
-        params: PaginationDep, repository: InvitationRepository = Depends(get_invitation_repo)
+async def get_invitations(  # noqa: RUF029
+        invitations: Page[InvitationResponse] = Depends(paginate_invitations),
 ) -> Page[InvitationResponse]:
-    page = await repository.paginate(params)
-    return page.to_response(map_invitation_to_response)
+    return invitations
 
 
 @router.delete(
@@ -85,5 +82,7 @@ async def get_invitations(
         404: {"description": "Приглашение не найдено"}
     }
 )
-async def revoke_invitation(invitation_id: UUID, service: InvitationServiceDep) -> None:
-    await service.revoke_invitation(invitation_id)
+async def revoke_invitation(
+        invitation_id: UUID, service: InvitationServiceDep, current_subject: CurrentSubjectDep
+) -> None:
+    await service.revoke_invitation(invitation_id, current_subject)

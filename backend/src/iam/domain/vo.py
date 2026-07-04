@@ -1,4 +1,4 @@
-from typing import ClassVar
+from typing import ClassVar, Self
 
 import re
 from dataclasses import dataclass, field
@@ -29,14 +29,32 @@ class UserRole(StrEnum):
 
     ADMIN = auto()  # системный администратор
 
+    @property
     def is_customer(self) -> bool:
         return self.value in {self.CUSTOMER, self.CUSTOMER_ADMIN}
 
+    @property
     def is_support(self) -> bool:
         return self.value in {self.SUPPORT_AGENT, self.SUPPORT_MANAGER, self.ADMIN}
 
+    @property
     def is_staff(self) -> bool:
         return self.value not in {self.CUSTOMER, self.CUSTOMER_ADMIN}
+
+    @classmethod
+    def staff_roles(cls) -> set[Self]:
+        return {
+            cls.ADMIN,
+            cls.SUPPORT_MANAGER,
+            cls.SUPPORT_AGENT,
+            cls.DEVELOPER,
+            cls.ACCOUNT_MANAGER,
+            cls.FINANCE,
+        }
+
+    @classmethod
+    def customer_roles(cls) -> set[Self]:
+        return {cls.CUSTOMER, cls.CUSTOMER_ADMIN}
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,3 +229,21 @@ class Email:
     @property
     def domain(self) -> str:
         return self.value.split("@")[-1]
+
+
+@dataclass(frozen=True, slots=True)
+class PasswordHash(ValueObject):
+    value: str
+
+    def __post_init__(self) -> None:
+        if not self.value.strip():
+            raise ValueError("Password hash cannot be empty")
+
+    def __repr__(self) -> str:
+        return "PasswordHash(******)"
+
+    def __str__(self) -> str:
+        return "******"
+
+    def get_hashed_value(self) -> str:
+        return self.value

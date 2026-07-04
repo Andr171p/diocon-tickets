@@ -3,10 +3,10 @@ from fastapi import APIRouter, Depends, status
 from src.shared.schemas import Page
 
 from ..dependencies import (
-    ActiveUserDep,
-    UserByIdDep,
-    UsersPageDep,
     get_current_subject,
+    get_me_or_404,
+    get_user_or_404,
+    paginate_users,
 )
 from ..schemas import UserResponse
 
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/users", tags=["Пользователи"])
     response_model=UserResponse,
     summary="Получить информацию о своём учётной записи"
 )
-async def get_me(user: ActiveUserDep) -> UserResponse:
+async def get_me(user: UserResponse = Depends(get_me_or_404)) -> UserResponse:
     return user
 
 
@@ -30,8 +30,8 @@ async def get_me(user: ActiveUserDep) -> UserResponse:
     dependencies=[Depends(get_current_subject)],
     summary="Получить всех пользователей",
 )
-async def get_users(page: UsersPageDep) -> Page[UserResponse]:
-    return page
+async def get_users(users: Page[UserResponse] = Depends(paginate_users)) -> Page[UserResponse]:
+    return users
 
 
 @router.get(
@@ -41,5 +41,5 @@ async def get_users(page: UsersPageDep) -> Page[UserResponse]:
     dependencies=[Depends(get_current_subject)],
     summary="Получить пользователя",
 )
-async def get_user(user: UserByIdDep) -> UserResponse:
+async def get_user(user: UserResponse = Depends(get_user_or_404)) -> UserResponse:
     return user

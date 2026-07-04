@@ -30,7 +30,7 @@ class TestRedisTokenBlacklist:
         success = await redis_token_blacklist.revoke(jti, user_id=user_id, exp=exp, reason=reason)
         assert success is True
 
-        # 2. Проверка, что токен в blacklist
+        # 2. Проверка, что токен в token_store
         is_revoked = await redis_token_blacklist.is_revoked(jti)
         assert is_revoked is True
 

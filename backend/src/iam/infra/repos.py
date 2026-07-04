@@ -1,15 +1,14 @@
 from typing import override
 
-from uuid import UUID
-
-from pydantic import SecretStr
-from sqlalchemy import select
+from sqlalchemy import Select, cast, select
+from sqlalchemy.dialects.postgresql import ARRAY, VARCHAR
 
 from src.shared.infra.repos import ModelMapper, SqlAlchemyRepository
 from src.shared.schemas import Page, Pagination
 
 from ..domain.entities import Invitation, User
-from ..domain.vo import FullName, Username, UserRole
+from ..domain.repos import UserFilters
+from ..domain.vo import Email, FullName, PasswordHash, Username, UserRole
 from .models import InvitationOrm, UserOrm
 
 
@@ -20,13 +19,13 @@ class UserMapper(ModelMapper[User, UserOrm]):
             id=model.id,
             created_at=model.created_at,
             updated_at=model.updated_at,
-            email=model.email,
+            email=Email(model.email),
             username=None if model.username is None else Username(model.username),
             full_name=None if model.full_name is None else FullName(model.full_name),
             avatar_url=model.avatar_url,
             counterparty_id=model.counterparty_id,
-            role=model.role,
-            password_hash=SecretStr(model.password_hash),
+            roles=model.roles,
+            password_hash=PasswordHash(model.password_hash),
             is_active=model.is_active,
         )
 
@@ -36,13 +35,13 @@ class UserMapper(ModelMapper[User, UserOrm]):
             id=entity.id,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
-            email=entity.email,
+            email=entity.email.value,
             username=None if entity.username is None else entity.username.value,
             full_name=None if entity.full_name is None else entity.full_name.value,
             avatar_url=entity.avatar_url,
             counterparty_id=entity.counterparty_id,
-            role=entity.role,
-            password_hash=entity.password_hash.get_secret_value(),
+            roles=entity.roles,
+            password_hash=entity.password_hash.value,
             is_active=entity.is_active,
         )
 
@@ -51,30 +50,34 @@ class SqlUserRepository(SqlAlchemyRepository[User, UserOrm]):
     model = UserOrm
     model_mapper = UserMapper
 
+    def _apply_user_filters(
+            self, stmt: Select[tuple[UserOrm]], filters: UserFilters
+    ) -> Select[tuple[UserOrm]]:
+        if filters.roles is not None and filters.roles:
+            roles_as_strings: list[str] = [role.value for role in filters.roles]
+            stmt = stmt.where(cast(self.model.roles, ARRAY(VARCHAR)).has_any(roles_as_strings))
+
+        if filters.counterparty_id is not None:
+            stmt = stmt.where(self.model.counterparty_id == filters.counterparty_id)
+
+        return stmt
+
     @override
     async def paginate(
-            self, params: Pagination, roles: list[UserRole] | None = None
+            self, pagination: Pagination, filters: UserFilters | None = None
     ) -> Page[User]:
         stmt = select(self.model)
-        if roles is not None:
-            stmt = stmt.where(self.model.role.in_(roles))
 
-        return await self._paginate(stmt, params)
+        if filters:
+            stmt = self._apply_user_filters(stmt, filters)
 
-    async def get_by_email(self, email: str) -> User:
-        stmt = select(self.model).where(self.model.email == email)
+        return await self._paginate(stmt, pagination)
+
+    async def get_by_email(self, email: Email) -> User:
+        stmt = select(self.model).where(self.model.email == email.value)
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
         return None if model is None else self.model_mapper.to_entity(model)
-
-    async def get_customer_admins(self, counterparty_id: UUID) -> list[User]:
-        stmt = select(self.model).where(
-            (self.model.counterparty_id == counterparty_id) &
-            (self.model.role == UserRole.CUSTOMER_ADMIN)
-        )
-        results = await self.session.execute(stmt)
-        models = results.scalars().all()
-        return [self.model_mapper.to_entity(model) for model in models]
 
 
 class InvitationMapper(ModelMapper[Invitation, InvitationOrm]):
@@ -84,10 +87,10 @@ class InvitationMapper(ModelMapper[Invitation, InvitationOrm]):
             id=model.id,
             created_at=model.created_at,
             updated_at=model.updated_at,
-            email=model.email,
+            email=Email(model.email),
             token=model.token,
             invited_by=model.invited_by,
-            assigned_role=model.assigned_role,
+            granted_roles=model.granted_roles,
             counterparty_id=model.counterparty_id,
             expires_at=model.expires_at,
             used_at=model.used_at,
@@ -100,10 +103,10 @@ class InvitationMapper(ModelMapper[Invitation, InvitationOrm]):
             id=entity.id,
             created_at=entity.created_at,
             updated_at=entity.updated_at,
-            email=entity.email,
+            email=entity.email.value,
             token=entity.token,
             invited_by=entity.invited_by,
-            assigned_role=entity.assigned_role,
+            granted_roles=entity.granted_roles,
             counterparty_id=entity.counterparty_id,
             expires_at=entity.expires_at,
             used_at=entity.used_at,
@@ -121,14 +124,12 @@ class SqlInvitationRepository(SqlAlchemyRepository[Invitation, InvitationOrm]):
         model = result.scalar_one_or_none()
         return None if model is None else self.model_mapper.to_entity(model)
 
-    async def get_active_by_email_and_role(
-            self, email: str, user_role: UserRole
-    ) -> Invitation | None:
+    async def get_active(self, email: Email, roles: set[UserRole]) -> Invitation | None:
         stmt = (
             select(self.model)
             .where(
-                (self.model.email == email) &
-                (self.model.assigned_role == user_role) &
+                (self.model.email == email.value) &
+                (self.model.granted_roles.contains(list(roles))) &
                 (self.model.is_used.is_(False))
             )
             .limit(1)

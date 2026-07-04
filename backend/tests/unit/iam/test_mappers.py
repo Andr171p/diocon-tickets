@@ -132,7 +132,7 @@ class TestInvitationMapper:
         assert entity.email == model.email
         assert entity.token == model.token
         assert entity.invited_by == model.invited_by
-        assert entity.assigned_role == model.assigned_role
+        assert entity.granted_roles == model.assigned_role
         assert entity.counterparty_id == model.counterparty_id
         assert entity.expires_at == model.expires_at
         assert entity.used_at == model.used_at
@@ -144,7 +144,7 @@ class TestInvitationMapper:
             email="invitee@example.com",
             token=token,
             invited_by=uuid4(),
-            assigned_role=UserRole.CUSTOMER_ADMIN,
+            granted_roles=UserRole.CUSTOMER_ADMIN,
             counterparty_id=uuid4(),
             expires_at=current_datetime(),
             used_at=None,
@@ -159,7 +159,7 @@ class TestInvitationMapper:
         assert model.email == entity.email
         assert model.token == entity.token
         assert model.invited_by == entity.invited_by
-        assert model.assigned_role == entity.assigned_role
+        assert model.assigned_role == entity.granted_roles
         assert model.counterparty_id == entity.counterparty_id
         assert model.expires_at == entity.expires_at
         assert model.used_at == entity.used_at

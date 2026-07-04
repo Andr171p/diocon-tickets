@@ -1,9 +1,12 @@
 from typing import Any, Protocol
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import StrEnum, auto
 from uuid import UUID
 
+from .entities import Invitation
+from .rules import IsAdminRule, IsInviterRule, IsStaffRule
 from .vo import Email, UserRole
 
 
@@ -41,6 +44,12 @@ class Subject:
 
     def has_role(self, role: str) -> bool:
         return role in self.roles
+
+    def has_any_role(self, roles: Iterable[str]) -> bool:
+        return any(self.has_role(role) for role in roles)
+
+    def has_all_roles(self, roles: Iterable[str]) -> bool:
+        return set(roles) == self.roles
 
     def has_scope(self, scope: str) -> bool:
         return scope in self.scopes
@@ -128,3 +137,13 @@ class Not:
             )
 
         return PermissionResult(True)
+
+
+def can_create_invitation(subject: Subject) -> PermissionResult:
+    policy = AnyOf(IsAdminRule(subject), IsStaffRule(subject))
+    return policy.check()
+
+
+def can_revoke_invitation(subject: Subject, invitation: Invitation) -> PermissionResult:
+    policy = AnyOf(IsAdminRule(subject), IsInviterRule(subject, invitation))
+    return policy.check()

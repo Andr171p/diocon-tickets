@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Protocol
 
 import logging
 from email.mime.multipart import MIMEMultipart
@@ -19,6 +19,19 @@ jinja_env = jinja2.Environment(
     trim_blocks=True,
     lstrip_blocks=True,
 )
+
+
+class MailSender(Protocol):
+    async def send(
+            self,
+            to: str | list[str],
+            subject: str,
+            template_name: str | None = None,
+            context: dict[str, Any] | None = None,
+            plain_text: str | None = None,
+            from_email: str | None = None,
+            reply_to: str | None = None,
+    ) -> None: ...
 
 
 class SmtpMailSender:

@@ -9,7 +9,7 @@ from src.crm.domain.entities import Counterparty
 from src.crm.domain.repo import CounterpartyRepository
 from src.crm.domain.vo import CounterpartyType, Inn, Kpp, Phone
 from src.iam.domain.entities import User
-from src.iam.domain.repos import InvitationRepository, TokenBlacklist, UserRepository
+from src.iam.domain.repos import InvitationRepository, TokenStore, UserRepository
 from src.iam.domain.vo import FullName, UserRole
 from src.notifications.domain.repos import NotificationRepository, PreferenceRepository
 from src.products.domain.repo import ProductRepository
@@ -64,7 +64,7 @@ def fake_invitation_repo() -> InvitationRepository:
 
 
 @pytest.fixture
-def fake_token_blacklist() -> TokenBlacklist:
+def fake_token_blacklist() -> TokenStore:
     return InMemoryTokenBlacklist()
 
 
