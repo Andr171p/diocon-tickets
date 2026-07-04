@@ -1,37 +1,34 @@
 from typing import override
 
+from dataclasses import dataclass
 from uuid import UUID
 
-from ...iam.domain.entities import User
-from ...products.domain.entities import SoftwareProduct
-from ...shared.domain.repo import Repository
-from ...shared.schemas import Page, Pagination
+from src.iam.domain.entities import User
+from src.products.domain.entities import SoftwareProduct
+from src.shared.domain.repos import Repository
+from src.shared.schemas import Page, Pagination
+
 from .entities import Counterparty
 from .vo import Inn
+
+
+@dataclass(frozen=True)
+class CounterpartyFilters:
+    search_query: str | None = None
+    email: str | None = None
+    inn: Inn | None = None
 
 
 class CounterpartyRepository(Repository[Counterparty]):
 
     @override
     async def paginate(
-            self,
-            params: Pagination,
-            query: str | None = None,
-            email: str | None = None,
-            inn: Inn | None = None,
-    ) -> Page[Counterparty]:
-        """
-        Поиск контрагентов по различным параметрам
-        """
+            self, pagination: Pagination, filters: CounterpartyFilters | None = None,
+    ) -> Page[Counterparty]: ...
 
-    async def get_by_email(self, email: str) -> Counterparty | None:
-        """Поиск по email адресу компании (почта уникальна)"""
+    async def get_by_email(self, email: str) -> Counterparty | None: ...
 
-    async def get_by_inn(self, inn: Inn) -> Counterparty | None:
-        """
-        Поиск по ИНН основной компании
-        (ИНН одинаковый для головной компании и её филиалов).
-        """
+    async def get_by_inn(self, inn: Inn) -> Counterparty | None: ...
 
     async def get_with_descendants(self, counterparty_id: UUID) -> list[Counterparty]:
         """

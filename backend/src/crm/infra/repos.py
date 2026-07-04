@@ -2,16 +2,18 @@ from typing import override
 
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import Select, and_, func, or_, select
 
-from ...iam.domain.entities import User
-from ...iam.domain.vo import FullName
-from ...products.domain.entities import SoftwareProduct
-from ...products.infra.models import SoftwareProductOrm
-from ...products.infra.repo import SoftwareProductMapper
-from ...shared.infra.repos import ModelMapper, SqlAlchemyRepository
-from ...shared.schemas import Page, Pagination
+from src.iam.domain.entities import User
+from src.iam.domain.vo import FullName
+from src.products.domain.entities import SoftwareProduct
+from src.products.infra.models import SoftwareProductOrm
+from src.products.infra.repo import SoftwareProductMapper
+from src.shared.infra.repos import ModelMapper, SqlAlchemyRepository
+from src.shared.schemas import Page, Pagination
+
 from ..domain.entities import Counterparty
+from ..domain.repo import CounterpartyFilters
 from ..domain.vo import ContactPerson, Inn, Kpp, Okpo, Phone
 from .models import CounterpartyOrm, CounterpartyProductOrm
 
@@ -81,47 +83,46 @@ class SqlCounterpartyRepository(SqlAlchemyRepository[Counterparty, CounterpartyO
     model = CounterpartyOrm
     model_mapper = CounterpartyMapper
 
-    @override
-    async def paginate(
-            self,
-            params: Pagination,
-            query: str | None = None,
-            email: str | None = None,
-            inn: Inn | None = None,
-    ) -> Page[Counterparty]:
-        # Базовый запрос на получение контрагентов
-        stmt = select(self.model)
-
+    def _apply_counterparty_filters(
+            self, stmt: Select[tuple[CounterpartyOrm]], filters: CounterpartyFilters,
+    ) -> Select[tuple[CounterpartyOrm]]:
         conditions = []
 
-        # Полнотекстовый поиск по наименованиям и ИНН
-        if query is not None and query.strip():
-            query = query.strip()
+        if filters.search_query and filters.search_query.strip():
+            search_query = filters.search_query.strip()
 
-            # Если в запросе только цифры - поиск по Инн
-            if query.isdigit():
-                conditions.append(self.model.inn.ilike(f"{query}%"))
+            if search_query.isdigit():
+                conditions.append(self.model.inn.ilike(f"{search_query}%"))
             else:
-                pattern = f"%{query}%"
+                pattern = f"%{search_query}%"
                 conditions.append(
                     or_(self.model.name.ilike(pattern), self.model.legal_name.ilike(pattern))
                 )
 
-        if email is not None:
-            conditions.append(self.model.email == email)
+        if filters.email:
+            conditions.append(self.model.email == filters.email)
 
-        if inn is not None:
-            conditions.append(self.model.inn == inn.value)
+        if filters.inn:
+            conditions.append(self.model.inn == filters.inn.value)
 
-        # Применение фильтров
         if conditions:
             stmt = stmt.where(and_(*conditions))
 
-        return await self._paginate(stmt, params)
+        return stmt
+
+    @override
+    async def paginate(
+            self, pagination: Pagination, filters: CounterpartyFilters | None = None,
+    ) -> Page[Counterparty]:
+        stmt = select(self.model)
+
+        if filters:
+            stmt = self._apply_counterparty_filters(stmt, filters)
+
+        return await self._paginate(stmt, pagination)
 
     async def get_by_email(self, email: str) -> Counterparty | None:
         stmt = (
-            
             select(self.model)
             .where(
                 (self.model.email == email) &

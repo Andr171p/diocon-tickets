@@ -2,7 +2,8 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..shared.domain.exceptions import AlreadyExistsError, NotFoundError
+from src.shared.domain.exceptions import AlreadyExistsError, NotFoundError
+
 from .domain.entities import Counterparty
 from .domain.repo import CounterpartyRepository
 from .domain.vo import ContactPerson, Inn, Kpp, Okpo, Phone

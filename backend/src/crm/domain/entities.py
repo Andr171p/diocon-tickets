@@ -5,9 +5,10 @@ from uuid import UUID
 
 from pydantic import EmailStr
 
-from ...shared.domain.entities import Entity
-from ...shared.domain.exceptions import InvariantViolationError
-from ...shared.utils.time import current_datetime
+from src.shared.domain.entities import Entity
+from src.shared.domain.exceptions import InvariantViolationError
+from src.shared.utils.time import current_datetime
+
 from .vo import ContactPerson, CounterpartyType, Inn, Kpp, Okpo, Phone
 
 INDIVIDUAL_INN_LENGTH = 12
@@ -17,7 +18,7 @@ LEGAL_INN_LENGTH = 10
 @dataclass(kw_only=True)
 class Counterparty(Entity):
     """
-    Контрагент - компания с которой ведётся работа (заказчик)
+    Контрагент - компания с которой ведётся работа (заказчик).
     """
 
     counterparty_type: CounterpartyType
@@ -37,7 +38,6 @@ class Counterparty(Entity):
     parent_id: UUID | None = None
 
     def __post_init__(self) -> None:  # noqa: C901
-        """Проверка инвариантов контрагента"""
 
         # 1. Проверка корректности длины ИНН в зависимости от типа контрагента
         inn_length = len(self.inn.value)

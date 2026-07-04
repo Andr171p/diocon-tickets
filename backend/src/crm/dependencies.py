@@ -1,13 +1,20 @@
 from typing import Annotated
 
+from uuid import UUID
+
 from fastapi import Depends, Query
 from pydantic import EmailStr
 
-from ..shared.dependencies import SessionDep
-from .domain.repo import CounterpartyRepository
+from src.shared.dependencies import PaginationDep, SessionDep
+from src.shared.domain.repos import get_or_raise_404
+from src.shared.schemas import Page
+
+from .domain.entities import Counterparty
+from .domain.repo import CounterpartyFilters, CounterpartyRepository
 from .domain.vo import Inn
 from .infra.repos import SqlCounterpartyRepository
-from .schemas import CounterpartyFilters
+from .mappers import map_counterparty_to_response
+from .schemas import CounterpartyResponse
 from .services import CounterpartyService
 
 
@@ -28,7 +35,7 @@ CounterpartyServiceDep = Annotated[CounterpartyService, Depends(get_counterparty
 
 
 def get_counterparty_filters(
-        query: Annotated[
+        q: Annotated[
             str | None, Query(..., description="Поисковый запрос (наименования, инн)")
         ] = None,
         email: Annotated[
@@ -36,7 +43,23 @@ def get_counterparty_filters(
         ] = None,
         inn: Annotated[str | None, Query(..., description="ИНН контрагента")] = None,
 ) -> CounterpartyFilters:
-    return CounterpartyFilters(query=query, email=email, inn=None if inn is None else Inn(inn))
+    return CounterpartyFilters(search_query=q, email=email, inn=Inn(inn) if inn else None)
 
 
 CounterpartyFiltersDep = Annotated[CounterpartyFilters, Depends(get_counterparty_filters)]
+
+
+async def get_counterparty_or_404(
+        counterparty_id: UUID, counterparty_repo: CounterpartyRepoDep
+) -> CounterpartyResponse:
+    counterparty = await get_or_raise_404(counterparty_repo.read, counterparty_id, Counterparty)
+    return map_counterparty_to_response(counterparty)
+
+
+async def paginate_counterparties(
+        pagination: PaginationDep,
+        filters: CounterpartyFiltersDep,
+        counterparty_repo: CounterpartyRepoDep,
+) -> Page[CounterpartyResponse]:
+    page = await counterparty_repo.paginate(pagination, filters)
+    return page.to_response(map_counterparty_to_response)

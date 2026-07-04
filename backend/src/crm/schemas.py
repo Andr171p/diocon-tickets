@@ -1,10 +1,9 @@
-from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
-from .domain.vo import CounterpartyType, Inn
+from .domain.vo import CounterpartyType
 
 
 class ContactPersonIn(BaseModel):
@@ -102,14 +101,3 @@ class CounterpartyResponse(CounterpartyBase):
     is_active: bool = Field(True, description="Доступен ли контрагент в системе")
     is_head: bool = Field(True, description="Является ли контрагент головным")
     is_branch: bool = Field(False, description="Является ли дочерним объектом")
-
-
-@dataclass(frozen=True)
-class CounterpartyFilters:
-    """
-    Фильтры для поиска контрагентов
-    """
-
-    query: str | None = None
-    email: str | None = None
-    inn: Inn | None = None
