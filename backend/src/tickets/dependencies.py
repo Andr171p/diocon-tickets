@@ -23,7 +23,6 @@ from src.shared.dependencies import (
 )
 from src.shared.schemas import Page
 
-from ..iam.domain.authz import Subject
 from .domain.authz import TicketAuthZService
 from .domain.dtos import TicketFilters
 from .domain.repos import CommentRepository, ReactionRepository, TicketRepository
