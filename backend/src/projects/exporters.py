@@ -11,6 +11,11 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+from docx import Document
+from docx.enum.section import WD_ORIENT
+from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.shared import Cm, Pt
+
 
 HEADERS = [
     "№",
@@ -142,4 +147,59 @@ def export_project_stages_to_pdf(report: ProjectStagesReport) -> bytes:
     return output.getvalue()
 
 def export_project_stages_to_word(report: ProjectStagesReport) -> bytes:
-    raise NotImplementedError
+    """
+    Сформировать Word-файл отчета по этапам проекта.
+    """
+
+    document = Document()
+
+    section = document.section[0]
+    section.orientation = WD_ORIENT.LANDSCAPE
+    section.page_width, section.page_height = section.page_height, section.page_width
+    section.left_margin = Cm(1.0)
+    section.right_margin = Cm(1.0)
+    section.top_margin = Cm(1.0)
+    section.bottom_margin = Cm(1.0)
+
+    title = document.add_heading(f"Отчет по этапам проекта: {report.project_name}", level=1)
+    title.alignment = 1
+    document.add_paragraph(f"Ключ проекта: {report.project_key}")
+    document.add_paragraph(f"Статус проекта: {report.project_status}")
+    document.add_paragraph(f"Дата формирования: {report.generated_at:%d.%m.%Y %H:%M}")
+
+    table = document.add_table(rows=1, cols=len(HEADERS))
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table.style = "Table Grid"
+
+    header_cells = table.rows[0].cells
+    for index, header in enumerate(HEADERS):
+        paragraph = header_cells[index].paragraphs[0]
+        run = paragraph.add_run(header)
+        run.bold = True
+        run.font.size = Pt(8)
+
+    for row in report.rows:
+        cells = table.add_row().cells
+        values = [
+            row.number,
+            row.name,
+            row.status,
+            row.planned_start,
+            row.planned_end,
+            row.started_at,
+            row.completed_at,
+            row.responsible_id,
+            row.is_overdue,
+            row.planned_duration_days,
+            row.description,
+            row.completion_criteria,
+        ]
+
+        for index, value in enumerate(values):
+            paragraph = cells[index].paragraphs[0]
+            run = paragraph.add_run(str(value))
+            run.font.size = Pt(8)
+
+    output = BytesIO()
+    document.save(output)
+    return output.getvalue()
