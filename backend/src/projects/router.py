@@ -1,12 +1,12 @@
-from uuid import UUID
 from io import BytesIO
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import StreamingResponse
 
 from src.iam.dependencies import CurrentSubjectDep, get_current_subject, require_role
 from src.iam.domain.constants import SUPPORT_MANAGER_OR_ABOVE
 from src.shared.schemas import Page
-from fastapi.responses import StreamingResponse
 
 from .dependencies import (
     MyProjectsDep,
@@ -17,6 +17,11 @@ from .dependencies import (
     ProjectStageExportServiceDep,
 )
 from .domain.services import generate_project_key
+from .exporters import (
+    export_project_stages_to_excel,
+    export_project_stages_to_pdf,
+    export_project_stages_to_word,
+)
 from .schemas import (
     KeyCheckResult,
     NewProjectStagesOrder,
@@ -28,11 +33,6 @@ from .schemas import (
     ProjectStagePlan,
     ProjectStageResponse,
     ProjectStageUpdate,
-)
-from .exporters import (
-    export_project_stages_to_excel,
-    export_project_stages_to_pdf,
-    export_project_stages_to_word,
 )
 
 router = APIRouter(prefix="/projects", tags=["Проекты"])
@@ -171,7 +171,7 @@ async def create_project_stage(
 
 
 @router.get(
-    path='/{project_id}/stages/export/excel',
+    path="/{project_id}/stages/export/excel",
     status_code=status.HTTP_200_OK,
     summary="Экспортировать этапы проекта в Excel",
 )
