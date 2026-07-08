@@ -1,5 +1,6 @@
 from typing import Annotated, Self
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from uuid import UUID
@@ -16,7 +17,7 @@ from .events import (
     ProjectMemberCreated,
     ProjectMemberRemoved,
 )
-from .vo import ProjectKey, ProjectRole, ProjectStageStatus, ProjectStatus
+from .vo import MemberRole, ProjectKey, ProjectStageStatus, ProjectStatus
 
 
 @dataclass(kw_only=True)
@@ -26,18 +27,24 @@ class ProjectMember(Entity):
     """
 
     project_id: UUID
-    project_roles: list[ProjectRole]
+    roles: set[MemberRole]
     user_id: UUID
     created_by: UUID
 
-    def has_role(self, project_role: ProjectRole) -> bool:
-        return project_role in self.project_roles
+    def has_role(self, role: MemberRole) -> bool:
+        return role in self.roles
 
-    def grant_role(self, project_role: ProjectRole) -> None:
-        if project_role in self.project_roles:
+    def has_any_role(self, roles: Iterable[MemberRole]) -> None:
+        bool(self.roles & set(roles))
+
+    def has_all_roles(self, roles: Iterable[MemberRole]) -> bool:
+        return set(roles).issubset(self.roles)
+
+    def grant_role(self, role: MemberRole) -> None:
+        if role in self.roles:
             return
 
-        self.project_roles.append(project_role)
+        self.roles.add(role)
         self.updated_at = current_datetime()
 
     def remove(self, removed_by: UUID) -> None:
@@ -256,7 +263,7 @@ class Project(AggregateRoot):
         return project
 
     def create_member(
-            self, user_id: UUID, project_roles: list[ProjectRole], created_by: UUID
+            self, user_id: UUID, roles: list[MemberRole], created_by: UUID
     ) -> ProjectMember:
         """
         Создание участника в проекте (фабричный метод).
@@ -265,14 +272,14 @@ class Project(AggregateRoot):
         if self.status == ProjectStatus.ARCHIVED:
             raise InvalidStateError("Cannot add member in ARCHIVED project")
 
-        unique_project_roles = set(project_roles)
+        unique_roles = set(roles)
 
-        if len(unique_project_roles) > len(ProjectRole):
+        if len(unique_roles) > len(MemberRole):
             raise InvariantViolationError("Too many project roles granted")
 
         member = ProjectMember(
             project_id=self.id,
-            project_roles=list(project_roles),
+            roles=list(roles),
             user_id=user_id,
             created_by=created_by,
         )

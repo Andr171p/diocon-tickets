@@ -14,6 +14,7 @@ from src.core.logging import configure_logging
 from src.core.redis import redis_client
 from src.core.settings import settings
 from src.crm.router import router as counterparty_router
+from src.feedbacks.router import router as feedback_router
 from src.iam.routers import router as iam_router
 from src.media.router import router as media_router
 from src.notifications.infra.handlers import router as notifications_broker_router
@@ -27,7 +28,6 @@ from src.shared.utils.cli import run_cli_command
 from src.tasks.infra.handlers import router as task_broker_router
 from src.tasks.router import router as task_router
 from src.tickets.router import router as tickets_router
-from src.feedbacks.router import router as feedback_router
 
 logger = logging.getLogger(__name__)
 

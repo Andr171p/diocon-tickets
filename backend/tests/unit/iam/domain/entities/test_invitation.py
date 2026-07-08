@@ -187,7 +187,7 @@ def test_token_generated_by_default_factory(admin_id: uuid.UUID, future_expires_
     assert len(first_invitation.token) >= min_token_length
 
 
-@pytest.mark.parametrize("project_role", [UserRole.ADMIN, UserRole.SUPPORT_MANAGER])
+@pytest.mark.parametrize("role", [UserRole.ADMIN, UserRole.SUPPORT_MANAGER])
 def test_admin_and_manager_can_have_no_counterparty(
         role: UserRole, admin_id: uuid.UUID, future_expires_at: datetime
 ):

@@ -16,7 +16,7 @@ from src.products.domain.repo import ProductRepository
 from src.projects.domain.entities import Project, ProjectMember
 from src.projects.domain.repos import ProjectMemberRepository, ProjectRepository
 from src.projects.domain.services import ProjectAccessService
-from src.projects.domain.vo import ProjectRole
+from src.projects.domain.vo import MemberRole
 from src.shared.domain.events import EventPublisher
 from src.shared.infra.events import EventBus
 from src.shared.utils.time import current_datetime
@@ -217,7 +217,7 @@ def project_factory(fake_project_repo):
 def membership_factory(fake_membership_repo):
 
     async def _make_membership(
-            user_id: UUID, project_id: UUID, project_role: ProjectRole, **overrides
+            user_id: UUID, project_id: UUID, project_role: MemberRole, **overrides
     ):
         membership = ProjectMember(
             user_id=user_id,

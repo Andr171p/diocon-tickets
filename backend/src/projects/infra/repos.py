@@ -8,7 +8,7 @@ from src.shared.infra.repos import ModelMapper, SqlAlchemyRepository
 from src.shared.schemas import Page, Pagination
 
 from ..domain.entities import Project, ProjectMember, ProjectStage
-from ..domain.vo import ProjectKey, ProjectRole
+from ..domain.vo import ProjectKey, MemberRole
 from .models import ProjectMemberOrm, ProjectOrm, ProjectStageOrm
 
 
@@ -22,7 +22,7 @@ class ProjectMemberMapper(ModelMapper[ProjectMember, ProjectMemberOrm]):
             deleted_at=model.deleted_at,
             project_id=model.project_id,
             user_id=model.user_id,
-            project_roles=model.project_roles,
+            roles=model.roles,
             created_by=model.created_by,
         )
 
@@ -35,7 +35,7 @@ class ProjectMemberMapper(ModelMapper[ProjectMember, ProjectMemberOrm]):
             deleted_at=entity.deleted_at,
             user_id=entity.user_id,
             project_id=entity.project_id,
-            project_roles=entity.project_roles,
+            project_roles=entity.roles,
             created_by=entity.created_by,
         )
 
@@ -169,7 +169,7 @@ class SqlProjectMemberRepository(SqlAlchemyRepository[ProjectMember, ProjectMemb
             self,
             pagination: Pagination,
             project_id: UUID | None = None,
-            include_project_roles: list[ProjectRole] | None = None,
+            include_project_roles: list[MemberRole] | None = None,
     ) -> Page[ProjectMember]:
         stmt = select(self.model)
 
@@ -177,7 +177,7 @@ class SqlProjectMemberRepository(SqlAlchemyRepository[ProjectMember, ProjectMemb
             stmt = stmt.where(self.model.project_id == project_id)
 
         if include_project_roles is not None:
-            stmt = stmt.where(self.model.project_roles.in_(include_project_roles))
+            stmt = stmt.where(self.model.roles.in_(include_project_roles))
 
         return await self._paginate(stmt, pagination)
 

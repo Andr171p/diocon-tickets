@@ -19,7 +19,7 @@ from src.projects.infra.models import ProjectMemberOrm, ProjectOrm
 from src.tasks.infra.models import TaskOrm, TaskSequence
 from src.tickets.infra.models import (
     CommentOrm,
-    TicketHistoryEntryOrm,
+    ReactionOrm,
     TicketOrm,
 )
 

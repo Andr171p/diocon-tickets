@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 
 from src.iam.domain.vo import UserRole
-from src.projects.domain.vo import ProjectRole
+from src.projects.domain.vo import MemberRole
 from src.tickets.domain.services import TicketScopes
 
 
@@ -45,12 +45,12 @@ class TestTicketScopeService:
         await membership_factory(
             user_id=user_id,
             project_id=project_ids[0],
-            project_role=ProjectRole.CUSTOMER_MANAGER,
+            project_role=MemberRole.CUSTOMER_MANAGER,
         )
         await membership_factory(
             user_id=user_id,
             project_id=project_ids[1],
-            project_role=ProjectRole.CUSTOMER,
+            project_role=MemberRole.CUSTOMER,
         )
 
         scopes = await ticket_scope_service.get_scopes(
@@ -89,12 +89,12 @@ class TestTicketScopeService:
         await membership_factory(
             user_id=user_id,
             project_id=project_ids[0],
-            project_role=ProjectRole.CUSTOMER_MANAGER,
+            project_role=MemberRole.CUSTOMER_MANAGER,
         )
         await membership_factory(
             user_id=user_id,
             project_id=project_ids[1],
-            project_role=ProjectRole.CUSTOMER,
+            project_role=MemberRole.CUSTOMER,
         )
 
         scopes = await ticket_scope_service.get_scopes(user_id=user_id, user_role=user_role)

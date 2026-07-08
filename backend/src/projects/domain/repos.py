@@ -6,7 +6,7 @@ from src.shared.domain.repos import Repository
 from src.shared.schemas import Page, Pagination
 
 from .entities import Project, ProjectMember
-from .vo import ProjectKey, ProjectRole
+from .vo import ProjectKey, MemberRole
 
 
 class ProjectRepository(Repository[Project]):
@@ -38,7 +38,7 @@ class ProjectMemberRepository(Repository[ProjectMember]):
             self,
             pagination: Pagination,
             project_id: UUID | None = None,
-            include_project_roles: list[ProjectRole] | None = None,
+            include_project_roles: list[MemberRole] | None = None,
     ) -> Page[ProjectMember]: ...
 
     async def find(self, project_id: UUID, user_id: UUID) -> ProjectMember | None:

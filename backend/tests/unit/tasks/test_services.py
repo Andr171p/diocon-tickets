@@ -6,7 +6,7 @@ from src.iam.domain.exceptions import PermissionDeniedError
 from src.iam.domain.vo import UserRole
 from src.iam.schemas import CurrentUser
 from src.projects.domain.entities import ProjectMember, Project
-from src.projects.domain.vo import ProjectRole
+from src.projects.domain.vo import MemberRole
 from src.shared.domain.exceptions import NotFoundError
 from src.shared.utils.time import current_datetime
 from src.tasks.domain.vo import TaskStatus
@@ -61,7 +61,7 @@ async def created_project(fake_project_repo, fake_membership_repo, current_suppo
     membership = ProjectMember(
         project_id=project.id,
         user_id=current_support_user.user_id,
-        project_role=ProjectRole.CONTRIBUTOR,
+        project_role=MemberRole.CONTRIBUTOR,
         added_by=uuid4(),
         added_at=current_datetime(),
     )

@@ -56,7 +56,7 @@ class ProjectMemberService:
 
         member = project.create_member(
             user_id=data.user_id,
-            project_roles=list(data.project_roles),
+            roles=list(data.project_roles),
             created_by=current_subject.id,
         )
         await self.member_repo.create(member)

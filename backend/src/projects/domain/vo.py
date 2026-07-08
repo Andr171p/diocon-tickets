@@ -26,8 +26,10 @@ class ProjectStageStatus(StrEnum):
     SKIPPED = auto()  # Пропущен
 
 
-class ProjectRole(StrEnum):
-    """Роли внутри конкретного проекта"""
+class MemberRole(StrEnum):
+    """
+    Роли участника проекта.
+    """
 
     OWNER = auto()
     MANAGER = auto()  # Может управлять участниками, настройками

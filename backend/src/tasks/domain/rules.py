@@ -3,15 +3,15 @@ from typing import ClassVar
 from src.iam.domain.authz import PermissionResult, Subject
 from src.iam.domain.entities import User
 from src.projects.domain.entities import ProjectMember
-from src.projects.domain.vo import ProjectRole
+from src.projects.domain.vo import MemberRole
 
 from .entities import Task
 from .vo import TaskStatus
 
 
 class IsProjectStaffRule:
-    ALLOWED_PROJECT_ROLES: ClassVar[set[ProjectRole]] = {
-        ProjectRole.CONTRIBUTOR, ProjectRole.MANAGER, ProjectRole.OWNER
+    ALLOWED_PROJECT_ROLES: ClassVar[set[MemberRole]] = {
+        MemberRole.CONTRIBUTOR, MemberRole.MANAGER, MemberRole.OWNER
     }
 
     def __init__(self, membership: ProjectMember | None = None) -> None:
@@ -27,7 +27,7 @@ class IsProjectStaffRule:
 
         return PermissionResult(
             False,
-            "Project project_role must be one of: "
+            "Project role must be one of: "
             f"{', '.join(r.value for r in self.ALLOWED_PROJECT_ROLES)}",
         )
 

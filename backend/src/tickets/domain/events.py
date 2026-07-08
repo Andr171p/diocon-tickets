@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from src.iam.domain.vo import UserRole
 from src.shared.domain.events import Event
 
 from .vo import CommentType, Priority, ReactionType, TicketNumber, TicketStatus
@@ -22,6 +21,30 @@ class TicketCreated(Event):
 
 
 @dataclass(frozen=True, kw_only=True)
+class TicketApprovalRequested(Event):
+    """
+    Для тикета было запросили согласование.
+    """
+
+    ticket_id: UUID
+    number: TicketNumber
+    requested_by: UUID
+    counterparty_id: UUID | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class TicketApproved(Event):
+    """
+    Тикет был успешно согласован.
+    """
+
+    ticket_id: UUID
+    number: TicketNumber
+    approved_by: UUID
+    counterparty_id: UUID | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
 class TicketAssigned(Event):
     """
     Тикет назначен на исполнителя.
@@ -30,7 +53,7 @@ class TicketAssigned(Event):
     ticket_id: UUID
     number: TicketNumber
     title: str
-    assignee_id: UUID
+    assignee_id: UUID | None = None
     assigned_by: UUID
     old_assignee: UUID | None = None
 
@@ -57,6 +80,18 @@ class TicketPriorityChanged(Event):
     changed_by: UUID
     old_priority: Priority
     new_priority: Priority
+
+
+@dataclass(frozen=True, kw_only=True)
+class TicketPaused(Event):
+    """
+    Тикет был поставлен на паузу.
+    """
+
+    ticket_id: UUID
+    ticket_number: TicketNumber
+    reason: str
+    paused_by: UUID
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -109,7 +144,6 @@ class CommentAdded(Event):
     ticket_id: UUID
     comment_id: UUID
     author_id: UUID
-    author_role: UserRole
     comment_type: CommentType
     is_public: bool
 

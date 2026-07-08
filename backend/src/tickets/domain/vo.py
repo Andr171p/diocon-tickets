@@ -2,34 +2,35 @@ from typing import ClassVar, Self
 
 import re
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import StrEnum, auto
 
-from ...projects.domain.vo import ProjectKey
-from ...shared.domain.vo import ValueObject
-from ...shared.utils.text import get_latin_slug
-from ...shared.utils.time import current_datetime
+from src.projects.domain.vo import ProjectKey
+from src.shared.domain.vo import ValueObject
+from src.shared.utils.text import get_latin_slug
+from src.shared.utils.time import current_datetime
 
 
 class TicketStatus(StrEnum):
     """Возможные статусы тикета"""
 
     # Начальные статусы
-    NEW = "Новый"
-    PENDING_APPROVAL = "На согласовании"
+    NEW = auto()
+    PENDING_APPROVAL = auto()
 
     # Рабочие статусы
-    OPEN = "Открыт"
-    IN_PROGRESS = "В работе"
-    WAITING = "Ожидает ответа"
+    OPEN = auto()
+    IN_PROGRESS = auto()
+    WAITING = auto()
+    PAUSED = auto()
 
     # Завершающие статусы
-    RESOLVED = "Решён"
-    CLOSED = "Закрыт"
-    REOPENED = "Переоткрыт"
+    RESOLVED = auto()
+    CLOSED = auto()
+    REOPENED = auto()
 
     # Дополнительные
-    REJECTED = "Отклонён"
-    CANCELED = "Отменён"
+    REJECTED = auto()
+    CANCELED = auto()
 
 
 class TicketType(StrEnum):

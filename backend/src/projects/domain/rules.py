@@ -10,12 +10,12 @@ from src.iam.domain.authz import AnyOf, PermissionResult
 from src.iam.domain.entities import User
 
 from .entities import ProjectMember
-from .vo import ProjectRole
+from .vo import MemberRole
 
 
 class IsProjectStaffRule:
-    ALLOWED_PROJECT_ROLES: ClassVar[set[ProjectRole]] = {
-        ProjectRole.CONTRIBUTOR, ProjectRole.MANAGER, ProjectRole.OWNER
+    ALLOWED_PROJECT_ROLES: ClassVar[set[MemberRole]] = {
+        MemberRole.CONTRIBUTOR, MemberRole.MANAGER, MemberRole.OWNER
     }
 
     def __init__(self, membership: ProjectMember | None = None) -> None:
@@ -31,7 +31,7 @@ class IsProjectStaffRule:
 
         return PermissionResult(
             False,
-            "Project project_role must be one of: "
+            "Project role must be one of: "
             f"{', '.join(r.value for r in self.ALLOWED_PROJECT_ROLES)}",
         )
 
@@ -53,7 +53,7 @@ class IsProjectOwnerRule:
         self.member = member
 
     def check(self) -> PermissionResult:
-        if self.member.has_role(ProjectRole.OWNER):
+        if self.member.has_role(MemberRole.OWNER):
             return PermissionResult(True)
 
         return PermissionResult(False, "You are not owner of this project")
@@ -64,7 +64,7 @@ class IsProjectManagerRule:
         self.member = member
 
     def check(self) -> PermissionResult:
-        if self.member.has_role(ProjectRole.MANAGER):
+        if self.member.has_role(MemberRole.MANAGER):
             return PermissionResult(True)
 
         return PermissionResult(False, "You are not manager of this project")
@@ -87,22 +87,22 @@ class GrantProjectRoleRule:
     Проверка валидности назначенной проектной роли добавленному участнику.
     """
 
-    def __init__(self, invitee: User, target_roles: set[ProjectRole]) -> None:
+    def __init__(self, invitee: User, target_roles: set[MemberRole]) -> None:
         self.invitee = invitee
         self.target_roles = target_roles
 
     def check(self) -> PermissionResult:
-        if ProjectRole.OWNER in self.target_roles:
+        if MemberRole.OWNER in self.target_roles:
             return PermissionResult(
-                False, "OWNER project_role cannot be assigned through membership addition"
+                False, "OWNER role cannot be assigned through membership addition"
             )
 
         allowed_roles = set()
         for invitee_role in self.invitee.roles:
             if invitee_role.is_customer:
-                allowed_roles.update(ProjectRole.customer_roles())
+                allowed_roles.update(MemberRole.customer_roles())
             else:
-                roles = ProjectRole.staff_roles() | ProjectRole.customer_roles()
+                roles = MemberRole.staff_roles() | MemberRole.customer_roles()
                 allowed_roles.update(roles)
 
         for target_role in self.target_roles:
@@ -117,28 +117,28 @@ class GrantProjectRoleRule:
 
 
 class TargetRoleAssignmentRule:
-    ASSIGNMENT_MATRIX: ClassVar[Mapping[ProjectRole, set[ProjectRole]]] = {
-        ProjectRole.CONTRIBUTOR: {
-            ProjectRole.VIEWER,
-            ProjectRole.CUSTOMER,
-            ProjectRole.CONTRIBUTOR,
+    ASSIGNMENT_MATRIX: ClassVar[Mapping[MemberRole, set[MemberRole]]] = {
+        MemberRole.CONTRIBUTOR: {
+            MemberRole.VIEWER,
+            MemberRole.CUSTOMER,
+            MemberRole.CONTRIBUTOR,
         },
-        ProjectRole.CUSTOMER_MANAGER: {
-            ProjectRole.CUSTOMER, ProjectRole.CUSTOMER_MANAGER
+        MemberRole.CUSTOMER_MANAGER: {
+            MemberRole.CUSTOMER, MemberRole.CUSTOMER_MANAGER
         },
-        ProjectRole.MANAGER: set(ProjectRole) - {ProjectRole.OWNER},
-        ProjectRole.OWNER: set(ProjectRole) - {ProjectRole.OWNER},
-        ProjectRole.CUSTOMER: set(),
-        ProjectRole.VIEWER: set(),
+        MemberRole.MANAGER: set(MemberRole) - {MemberRole.OWNER},
+        MemberRole.OWNER: set(MemberRole) - {MemberRole.OWNER},
+        MemberRole.CUSTOMER: set(),
+        MemberRole.VIEWER: set(),
     }
 
-    def __init__(self, actor_member: ProjectMember, target_roles: set[ProjectRole]) -> None:
+    def __init__(self, actor_member: ProjectMember, target_roles: set[MemberRole]) -> None:
         self.actor_member = actor_member
         self.target_roles = target_roles
 
     def check(self) -> PermissionResult:
         allowed_roles = set()
-        for project_role in self.actor_member.project_roles:
+        for project_role in self.actor_member.roles:
             allowed_roles.update(self.ASSIGNMENT_MATRIX.get(project_role, set()))
 
         if not allowed_roles:
@@ -149,8 +149,22 @@ class TargetRoleAssignmentRule:
             return PermissionResult(
                 False,
                 f"Your project roles "
-                f"({', '.join(role.value for role in self.actor_member.project_roles)}) "
+                f"({', '.join(role.value for role in self.actor_member.roles)}) "
                 f"do not allow assigning: {', '.join(role.value for role in denied_roles)}",
             )
 
         return PermissionResult(True)
+
+
+class HasAnyMemberRoleRule:
+    def __init__(self, member: ProjectMember | None, required_roles: list[MemberRole]) -> None:
+        self.member = member
+        self.required_roles = required_roles
+
+    def check(self) -> PermissionResult:
+        if self.member and self.member.has_any_role(self.required_roles):
+            return PermissionResult(True)
+
+        return PermissionResult(
+            False, f"Required a least one project role: {'; '.join(self.required_roles)}"
+        )

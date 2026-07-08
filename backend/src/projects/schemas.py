@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, NonNegativeInt, PositiveInt
 
 from src.shared.schemas import Page
 
-from .domain.vo import ProjectRole, ProjectStageStatus, ProjectStatus
+from .domain.vo import MemberRole, ProjectStageStatus, ProjectStatus
 
 NewProjectStagesOrder = Annotated[
     list[list[UUID]],
@@ -47,7 +47,7 @@ class ProjectMemberResponse(BaseModel):
     """
 
     project_id: UUID = Field(..., description="ID проекта в котором состоит участник")
-    project_roles: set[ProjectRole] = Field(..., description="Роли в проекте")
+    project_roles: set[MemberRole] = Field(..., description="Роли в проекте")
     user_id: UUID = Field(..., description="ID пользователя в системе")
     created_by: UUID = Field(..., description="ID пользователя, который добавил участника")
     created_at: datetime = Field(..., description="Дата добавления участника")
@@ -172,4 +172,4 @@ class ProjectMemberCreate(BaseModel):
     """
 
     user_id: UUID = Field(..., description="ID пользователя, которого нужно добавить")
-    project_roles: set[ProjectRole] = Field(..., description="Назначенные роли внутри проекта")
+    project_roles: set[MemberRole] = Field(..., description="Назначенные роли внутри проекта")

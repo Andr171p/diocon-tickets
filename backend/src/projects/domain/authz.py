@@ -14,7 +14,7 @@ from .rules import (
     IsMemberExistsRule,
     TargetRoleAssignmentRule,
 )
-from .vo import ProjectRole
+from .vo import MemberRole
 
 
 class ProjectAuthZService:
@@ -59,7 +59,7 @@ class ProjectAuthZService:
             subject: Subject,
             project: Project,
             invitee: User,
-            target_roles: set[ProjectRole],
+            target_roles: set[MemberRole],
     ) -> PermissionResult:
         member = await self.member_repo.find(project.id, subject.id)
         actor_policy = AnyOf(

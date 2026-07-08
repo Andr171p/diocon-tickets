@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 
 from src.projects.domain.entities import Project, ProjectStage
-from src.projects.domain.vo import ProjectKey, ProjectRole, ProjectStageStatus, ProjectStatus
+from src.projects.domain.vo import ProjectKey, MemberRole, ProjectStageStatus, ProjectStatus
 from src.shared.domain.exceptions import InvalidStateError, InvariantViolationError, NotFoundError
 from src.shared.utils.time import current_datetime
 
@@ -38,7 +38,7 @@ class TestCreate:
 
 class TestCreateMembership:
 
-    @pytest.mark.parametrize("project_role", list(ProjectRole))
+    @pytest.mark.parametrize("role", list(MemberRole))
     def test_create_membership_with_any_role_success(self, project_factory, project_role):
         project = project_factory(status=ProjectStatus.ACTIVE)  # Явно указываем статус
         created_by = uuid4()
@@ -54,7 +54,7 @@ class TestCreateMembership:
 
         with pytest.raises(InvalidStateError):
             project.create_member(
-                user_id=uuid4(), project_role=ProjectRole.CONTRIBUTOR, created_by=uuid4(),
+                user_id=uuid4(), project_role=MemberRole.CONTRIBUTOR, created_by=uuid4(),
             )
 
 

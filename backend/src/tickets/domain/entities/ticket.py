@@ -6,17 +6,19 @@ from uuid import UUID
 
 from typing_extensions import Doc
 
-from src.iam.domain.vo import UserRole
 from src.media.domain.entities import Attachment
 from src.shared.domain.entities import AggregateRoot
-from src.shared.domain.exceptions import InvariantViolationError
+from src.shared.domain.vo import Priority, Tag
 from src.shared.utils.time import current_datetime
 
 from ..events import (
+    TicketApprovalRequested,
+    TicketApproved,
     TicketArchived,
     TicketAssigned,
     TicketClosed,
     TicketCreated,
+    TicketPaused,
     TicketPriorityChanged,
     TicketReopened,
     TicketResolved,
@@ -25,8 +27,6 @@ from ..events import (
 from ..state_factory import get_state
 from ..states import TicketState
 from ..vo import (
-    Priority,
-    Tag,
     TicketNumber,
     TicketStatus,
     TicketType,
@@ -44,8 +44,11 @@ class Ticket(AggregateRoot):
     product_id: UUID | None = None
 
     created_by: Annotated[UUID, Doc("Фактический создатель заявки")]
-    created_by_role: UserRole
+    approved_by: Annotated[UUID | None, Doc("Тот, кто согласовал работы")] = None
+    closed_by: Annotated[UUID | None, Doc("Пользователь, закрывший тикет")] = None
+
     reporter_id: Annotated[UUID, Doc("Инициатор/автор проблемы (тот кто пожаловался)")]
+    assignee_id: Annotated[UUID | None, Doc("Исполнитель")] = None
 
     number: TicketNumber
     title: str
@@ -53,22 +56,14 @@ class Ticket(AggregateRoot):
     type: TicketType
     status: TicketStatus
     priority: Priority
-    assignee_id: Annotated[UUID | None, Doc("Исполнитель")] = None
     closed_at: datetime | None = None
 
     tags: list[Tag] = field(default_factory=list)
     attachments: list[Attachment] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        # 1. Заголовок не должен быть пустым
-        if not self.title.strip():
-            raise ValueError("Title cannot be empty")
-
-        # 2. если тикет создан клиентом - контрагент должен быть заполнен
-        if self.created_by_role.is_customer and self.counterparty_id is None:
-            raise InvariantViolationError(
-                "Customer-created ticket must be linked to a counterparty"
-            )
+        if not self.title.strip() or not self.description.strip():
+            raise ValueError("Ticket title or description cannot be empty")
 
     @property
     def state(self) -> TicketState:
@@ -82,6 +77,9 @@ class Ticket(AggregateRoot):
         """
         Переход между состояниями тикета.
         """
+
+        if self.status == new_status:
+            return
 
         old_status = self.status
         self.status = new_status
@@ -104,7 +102,6 @@ class Ticket(AggregateRoot):
         number: TicketNumber,
         reporter_id: UUID,
         created_by: UUID,
-        created_by_role: UserRole,
         title: str,
         description: str | None = None,
         ticket_type: TicketType = TicketType.SERVICE_REQUEST,
@@ -115,11 +112,7 @@ class Ticket(AggregateRoot):
         tags: list[Tag] | None = None,
     ) -> Self:
 
-        initial_status = (
-            TicketStatus.PENDING_APPROVAL if created_by_role.is_customer else TicketStatus.NEW
-        )
         ticket = cls(
-            created_by_role=created_by_role,
             created_by=created_by,
             reporter_id=reporter_id,
             number=number,
@@ -127,7 +120,7 @@ class Ticket(AggregateRoot):
             description=description,
             type=ticket_type,
             priority=priority,
-            status=initial_status,
+            status=TicketStatus.NEW,
             project_id=project_id,
             counterparty_id=counterparty_id,
             product_id=product_id,
@@ -214,6 +207,35 @@ class Ticket(AggregateRoot):
             )
         )
 
+    def submit_for_approval(self, submitted_by: UUID) -> None:
+        """
+        Запросить согласование работ.
+        Бизнесово клиент запрашивает у админа контрагента.
+        """
+
+        self.state.submit_for_approval(self, submitted_by)
+        self.register_event(
+            TicketApprovalRequested(
+                ticket_id=self.id,
+                number=self.number,
+                request_by=submitted_by,
+                counterparty_id=self.counterparty_id,
+            )
+        )
+
+    def approve(self, approved_by: UUID) -> None:
+        """Согласовать тикет."""
+
+        self.state.approve(self, approved_by)
+        self.register_event(
+            TicketApproved(
+                ticket_id=self.id,
+                number=self.number,
+                approved_by=approved_by,
+                counterparty_id=self.counterparty_id
+            )
+        )
+
     def assign(self, assignee_id: UUID, assigned_by: UUID) -> None:
         """
         Назначить тикет на исполнителя.
@@ -227,6 +249,19 @@ class Ticket(AggregateRoot):
         """
 
         self.state.start_progress(self, started_by)
+
+    def pause(self, reason: str, paused_by: UUID) -> None:
+        """Поставить выполнение заявки на паузу."""
+
+        self.state.pause(self, paused_by)
+        self.register_event(
+            TicketPaused(
+                ticket_id=self.id,
+                number=self.number,
+                reason=reason,
+                paused_by=paused_by,
+            )
+        )
 
     def resolve(self, resolved_by: UUID) -> None:
         self.state.resolve(self, resolved_by)
@@ -279,7 +314,10 @@ class Ticket(AggregateRoot):
 
     # ====================== Внутренние мутации ======================
 
-    def apply_assignment(self, assignee_id: UUID, assigned_by: UUID) -> None:
+    def mark_approved(self, approved_by: UUID) -> None:
+        self.approved_by = approved_by
+
+    def apply_assignment(self, assignee_id: UUID | None, assigned_by: UUID) -> None:
         """
         Устанавливает исполнителя + регистрирует событие.
         """
@@ -300,13 +338,6 @@ class Ticket(AggregateRoot):
                 old_assignee=old_assignee,
             )
         )
-
-    def clear_assignment(self) -> None:
-        """
-        Сбрасывает текущего исполнителя (просто мутация данных).
-        """
-
-        self.assignee_id = None
 
     def mark_closed(self, closed_by: UUID) -> None:
         """

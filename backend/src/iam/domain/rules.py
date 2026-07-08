@@ -3,7 +3,7 @@ from .entities import Invitation, User
 from .vo import UserRole
 
 
-class HasAnyRoleRule:
+class HasAnyUserRoleRule:
     def __init__(self, subject: Subject, required_roles: list[UserRole]) -> None:
         self.subject = subject
         self.required_roles = required_roles

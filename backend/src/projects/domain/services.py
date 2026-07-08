@@ -7,7 +7,7 @@ from src.iam.domain.authz import Subject
 from src.shared.utils.text import get_latin_slug
 
 from .entities import Project, ProjectMember
-from .vo import ProjectKey, ProjectRole
+from .vo import ProjectKey, MemberRole
 
 WORDS_COUNT = 2
 MIN_KEY_LENGTH = 2
@@ -118,7 +118,7 @@ def create_project(
     )
     owner = project.create_member(
         user_id=creator.id,
-        project_roles=[ProjectRole.OWNER],
+        roles=[MemberRole.OWNER],
         created_by=creator.id
     )
 

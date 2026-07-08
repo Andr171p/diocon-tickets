@@ -11,7 +11,7 @@ from src.notifications.domain.entities import Notification, UserPreference
 from src.notifications.domain.vo import NotificationType
 from src.products.domain.entities import SoftwareProduct
 from src.projects.domain.entities import Project, ProjectMember
-from src.projects.domain.vo import ProjectKey, ProjectRole
+from src.projects.domain.vo import ProjectKey, MemberRole
 from src.shared.infra.repos import InMemoryRepository
 from src.shared.schemas import Page, Pagination
 from src.shared.utils.time import current_datetime
@@ -123,7 +123,7 @@ class InMemoryMembershipRepository(InMemoryRepository[ProjectMember]):
             self,
             pagination: Pagination,
             project_id: UUID | None = None,
-            include_project_roles: list[ProjectRole] | None = None,
+            include_project_roles: list[MemberRole] | None = None,
     ) -> Page[ProjectMember]:
         all_memberships = list(self.data.values())
 

@@ -11,7 +11,6 @@ from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.core.database import Base
-from src.iam.domain.vo import UserRole
 from src.shared.domain.vo import Priority
 
 from ..domain.vo import CommentType, ReactionType, TicketStatus, TicketType
@@ -23,16 +22,20 @@ class TicketOrm(Base):
     project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
     counterparty_id: Mapped[UUID | None] = mapped_column(nullable=True)
     product_id: Mapped[UUID | None] = mapped_column(nullable=True)
-    created_by_role: Mapped[UserRole] = mapped_column(Enum(UserRole))
+
     created_by: Mapped[UUID]
+    approved_by: Mapped[UUID | None] = mapped_column(nullable=True)
+    closed_by: Mapped[UUID | None] = mapped_column(nullable=True)
+
     reporter_id: Mapped[UUID]
+    assignee_id: Mapped[UUID | None] = mapped_column(nullable=True)
+
     number: Mapped[str] = mapped_column(String(25), unique=True)
     title: Mapped[str]
     description: Mapped[str] = mapped_column(TEXT)
     ticket_type: Mapped[TicketType] = mapped_column(Enum(TicketType))
     status: Mapped[TicketStatus] = mapped_column(Enum(TicketStatus))
     priority: Mapped[Priority] = mapped_column(Enum(Priority))
-    assignee_id: Mapped[UUID | None] = mapped_column(nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     tags: Mapped[list[dict[str, str]]] = mapped_column(JSONB)
 
@@ -66,7 +69,6 @@ class CommentOrm(Base):
         ForeignKey("comments.id"), nullable=True
     )
     author_id: Mapped[UUID]
-    author_role: Mapped[UserRole] = mapped_column(Enum(UserRole))
     text: Mapped[str] = mapped_column(TEXT)
     comment_type: Mapped[CommentType] = mapped_column(Enum(CommentType))
     # Количество ответов на комментарий

@@ -1,10 +1,11 @@
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from uuid import UUID
 
 from src.activity_logs.recorder import ActivityLogRecorder
 from src.crm.domain.entities import Counterparty
 from src.crm.domain.repo import CounterpartyRepository
-from src.iam.domain.authz import Subject
+from src.iam.domain.authz import PermissionResult, Subject
 from src.iam.domain.entities import User
 from src.iam.domain.exceptions import PermissionDeniedError
 from src.iam.domain.repos import UserRepository
@@ -119,7 +120,6 @@ class TicketService:
         ticket = Ticket.create(
             number=number,
             created_by=current_subject.id,
-            created_by_role=...,
             reporter_id=data.reporter_id,
             title=data.title,
             description=data.description,
@@ -193,6 +193,29 @@ class TicketService:
 
         return map_ticket_to_response(ticket)
 
+    async def _execute(
+            self,
+            ticket_id: UUID,
+            current_subject: Subject,
+            authz: Callable[[Subject, Ticket], Awaitable[PermissionResult]],
+            action: Callable[[Ticket], None],
+    ) -> TicketResponse:
+        ticket = await get_or_raise_404(self.ticket_repo.read, ticket_id, Ticket)
+
+        permission = await authz(current_subject, ticket)
+        if not permission.allowed:
+            raise PermissionDeniedError(permission.reason)
+
+        action(ticket)
+
+        await finalize(
+            self.uow, ticket,
+            activity_recorder=self.activity_log_recorder,
+            event_publisher=self.event_publisher,
+        )
+
+        return map_ticket_to_response(ticket)
+
     async def assign(
             self, ticket_id: UUID, assignee_id: UUID, current_subject: Subject,
     ) -> TicketResponse:
@@ -218,3 +241,53 @@ class TicketService:
         )
 
         return map_ticket_to_response(ticket)
+
+    async def start_progress(self, ticket_id: UUID, current_subject: Subject) -> TicketResponse:
+        """Взять тикет в работу."""
+
+        return await self._execute(
+            ticket_id=ticket_id,
+            current_subject=current_subject,
+            authz=self.ticket_authz_service.can_track_ticket,
+            action=lambda t: t.start_progress(current_subject.id),
+        )
+
+    async def resolve(self, ticket_id: UUID, current_subject: Subject) -> TicketResponse:
+        """Решить тикет."""
+
+        return await self._execute(
+            ticket_id=ticket_id,
+            current_subject=current_subject,
+            authz=self.ticket_authz_service.can_track_ticket,
+            action=lambda t: t.resolve(current_subject.id),
+        )
+
+    async def close(self, ticket_id: UUID, current_subject: Subject) -> TicketResponse:
+        """Закрыть тикет."""
+
+        return await self._execute(
+            ticket_id=ticket_id,
+            current_subject=current_subject,
+            authz=self.ticket_authz_service.can_close_ticket,
+            action=lambda t: t.close(current_subject.id),
+        )
+
+    async def cancel(self, ticket_id: UUID, current_subject: Subject) -> TicketResponse:
+        """Отменить тикет."""
+
+        return await self._execute(
+            ticket_id=ticket_id,
+            current_subject=current_subject,
+            authz=self.ticket_authz_service.can_cancel_ticket,
+            action=lambda t: t.cancel(current_subject.id),
+        )
+
+    async def reject(self, ticket_id: UUID, current_subject: Subject) -> TicketResponse:
+        """Отклонить тикет."""
+
+        return await self._execute(
+            ticket_id=ticket_id,
+            current_subject=current_subject,
+            authz=self.ticket_authz_service.can_reject_ticket,
+            action=lambda t: t.reject(current_subject.id),
+        )

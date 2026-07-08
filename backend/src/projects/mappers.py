@@ -12,7 +12,7 @@ from .schemas import (
 def map_member_to_response(membership: ProjectMember) -> ProjectMemberResponse:
     return ProjectMemberResponse(
         project_id=membership.project_id,
-        project_roles=set(membership.project_roles),
+        project_roles=set(membership.roles),
         user_id=membership.user_id,
         created_by=membership.created_by,
         created_at=membership.created_at,

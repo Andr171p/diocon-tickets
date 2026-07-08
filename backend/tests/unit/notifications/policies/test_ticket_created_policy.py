@@ -9,7 +9,7 @@ from src.iam.domain.entities import User
 from src.iam.domain.vo import FullName, Username, UserRole
 from src.notifications.policies import TicketCreatedPolicy
 from src.projects.domain.entities import ProjectMember, Project
-from src.projects.domain.vo import ProjectRole, ProjectStatus
+from src.projects.domain.vo import MemberRole, ProjectStatus
 from src.tickets.domain.events import TicketCreated
 from src.tickets.domain.vo import ProjectKey, Priority
 
@@ -45,14 +45,14 @@ def fake_user(**kwargs):
         email=fake.email(),
         username=Username(fake.user_name()),
         full_name=FullName("Иванов Иван Иванович"),
-        role=kwargs.get("project_role", UserRole.SUPPORT_AGENT),
+        role=kwargs.get("role", UserRole.SUPPORT_AGENT),
         counterparty_id=kwargs.get("counterparty_id"),
         password_hash=SecretStr("hashed"),
         is_active=True,
     )
 
 
-def fake_membership(project_id: UUID, user_id: UUID, project_role: ProjectRole):
+def fake_membership(project_id: UUID, user_id: UUID, project_role: MemberRole):
     return ProjectMember(
         project_id=project_id,
         user_id=user_id,
@@ -135,17 +135,17 @@ class TestTicketCreatedPolicy:
         project = fake_project(project_id=project_id)
         memberships = [
             fake_membership(
-                project_id=project.id, user_id=support_member.id, project_role=ProjectRole.MANAGER
+                project_id=project.id, user_id=support_member.id, project_role=MemberRole.MANAGER
             ),
             fake_membership(
                 project_id=project.id,
                 user_id=project_member_id,
-                project_role=ProjectRole.CONTRIBUTOR
+                project_role=MemberRole.CONTRIBUTOR
             ),
             fake_membership(
                 project_id=project.id,
                 user_id=customer_id,
-                project_role=ProjectRole.CUSTOMER
+                project_role=MemberRole.CUSTOMER
             ),
         ]
         await fake_project_repo.create(project)
@@ -254,20 +254,20 @@ class TestTicketCreatedPolicy:
             fake_membership(
                 project_id=project.id,
                 user_id=project.owner_id,
-                project_role=ProjectRole.OWNER,
+                project_role=MemberRole.OWNER,
             ),
             fake_membership(
-                project_id=project.id, user_id=support_member.id, project_role=ProjectRole.MANAGER
+                project_id=project.id, user_id=support_member.id, project_role=MemberRole.MANAGER
             ),
             fake_membership(
                 project_id=project.id,
                 user_id=project_member_id,
-                project_role=ProjectRole.CONTRIBUTOR,
+                project_role=MemberRole.CONTRIBUTOR,
             ),
             fake_membership(
                 project_id=project.id,
                 user_id=customer_admin.id,
-                project_role=ProjectRole.CUSTOMER_MANAGER
+                project_role=MemberRole.CUSTOMER_MANAGER
             ),
         ]
         await fake_project_repo.create(project)

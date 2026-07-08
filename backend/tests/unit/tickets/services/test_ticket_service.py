@@ -10,7 +10,7 @@ from src.iam.domain.vo import UserRole
 from src.iam.schemas import CurrentUser
 from src.projects.domain.entities import Project
 from src.projects.domain.services import ProjectAccessService
-from src.projects.domain.vo import ProjectRole
+from src.projects.domain.vo import MemberRole
 from src.shared.domain.exceptions import NotFoundError
 from src.tickets.domain.entities import Ticket
 from src.tickets.domain.vo import Priority, TicketNumber, TicketStatus, TicketType
@@ -218,7 +218,7 @@ class TestCreate:
         # Добавление агента поддержки в проект
         membership = created_project.create_member(
             user_id=current_support_agent.user_id,
-            project_role=ProjectRole.CONTRIBUTOR,
+            project_role=MemberRole.CONTRIBUTOR,
             created_by=uuid4(),
         )
         await fake_membership_repo.create(membership)
@@ -465,7 +465,7 @@ class TestAssignTo:
         # Создание членства в проекте
         membership = created_project.create_member(
             user_id=current_support_agent.user_id,
-            project_role=ProjectRole.CONTRIBUTOR,
+            project_role=MemberRole.CONTRIBUTOR,
             created_by=uuid4(),
         )
         await fake_membership_repo.create(membership)
@@ -514,14 +514,14 @@ class TestAssignTo:
         # Создание членства в проекте
         contributor = created_project.create_member(
             user_id=current_support_agent.user_id,
-            project_role=ProjectRole.CONTRIBUTOR,
+            project_role=MemberRole.CONTRIBUTOR,
             created_by=uuid4(),
         )
         await fake_membership_repo.create(contributor)
 
         customer = created_project.create_member(
             user_id=current_customer.user_id,
-            project_role=ProjectRole.CUSTOMER,
+            project_role=MemberRole.CUSTOMER,
             created_by=uuid4(),
         )
         await fake_membership_repo.create(customer)
@@ -610,7 +610,7 @@ class TestChangeStatus:
         # Создание членства в проекте
         contributor = created_project.create_member(
             user_id=current_support_agent.user_id,
-            project_role=ProjectRole.CONTRIBUTOR,
+            project_role=MemberRole.CONTRIBUTOR,
             created_by=uuid4(),
         )
         await fake_membership_repo.create(contributor)

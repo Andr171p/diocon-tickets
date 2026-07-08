@@ -2,16 +2,13 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...iam.domain.exceptions import PermissionDeniedError
-from ...iam.domain.services import get_display_user_role
-from ...iam.domain.vo import UserRole
-from ...iam.schemas import CurrentUser
-from ...shared.domain.events import EventPublisher
-from ...shared.domain.exceptions import NotFoundError
-from ...shared.schemas import Page, Pagination
+from src.iam.domain.authz import Subject
+from src.shared.domain.events import EventPublisher
+from src.shared.domain.exceptions import NotFoundError
+from src.shared.schemas import Page, Pagination
+
 from ..domain.entities import Comment, Ticket
 from ..domain.repos import CommentRepository, ReactionRepository, TicketRepository
-from ..domain.services import can_access_ticket, can_comment_ticket
 from ..domain.vo import CommentType
 from ..mappers import map_comment_to_response, map_comment_with_reactions_to_response
 from ..schemas import CommentCreate, CommentEdit, CommentResponse, CommentWithReactionsResponse
@@ -35,7 +32,7 @@ class CommentService:
     @staticmethod
     def _prepare_comment(
             ticket: Ticket,
-            current_user: CurrentUser,
+            current_subject: Subject,
             text: str,
             comment_type: CommentType,
             parent_comment: Comment | None = None,
@@ -45,55 +42,26 @@ class CommentService:
         Возвращает кортеж из нового комментария и его родителя.
         """
 
-        # 1. Проверка прав на создание комментария
-        permission = can_comment_ticket(
-            ticket=ticket,
-            user_id=current_user.user_id,
-            user_role=current_user.role,
-            user_counterparty_id=current_user.counterparty_id,
-        )
-        if not permission.allowed:
-            raise PermissionDeniedError(permission.reason)
-
-        # 2. Создание корневого комментария
         if parent_comment is None:
             comment = Comment.create(
                 ticket_id=ticket.id,
-                author_id=current_user.user_id,
-                author_role=current_user.role,
+                author_id=current_subject.id,
                 text=text,
                 comment_type=comment_type,
-            )
-            ticket.write_history(
-                actor_id=current_user.user_id,
-                action="comment_added",
-                description=(
-                    f"{get_display_user_role(current_user.role)} добавил новый комментарий:"
-                    f"'{comment.text[:100]}'"
-                )
             )
             return comment, None
 
         # 3. Создание ответа на комментарий
         reply = parent_comment.create_reply(
-            author_id=current_user.user_id,
-            author_role=current_user.role,
+            author_id=current_subject.id,
             text=text,
             comment_type=comment_type,
-        )
-        ticket.write_history(
-            actor_id=current_user.user_id,
-            action="comment_added",
-            description=(
-                f"{get_display_user_role(current_user.role)} ответил на комментарий: "
-                f"'{reply.text[:100]}'"
-            )
         )
 
         return reply, parent_comment
 
     async def add_comment(
-            self, ticket_id: UUID, data: CommentCreate, current_user: CurrentUser
+            self, ticket_id: UUID, data: CommentCreate, current_subject: Subject,
     ) -> CommentResponse:
         """Добавление комментария к тикету"""
 
@@ -105,7 +73,7 @@ class CommentService:
         # 2. Создание и сохранение комментария
         comment, _ = self._prepare_comment(
             ticket=ticket,
-            current_user=current_user,
+            current_subject=current_subject,
             text=data.text,
             comment_type=data.type,
         )
@@ -124,7 +92,7 @@ class CommentService:
             ticket_id: UUID,
             parent_comment_id: UUID,
             data: CommentCreate,
-            current_user: CurrentUser,
+            current_subject: Subject,
     ) -> CommentResponse:
         """Добавление ответа на комментарий"""
 
@@ -145,7 +113,7 @@ class CommentService:
         # 4. Создание и сохранение ответа
         reply, parent_comment = self._prepare_comment(
             ticket=ticket,
-            current_user=current_user,
+            current_subject=current_subject,
             text=data.text,
             comment_type=data.type,
             parent_comment=parent_comment,
@@ -179,19 +147,8 @@ class CommentService:
         if comment.ticket_id != ticket_id:
             raise NotFoundError("Comment does not belong to this ticket")
 
-        # 3. Редактирование комментария и обновление сущности
-        old_text = comment.text
         comment.edit(new_text=data.text, edited_by=edited_by)
-        if old_text != comment.text:  # Если текст изменён, то записывается в историю
-            ticket.write_history(
-                actor_id=edited_by,
-                action="comment_edited",
-                description=f"Комментарий отредактирован: '{data.text[:100]}'",
-                old_value=comment.text[:100],
-                new_value=data.text[:100],
-            )
         await self.comment_repo.update(comment)
-        await self.ticket_repo.update(ticket)
         await self.session.commit()
 
         # 4. Публикация доменных событий
@@ -201,7 +158,7 @@ class CommentService:
         return map_comment_to_response(comment)
 
     async def delete_comment(
-            self, ticket_id: UUID, comment_id: UUID, deleted_by: UUID, deleted_by_role: UserRole
+            self, ticket_id: UUID, comment_id: UUID, deleted_by: UUID,
     ) -> None:
         """Удаление комментария"""
 
@@ -226,18 +183,7 @@ class CommentService:
                 parent_comment.decrement_reply_count()
 
         # 3. Удаление и запись в историю
-        comment.delete(deleted_by=deleted_by, deleted_by_role=deleted_by_role)
-        ticket.write_history(
-            actor_id=deleted_by,
-            action="comment_deleted",
-            description=(
-                f"{get_display_user_role(deleted_by_role)} удалил комментарий: "
-                f"'{comment.text[:100]}'"
-            ),
-            old_value=comment.text[:100],
-            new_value=None,
-        )
-
+        comment.delete(deleted_by=deleted_by)
         await self.comment_repo.update(comment)
 
         if parent_comment is not None:
@@ -250,7 +196,7 @@ class CommentService:
             self,
             ticket_id: UUID,
             pagination: Pagination,
-            current_user: CurrentUser,
+            current_subject: Subject,
             include_internal: bool = False,
     ) -> Page[CommentWithReactionsResponse]:
         """Получение комментариев к тикету с учётом прав"""
@@ -260,31 +206,17 @@ class CommentService:
         if ticket is None:
             raise NotFoundError(f"Ticket with ID {ticket_id} not found")
 
-        # 2. Имеется ли у пользователя доступ к тикету
-        permission = can_access_ticket(
-            ticket,
-            user_id=current_user.user_id,
-            user_role=current_user.role,
-            user_counterparty_id=current_user.counterparty_id,
-        )
-        if not permission.allowed:
-            raise PermissionDeniedError(permission.reason)
-
-        # 3. Проверка прав на просмотр внутренних комментариев
-        if include_internal and not current_user.role.is_support():
-            raise PermissionDeniedError("Only support team can view internal comments")
-
         # 4. Получение комментариев + загрузка реакций
         page = await self.comment_repo.get_by_ticket(
             ticket_id=ticket_id,
             pagination=pagination,
-            user_id=current_user.user_id,
+            user_id=current_subject.id,
             include_notes=True,
             include_internal=include_internal,
         )
 
         comment_ids = [comment.id for comment in page.items]
-        stats = await self.reaction_repo.get_reaction_stats(comment_ids, current_user.user_id)
+        stats = await self.reaction_repo.get_reaction_stats(comment_ids, current_subject.id)
 
         # 5. Маппинг реакций к комментарию
         def mapper(comment: Comment) -> CommentWithReactionsResponse:
@@ -300,7 +232,7 @@ class CommentService:
             self,
             comment_id: UUID,
             pagination: Pagination,
-            current_user: CurrentUser,
+            current_subject: Subject,
             include_internal: bool = False,
     ) -> Page[CommentWithReactionsResponse]:
         """Получение дерево ответов на комментарий"""
@@ -314,28 +246,15 @@ class CommentService:
         if ticket is None:
             raise NotFoundError(f"Ticket with ID {comment_id} not found")
 
-        permission = can_access_ticket(
-            ticket=ticket,
-            user_id=current_user.user_id,
-            user_role=current_user.role,
-            user_counterparty_id=current_user.counterparty_id,
-        )
-        if not permission.allowed:
-            raise PermissionDeniedError(permission.reason)
-
-        if include_internal and not current_user.role.is_support():
-            raise PermissionDeniedError("Only support team can view internal comments")
-
-        # 2. Получение ответов на комментарий и загрузка реакций
         page = await self.comment_repo.get_replies(
             parent_comment_id=parent_comment.id,
             pagination=pagination,
-            user_id=current_user.user_id,
+            user_id=current_subject.id,
             include_internal=include_internal,
         )
 
         comment_ids = [comment.id for comment in page.items]
-        stats = await self.reaction_repo.get_reaction_stats(comment_ids, current_user.user_id)
+        stats = await self.reaction_repo.get_reaction_stats(comment_ids, current_subject.id)
 
         # 3. Маппинг реакций к комментарию
         def mapper(comment: Comment) -> CommentWithReactionsResponse:

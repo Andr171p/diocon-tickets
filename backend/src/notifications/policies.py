@@ -5,7 +5,7 @@ from uuid import UUID
 from ..iam.domain.constants import SUPPORT_TEAM
 from ..iam.domain.repos import UserRepository
 from ..projects.domain.repos import ProjectMemberRepository
-from ..projects.domain.vo import ProjectRole
+from ..projects.domain.vo import MemberRole
 from ..shared.domain.events import Event
 from ..shared.utils.helpers import iterate_batches
 from ..tickets.domain.events import TicketAssigned, TicketCreated
@@ -51,7 +51,7 @@ class TicketCreatedPolicy:
                     self.project_membership_repo,
                     project_id=event.project_id,
                     include_project_roles=[
-                        ProjectRole.OWNER, ProjectRole.MANAGER, ProjectRole.CONTRIBUTOR
+                        MemberRole.OWNER, MemberRole.MANAGER, MemberRole.CONTRIBUTOR
                     ]
             ):
                 targets.update({member.user_id for member in members})

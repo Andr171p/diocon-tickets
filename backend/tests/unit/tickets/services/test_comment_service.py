@@ -106,7 +106,7 @@ class TestAddComment:
 
         data = CommentCreate(text="Тестовый комментарий  ", type=CommentType.PUBLIC)
         response = await comment_service.add_comment(
-            ticket_id=created_ticket.id, data=data, current_user=current_support_user
+            ticket_id=created_ticket.id, data=data, current_subject=current_support_user
         )
 
         mock_session.commit.assert_awaited_once()
@@ -138,7 +138,7 @@ class TestAddComment:
 
         with pytest.raises(PermissionDeniedError):
             await comment_service.add_comment(
-                ticket_id=created_ticket.id, data=data, current_user=current_user
+                ticket_id=created_ticket.id, data=data, current_subject=current_user
             )
 
         mock_session.commit.assert_not_called()
@@ -152,7 +152,7 @@ class TestAddComment:
         data = CommentCreate(text="тестовый комментарий", type=CommentType.PUBLIC)
         with pytest.raises(NotFoundError):
             await comment_service.add_comment(
-                ticket_id=uuid4(), data=data, current_user=current_support_user
+                ticket_id=uuid4(), data=data, current_subject=current_support_user
             )
 
 
@@ -180,7 +180,7 @@ class TestReplyToComment:
             ticket_id=created_ticket.id,
             parent_comment_id=created_comment.id,
             data=data,
-            current_user=current_support_user,
+            current_subject=current_support_user,
         )
 
         mock_session.commit.assert_awaited_once()
@@ -223,7 +223,7 @@ class TestReplyToComment:
                 ticket_id=ticket.id,
                 parent_comment_id=created_comment.id,
                 data=data,
-                current_user=current_customer_user,
+                current_subject=current_customer_user,
             )
 
         mock_session.commit.assert_not_called()
@@ -278,7 +278,7 @@ class TestDeleteComment:
             ticket_id=created_ticket.id,
             parent_comment_id=created_comment.id,
             data=data,
-            current_user=current_support_user,
+            current_subject=current_support_user,
         )
 
         await comment_service.delete_comment(
@@ -346,7 +346,7 @@ class TestDeleteComment:
             ticket_id=created_ticket.id,
             parent_comment_id=created_comment.id,
             data=data,
-            current_user=current_support_user,
+            current_subject=current_support_user,
         )
 
         # 2. Удаление корневого комментария
@@ -447,7 +447,7 @@ class TestGetComments:
         response = await comment_service.get_comments(
             ticket_id=created_ticket.id,
             pagination=Pagination(page=1, size=5),
-            current_user=current_support_user,
+            current_subject=current_support_user,
             include_internal=True,
         )
 
@@ -474,7 +474,7 @@ class TestGetComments:
             await comment_service.get_comments(
                 ticket_id=created_ticket.id,
                 pagination=Pagination(page=1, size=5),
-                current_user=current_customer_user,
+                current_subject=current_customer_user,
                 include_internal=True,
             )
 

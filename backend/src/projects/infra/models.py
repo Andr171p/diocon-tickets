@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ...core.database import Base
-from ..domain.vo import ProjectRole, ProjectStageStatus, ProjectStatus
+from ..domain.vo import MemberRole, ProjectStageStatus, ProjectStatus
 
 
 class ProjectMemberOrm(Base):
@@ -14,14 +14,13 @@ class ProjectMemberOrm(Base):
 
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), unique=False)
     user_id: Mapped[UUID]
-    project_roles: Mapped[list[ProjectRole]] = mapped_column(JSONB)
+    roles: Mapped[list[MemberRole]] = mapped_column(JSONB)
     created_by: Mapped[UUID]
 
     project: Mapped["ProjectOrm"] = relationship(back_populates="members")
 
     __table_args__ = (
         UniqueConstraint("project_id", "user_id", name="uq_project_member"),
-        Index("ix_project_members_project_role", "project_id", "project_role"),
         Index("ix_project_members_user", "user_id"),
     )
 
@@ -71,9 +70,9 @@ class ProjectOrm(Base):
     created_by: Mapped[UUID]
 
     stages: Mapped[list["ProjectStageOrm"]] = relationship(
-        back_populates="project", 
-        lazy="selectin", 
-        uselist=True, 
+        back_populates="project",
+        lazy="selectin",
+        uselist=True,
         cascade="all, delete-orphan",
         foreign_keys="ProjectStageOrm.project_id",
     )

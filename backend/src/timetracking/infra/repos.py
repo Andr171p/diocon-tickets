@@ -69,7 +69,7 @@ class WorklogMapper(ModelMapper[Worklog, WorklogOrm]):
             "entry_date": entity.entry_date,
             "description": entity.description,
             "status": entity.status,
-            "approved_by": entity.approved_by,
+            "requested_by": entity.approved_by,
             "approved_at": entity.approved_at,
             "rejection_reason": entity.rejection_reason,
         }
@@ -97,7 +97,7 @@ class SqlWorklogRepository(SqlAlchemyRepository[Worklog, WorklogOrm]):
                 "entry_date": stmt.excluded.entry_date,
                 "description": stmt.excluded.description,
                 "status": stmt.excluded.status,
-                "approved_by": stmt.excluded.approved_by,
+                "requested_by": stmt.excluded.approved_by,
                 "approved_at": stmt.excluded.approved_at,
                 "rejection_reason": stmt.excluded.rejection_reason,
             }

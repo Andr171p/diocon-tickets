@@ -47,3 +47,17 @@ class IsTicketCreatorRule:
             return PermissionResult(False, "Required ticket creator")
 
         return PermissionResult(True)
+
+
+class IsTicketAssigneeRule:
+    def __init__(self, subject: Subject, ticket: Ticket) -> None:
+        self.subject = subject
+        self.ticket = ticket
+
+    def check(self) -> PermissionResult:
+        if self.subject.id != self.ticket.assignee_id:
+            return PermissionResult(
+                False, f"You are not assignee of this ticket - {self.ticket.id}"
+            )
+
+        return PermissionResult(True)

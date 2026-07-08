@@ -28,11 +28,23 @@ class TicketState(abc.ABC):
     def edit(self, ticket: "Ticket", edited_by: UUID, **kwargs) -> None:
         raise InvalidStateError(f"Cannot edit ticket in status {self.status.value}")
 
+    def submit_for_approval(self, ticket: "Ticket", submitted_by: UUID) -> None:
+        raise InvalidStateError(f"Cannot request approval ticket in status {self.status.value}")
+
+    def approve(self, ticket: "Ticket", approved_by: UUID) -> None:
+        raise InvalidStateError(f"Cannot approve ticket in status {self.status.value}")
+
     def assign(self, ticket: "Ticket", assignee_id: UUID, assigned_by: UUID) -> None:
         raise InvalidStateError(f"Cannot assign ticket in status {self.status.value}")
 
     def start_progress(self, ticket: "Ticket", started_by: UUID) -> None:
         raise InvalidStateError(f"Cannot start progress in status {self.status.value}")
+
+    def pause(self, ticket: "Ticket", paused_by: UUID) -> None:
+        raise InvalidStateError(f"Cannot pause ticket in status {self.status.value}")
+
+    def wait(self, ticket: "Ticket") -> None:
+        raise InvalidStateError(f"Cannot waiting in status {self.status.value}")
 
     def resolve(self, ticket: "Ticket", resolved_by: UUID) -> None:
         raise InvalidStateError(f"Cannot resolve ticket in status {self.status.value}")
@@ -56,6 +68,9 @@ class NewState(TicketState):
     def status(self) -> TicketStatus:
         return TicketStatus.NEW
 
+    def submit_for_approval(self, ticket: "Ticket", submitted_by: UUID) -> None:
+        ticket.transition_to(TicketStatus.PENDING_APPROVAL)
+
     def assign(self, ticket: "Ticket", assignee_id: UUID, assigned_by: UUID) -> None:
         ticket.apply_assignment(assignee_id, assigned_by)
         ticket.transition_to(TicketStatus.OPEN, assigned_by)
@@ -64,7 +79,7 @@ class NewState(TicketState):
         pass
 
     def cancel(self, ticket: "Ticket", cancelled_by: UUID) -> None:
-        ticket.clear_assignment()
+        ticket.apply_assignment(None, cancelled_by)
         ticket.transition_to(TicketStatus.CANCELED, cancelled_by)
 
 
@@ -77,12 +92,15 @@ class PendingApprovalState(TicketState):
     def edit(self, ticket: "Ticket", edited_by: UUID, **kwargs) -> None:
         pass
 
+    def approve(self, ticket: "Ticket", approved_by: UUID) -> None:
+        ticket.mark_approved(approved_by)
+        ticket.transition_to(TicketStatus.APPROVED, approved_by)
+
     def assign(self, ticket: "Ticket", assignee_id: UUID, assigned_by: UUID) -> None:
         ticket.apply_assignment(assignee_id, assigned_by)
         ticket.transition_to(TicketStatus.OPEN, assigned_by)
 
     def reject(self, ticket: "Ticket", rejected_by: UUID) -> None:
-        ticket.clear_assignment()
         ticket.transition_to(TicketStatus.REJECTED, rejected_by)
 
 
@@ -109,11 +127,14 @@ class InProgressState(TicketState):
     def status(self) -> TicketStatus:
         return TicketStatus.IN_PROGRESS
 
+    def pause(self, ticket: "Ticket", paused_by: UUID) -> None:
+        ticket.transition_to(TicketStatus.PAUSED, paused_by)
+
     def resolve(self, ticket: "Ticket", resolved_by: UUID) -> None:
         ticket.transition_to(TicketStatus.RESOLVED, resolved_by)
 
     def cancel(self, ticket: "Ticket", cancelled_by: UUID) -> None:
-        ticket.clear_assignment()
+        ticket.apply_assignment(None, cancelled_by)
         ticket.transition_to(TicketStatus.CANCELED, cancelled_by)
 
 

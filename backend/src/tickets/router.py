@@ -155,7 +155,7 @@ async def get_ticket_comments(
     return await service.get_comments(
         ticket_id=ticket_id,
         pagination=pagination,
-        current_user=current_user,
+        current_subject=current_user,
         include_internal=include_internal,
     )
 
@@ -178,7 +178,7 @@ async def get_comment_replies(
     return await service.get_comment_replies(
         comment_id=comment_id,
         pagination=pagination,
-        current_user=current_user,
+        current_subject=current_user,
         include_internal=include_internal,
     )
 
@@ -215,7 +215,7 @@ async def add_comment_reply(
         ticket_id=ticket_id,
         parent_comment_id=comment_id,
         data=data,
-        current_user=current_user,
+        current_subject=current_user,
     )
 
 
