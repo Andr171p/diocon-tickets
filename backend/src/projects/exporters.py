@@ -1,21 +1,23 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from io import BytesIO
-
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill
-from openpyxl.utils import get_column_letter
-
-from .services.stage.export import ProjectStagesReport
-
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from docx import Document
 from docx.enum.section import WD_ORIENT
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.shared import Cm, Pt
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+if TYPE_CHECKING:
+    from .services.stage_export import ProjectStagesReport
 
 HEADERS = [
     "№",
@@ -128,7 +130,7 @@ def export_project_stages_to_pdf(report: ProjectStagesReport) -> bytes:
             row.is_overdue,
             row.planned_duration_days,
             row.description,
-            row.completion_critetia,
+            row.completion_criteria,
         ])
 
     table = Table(data, repeatRows=1)
@@ -153,7 +155,7 @@ def export_project_stages_to_word(report: ProjectStagesReport) -> bytes:
 
     document = Document()
 
-    section = document.section[0]
+    section = document.sections[0]
     section.orientation = WD_ORIENT.LANDSCAPE
     section.page_width, section.page_height = section.page_height, section.page_width
     section.left_margin = Cm(1.0)

@@ -1,10 +1,12 @@
 from uuid import UUID
+from io import BytesIO
 
 from fastapi import APIRouter, Depends, Query, status
 
 from src.iam.dependencies import CurrentSubjectDep, get_current_subject, require_role
 from src.iam.domain.constants import SUPPORT_MANAGER_OR_ABOVE
 from src.shared.schemas import Page
+from fastapi.responses import StreamingResponse
 
 from .dependencies import (
     MyProjectsDep,
@@ -12,6 +14,7 @@ from .dependencies import (
     ProjectMemberServiceDep,
     ProjectServiceDep,
     ProjectsPageDep,
+    ProjectStageExportServiceDep,
 )
 from .domain.services import generate_project_key
 from .schemas import (
@@ -26,8 +29,27 @@ from .schemas import (
     ProjectStageResponse,
     ProjectStageUpdate,
 )
+from .exporters import (
+    export_project_stages_to_excel,
+    export_project_stages_to_pdf,
+    export_project_stages_to_word,
+)
 
 router = APIRouter(prefix="/projects", tags=["Проекты"])
+
+
+def _export_respons(
+        content: bytes,
+        filename: str,
+        media_type: str,
+) -> StreamingResponse:
+    return StreamingResponse(
+        BytesIO(content),
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
 
 
 @router.get(
@@ -146,6 +168,28 @@ async def create_project_stage(
         service: ProjectMemberServiceDep,
 ) -> ProjectResponse:
     return await service.add_member(project_id, data, current_subject)
+
+
+@router.get(
+    path='/{project_id}/stages/export/excel',
+    status_code=status.HTTP_200_OK,
+    summary="Экспортировать этапы проекта в Excel",
+)
+async def export_project_stages_excel(
+    project_id: UUID,
+    current_subject: CurrentSubjectDep,
+    service: ProjectStageExportServiceDep,
+) -> StreamingResponse:
+    report = await service.build_report(
+        project_id=project_id,
+        current_subject=current_subject,
+    )
+
+    return _export_respons(
+        content=export_project_stages_excel(report),
+        filename=f"project-stages-{report.project_key}.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 
 @router.patch(
