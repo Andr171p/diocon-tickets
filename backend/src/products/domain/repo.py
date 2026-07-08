@@ -1,6 +1,6 @@
 from typing import override
 
-from ...shared.domain.repo import Repository
+from ...shared.domain.repos import Repository
 from ...shared.schemas import Page, Pagination
 from .entities import SoftwareProduct
 from .vo import ProductCategory, ProductStatus

@@ -147,7 +147,7 @@ async def delete_contact_person(
     path="/{counterparty_id}/customers",
     status_code=status.HTTP_200_OK,
     response_model=Page[UserResponse],
-    dependencies=[Depends(require_role({UserRole.CUSTOMER_ADMIN | UserRole.staff_roles()}))],
+    dependencies=[Depends(require_role({UserRole.CUSTOMER_ADMIN} | UserRole.staff_roles()))],
     summary="Получение клиентов контрагента",
     description="Доступно с ролью `customer_admin` и выше",
 )

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from ...shared.domain.repo import Repository
+from ...shared.domain.repos import Repository
 from ...shared.schemas import Page, Pagination
 from .entities import Notification, UserPreference
 from .vo import NotificationType

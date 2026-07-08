@@ -6,7 +6,6 @@ from enum import StrEnum, auto
 from uuid import UUID
 
 from .entities import Invitation
-from .rules import IsAdminRule, IsInviterRule, IsStaffRule
 from .vo import Email, UserRole
 
 
@@ -140,10 +139,14 @@ class Not:
 
 
 def can_create_invitation(subject: Subject) -> PermissionResult:
+    from .rules import IsAdminRule, IsStaffRule
+
     policy = AnyOf(IsAdminRule(subject), IsStaffRule(subject))
     return policy.check()
 
 
 def can_revoke_invitation(subject: Subject, invitation: Invitation) -> PermissionResult:
+    from .rules import IsAdminRule, IsInviterRule
+
     policy = AnyOf(IsAdminRule(subject), IsInviterRule(subject, invitation))
     return policy.check()

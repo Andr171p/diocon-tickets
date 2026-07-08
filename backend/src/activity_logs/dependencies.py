@@ -9,7 +9,9 @@ from src.shared.schemas import Page
 
 from .domain.repos import ActivityLogRepository
 from .infra.repos import SqlActivityLogRepository
+from .mappers import map_activity_log_to_response
 from .recorder import ActivityLogRecorder
+from .schemas import ActivityLogResponse
 
 
 def get_activity_log_repo(session: SessionDep) -> SqlActivityLogRepository:
@@ -26,7 +28,7 @@ def get_activity_log_recorder(activity_log_repo: ActivityLogRepoDep) -> Activity
 ActivityLogRecorderDep = Annotated[ActivityLogRepository, Depends(get_activity_log_recorder)]
 
 
-async def get_activity_logs_page(
+async def paginate_activity_logs(
         activity_log_repo: ActivityLogRepoDep,
         aggregate_type: str,
         aggregate_id: UUID,
@@ -37,11 +39,8 @@ async def get_activity_logs_page(
         action: Annotated[
             str | None, Query(..., description="Тип выполненного действия")
         ] = None,
-) -> Page[...]:
+) -> Page[ActivityLogResponse]:
     page = await activity_log_repo.get_for_aggregate(
         aggregate_type, aggregate_id, pagination=pagination, actor_id=actor_id, action=action
     )
-    return page.to_response(...)
-
-
-ActivityLogsPageDep = Annotated[Page[...], Depends(get_activity_logs_page)]
+    return page.to_response(map_activity_log_to_response)

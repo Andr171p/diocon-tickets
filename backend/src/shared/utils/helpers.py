@@ -1,7 +1,7 @@
 from collections.abc import AsyncIterable
 
 from ..domain.entities import Entity
-from ..domain.repo import Repository
+from ..domain.repos import Repository
 from ..schemas import Pagination
 
 

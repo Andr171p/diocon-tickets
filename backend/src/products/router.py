@@ -47,7 +47,7 @@ def get_product_category_attributes_schema(category: ProductCategory) -> Attribu
     path="",
     status_code=status.HTTP_200_OK,
     response_model=Page[ProductResponse],
-    dependencies=[Depends(require_role(*SUPPORT_TEAM))],
+    dependencies=[Depends(require_role(SUPPORT_TEAM))],
     summary="Получение программных продуктов",
 )
 async def get_products(

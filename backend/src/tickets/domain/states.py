@@ -180,11 +180,11 @@ class ClosedState(TicketState):
         ticket.transition_to(TicketStatus.RESOLVED, reopened_by)
 
 
-@register_state(TicketStatus.CANCELLED)
+@register_state(TicketStatus.CANCELED)
 class CancelledState(TicketState):
     @property
     def status(self) -> TicketStatus:
-        return TicketStatus.CANCELLED
+        return TicketStatus.CANCELED
 
     def reopen(self, ticket: "Ticket", reopened_by: UUID) -> None:
         ticket.transition_to(TicketStatus.OPEN, reopened_by)

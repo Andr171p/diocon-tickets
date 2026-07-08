@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Path, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from ..dependencies import AuthServiceDep, CurrentUserDep, oauth2_scheme
-from ..schemas import CurrentUser, LogoutRequest, Tokens, TokensRefresh, UserCreate
+from ..schemas import CurrentUser, LogoutRequest, RefreshToken, Tokens, UserCreate
 
 router = APIRouter(prefix="/auth", tags=["Авторизация"])
 
@@ -42,8 +42,8 @@ async def login(
     response_model=Tokens,
     summary="Обновить пару токенов"
 )
-async def refresh(data: TokensRefresh, service: AuthServiceDep) -> Tokens:
-    return await service.refresh_tokens(data.refresh_token)
+async def refresh(refresh_token: RefreshToken, service: AuthServiceDep) -> Tokens:
+    return await service.refresh_tokens(refresh_token)
 
 
 @router.post(
