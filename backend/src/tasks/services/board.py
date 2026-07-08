@@ -1,9 +1,6 @@
-from ...iam.domain.exceptions import PermissionDeniedError
 from ...iam.schemas import CurrentUser
-from ...projects.domain.services import ProjectAccessService
 from ...shared.schemas import Pagination
-from ..domain.acl import can_view_tasks
-from ..domain.constants import TASK_STATUS_LABEL_MAP
+from ..domain.consts import TASK_STATUS_LABEL_MAP
 from ..domain.repos import TaskRepository
 from ..mappers import map_task_view_to_response
 from ..schemas import (
@@ -16,10 +13,9 @@ from ..schemas import (
 
 class TaskBoardService:
     def __init__(
-            self, task_repo: TaskRepository, project_access_service: ProjectAccessService
+            self, task_repo: TaskRepository
     ) -> None:
         self.task_repo = task_repo
-        self.project_access_service = project_access_service
 
     async def get_kanban_board(
             self,
@@ -30,23 +26,9 @@ class TaskBoardService:
     ) -> KanbanBoard:
         """Получение канбан доски с задачами"""
 
-        # 1. Проверка прав на просмотр задач
-        permission = can_view_tasks(current_user.role)
-        if not permission.allowed:
-            raise PermissionDeniedError(permission.reason)
-
         # 2. Определение контекста задач
         kwargs = {}
         if context.type == "project":
-
-            # 2.1 Проверка прав на просмотр задач в проекте
-            permission = await self.project_access_service.can_view_tasks(
-                project_id=context.project_id,
-                user_id=current_user.user_id,
-                user_role=current_user.role,
-            )
-            if not permission.allowed:
-                raise PermissionDeniedError(permission.reason)
 
             kwargs = {"project_id": context.project_id}
 

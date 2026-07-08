@@ -41,7 +41,7 @@ class UserMapper(ModelMapper[User, UserOrm]):
             avatar_url=entity.avatar_url,
             counterparty_id=entity.counterparty_id,
             roles=entity.roles,
-            password_hash=entity.password_hash.value,
+            password_hash=entity.password_hash.get_hashed_value(),
             is_active=entity.is_active,
         )
 

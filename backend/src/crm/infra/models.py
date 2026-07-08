@@ -1,7 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional
-
-if TYPE_CHECKING:
-    from ...iam.infra.models import UserOrm
+from typing import Any, Optional
 
 from uuid import UUID
 
@@ -40,7 +37,6 @@ class CounterpartyOrm(Base):
         back_populates="head", cascade="all, delete-orphan"
     )
 
-    customers: Mapped[list["UserOrm"]] = relationship(back_populates="counterparty")
     products: Mapped[list["CounterpartyProductOrm"]] = relationship(
         back_populates="counterparty"
     )

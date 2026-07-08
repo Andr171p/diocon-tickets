@@ -5,6 +5,7 @@ from botocore.exceptions import ClientError
 from src.core.database import session_factory
 from src.core.settings import S3_BACKUPS_BUCKET_NAME, S3_BUCKET_NAME, settings
 from src.iam.domain.services import create_admin
+from src.iam.domain.vo import Email
 from src.iam.infra.repos import SqlUserRepository
 from src.iam.security import hash_password
 from src.media.infra.s3 import S3Storage
@@ -17,12 +18,12 @@ async def create_first_admin() -> None:
 
     async with session_factory() as session:
         user_repo = SqlUserRepository(session)
-        exists = await user_repo.get_by_email(settings.admin.email)
+        exists = await user_repo.get_by_email(Email(settings.admin.email))
         if exists:
             logger.warning("Admin already exists")
             return
         admin = create_admin(
-            email=settings.admin.email, password_hash=hash_password(settings.admin.password)
+            email=Email(settings.admin.email), password_hash=hash_password(settings.admin.password)
         )
         await user_repo.create(admin)
         await session.commit()

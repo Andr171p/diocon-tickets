@@ -1,8 +1,6 @@
-from pydantic import SecretStr
-
 from .entities import Invitation, User
 from .exceptions import InvitationExpiredError
-from .vo import FullName, PasswordHash, Username, UserRole
+from .vo import Email, FullName, PasswordHash, Username, UserRole
 
 
 def create_user_from_invitation(
@@ -52,14 +50,14 @@ def register_new_user(
     )
 
 
-def create_admin(email: str, password_hash: str) -> User:
+def create_admin(email: Email, password_hash: str) -> User:
     """Фабрика для создания системного администратора"""
 
     return User(
         email=email,
-        password_hash=SecretStr(password_hash),
+        password_hash=PasswordHash(password_hash),
         username=Username("admin"),
-        role=UserRole.ADMIN,
+        roles={UserRole.ADMIN},
     )
 
 

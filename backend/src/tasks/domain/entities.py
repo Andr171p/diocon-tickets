@@ -30,7 +30,6 @@ from .events import (
     TaskWorkingStarted,
 )
 from .vo import ReviewDecision, StoryPoints, TaskNumber, TaskStatus
-from .workflow import task_workflow
 
 SECS_IN_HOURS = 3600.0
 
@@ -140,6 +139,8 @@ class Task(AggregateRoot):
         """
         Изменение статуса задачи.
         """
+
+        from .workflow import task_workflow
 
         if new_status == self.status:
             return
