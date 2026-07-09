@@ -17,7 +17,7 @@ class UserOrm(Base):
     username: Mapped[str | None] = mapped_column(nullable=True)
     full_name: Mapped[str | None] = mapped_column(nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(nullable=True)
-    roles: Mapped[set[UserRole]] = mapped_column(JSONB)
+    roles: Mapped[list[UserRole]] = mapped_column(JSONB)
     counterparty_id: Mapped[UUID | None] = mapped_column(nullable=True)
     password_hash: Mapped[str] = mapped_column(unique=True)
     is_active: Mapped[bool]
@@ -35,7 +35,7 @@ class InvitationOrm(Base):
     email: Mapped[str]
     token: Mapped[str] = mapped_column(unique=True)
     invited_by: Mapped[UUID]
-    granted_roles: Mapped[set[UserRole]] = mapped_column(JSONB)
+    granted_roles: Mapped[list[UserRole]] = mapped_column(JSONB)
     counterparty_id: Mapped[UUID | None] = mapped_column(nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

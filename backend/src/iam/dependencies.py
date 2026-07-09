@@ -94,7 +94,7 @@ async def get_current_subject(
         blacklist: Annotated[TokenStore, Depends(get_token_store)],
 ) -> Subject:
     payload = validate_token(token)
-    jti, sub, type_ = payload.get("jti"), payload.get("sub"), payload.get("type")
+    jti, sub, type_ = payload.get("jti"), payload.get("sub"), payload.get("sub_type")
 
     if jti is None or await blacklist.is_revoked(jti):
         raise UnauthorizedError("Token has been revoked or missing jti")

@@ -99,11 +99,12 @@ class RabbitSettings(BaseSettings):
     host: str = "localhost"
     port: int = 5672
     user: str = "guest"
-    password: str = "quest"
+    password: str = "guest"
+    virtualhost: str = "/"
 
     @property
     def url(self) -> str:
-        return f"amqp://{self.user}:{self.password}@{self.host}:{self.port}/"
+        return f"amqp://{self.user}:{self.password}@{self.host}:{self.port}"
 
 
 class YandexCloudSettings(BaseSettings):
@@ -195,3 +196,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+print(settings.rabbit.url)

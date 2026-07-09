@@ -13,6 +13,7 @@ from passlib.context import CryptContext
 from src.core.settings import settings
 from src.shared.utils.time import current_datetime
 
+from .domain.authz import SubjectType
 from .domain.exceptions import UnauthorizedError
 from .domain.vo import Email, UserRole
 
@@ -85,6 +86,7 @@ def create_access_token(
         "jti": f"{uuid4()}",
         "email": f"{email}",
         "roles": list(user_roles),
+        "sub_type": SubjectType.USER.value,
     }
     if counterparty_id is not None:
         payload["counterparty_id"] = f"{counterparty_id}"

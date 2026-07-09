@@ -8,7 +8,7 @@ from src.shared.infra.repos import ModelMapper, SqlAlchemyRepository
 from src.shared.schemas import Page, Pagination
 
 from ..domain.entities import Project, ProjectMember, ProjectStage
-from ..domain.vo import ProjectKey, MemberRole
+from ..domain.vo import MemberRole, ProjectKey
 from .models import ProjectMemberOrm, ProjectOrm, ProjectStageOrm
 
 
@@ -22,7 +22,7 @@ class ProjectMemberMapper(ModelMapper[ProjectMember, ProjectMemberOrm]):
             deleted_at=model.deleted_at,
             project_id=model.project_id,
             user_id=model.user_id,
-            roles=model.roles,
+            roles=set(model.roles),
             created_by=model.created_by,
         )
 
@@ -35,7 +35,7 @@ class ProjectMemberMapper(ModelMapper[ProjectMember, ProjectMemberOrm]):
             deleted_at=entity.deleted_at,
             user_id=entity.user_id,
             project_id=entity.project_id,
-            project_roles=entity.roles,
+            roles=list(entity.roles),
             created_by=entity.created_by,
         )
 
