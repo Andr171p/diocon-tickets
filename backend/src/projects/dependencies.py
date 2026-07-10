@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import Depends, Query
 
+from src.core.settings import settings
 from src.iam.dependencies import CurrentSubjectDep, UserRepoDep
 from src.shared.dependencies import EventPublisherDep, PaginationDep, SessionDep
 from src.shared.domain.exceptions import NotFoundError
@@ -14,6 +15,7 @@ from .infra.repos import SqlProjectMemberRepository, SqlProjectRepository
 from .mappers import map_project_to_response
 from .schemas import ProjectResponse
 from .services import ProjectMemberService, ProjectService
+from .services.stage_export import ProjectStageExportService
 
 
 def get_project_repo(session: SessionDep) -> SqlProjectRepository:
@@ -57,6 +59,24 @@ def get_project_member_service(
         event_publisher=event_publisher,
     )
 
+
+def get_project_stage_export_service(
+        project_repo: ProjectRepoDep,
+        member_repo: ProjectMemberRepoDep,
+        user_repo: UserRepoDep,
+) -> ProjectStageExportService:
+    return ProjectStageExportService(
+        project_repo=project_repo,
+        member_repo=member_repo,
+        user_repo=user_repo,
+        frontend_url=settings.frontend_url,
+    )
+
+
+ProjectStageExportServiceDep = Annotated[
+    ProjectStageExportService,
+    Depends(get_project_stage_export_service),
+]
 
 ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 ProjectMemberServiceDep = Annotated[ProjectMemberService, Depends(get_project_member_service)]
