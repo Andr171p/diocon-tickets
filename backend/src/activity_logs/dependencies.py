@@ -47,12 +47,15 @@ def get_activity_log_filters(
     )
 
 
+ActivityLogFiltersDep = Annotated[ActivityLogFilters, Depends(get_activity_log_filters)]
+
+
 async def paginate_activity_logs(
         activity_log_repo: ActivityLogRepoDep,
         aggregate_type: str,
         aggregate_id: UUID,
         pagination: PaginationDep,
-        filters: ActivityLogFilters,
+        filters: ActivityLogFiltersDep,
 ) -> Page[ActivityLogResponse]:
     page = await activity_log_repo.get_for_aggregate(
         aggregate_type, aggregate_id, pagination=pagination, filters=filters,
@@ -63,7 +66,7 @@ async def paginate_activity_logs(
 async def get_activity_logs_paginator(  # noqa: RUF029
         activity_log_repo: ActivityLogRepoDep,
         pagination: PaginationDep,
-        filters: ActivityLogFilters,
+        filters: ActivityLogFiltersDep,
 ) -> ActivityLogPaginatorFunc:
     async def paginator(aggregate_type: str, aggregate_id: UUID) -> Page[ActivityLogResponse]:
         page = await activity_log_repo.get_for_aggregate(

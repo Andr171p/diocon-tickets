@@ -5,8 +5,9 @@ from pydantic import BaseModel, Field, NonNegativeFloat, NonNegativeInt
 
 from src.iam.domain.vo import UserRole
 from src.media.schemas import AttachmentResponse
+from src.shared.domain.vo import Priority
 
-from .domain.vo import CommentType, Priority, ReactionType, TicketStatus, TicketType
+from .domain.vo import CommentType, ReactionType, TicketStatus, TicketType
 
 
 class CommentResponse(BaseModel):

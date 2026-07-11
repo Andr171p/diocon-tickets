@@ -10,9 +10,9 @@ from src.projects.domain.repos import ProjectRepository
 from src.shared.domain.events import EventPublisher
 from src.shared.domain.exceptions import InvalidStateError, NotFoundError
 from src.shared.domain.repos import UnitOfWork, finalize, get_or_raise_404
+from src.shared.domain.vo import Tag
 from src.tickets.domain.entities import Ticket
 from src.tickets.domain.repos import TicketRepository
-from src.tickets.domain.vo import Tag
 
 from ..domain.authz import TaskAuthZService
 from ..domain.entities import Task

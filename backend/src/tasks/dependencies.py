@@ -6,8 +6,8 @@ from src.activity_logs.dependencies import ActivityLogRecorderDep
 from src.iam.dependencies import UserRepoDep
 from src.projects.dependencies import ProjectRepoDep
 from src.shared.dependencies import EventPublisherDep, SessionDep
+from src.shared.domain.vo import Priority
 from src.tickets.dependencies import TicketRepoDep
-from src.tickets.domain.vo import Priority
 
 from .domain.repos import TaskRepository
 from .infra.repos import SqlTaskRepository

@@ -21,12 +21,13 @@ from src.shared.dependencies import (
     SessionDep,
     TimeRangeFiltersDep,
 )
+from src.shared.domain.vo import Priority
 from src.shared.schemas import Page
 
 from .domain.authz import TicketAuthZService
 from .domain.dtos import TicketFilters
 from .domain.repos import CommentRepository, ReactionRepository, TicketRepository
-from .domain.vo import Priority, TicketStatus, TicketType
+from .domain.vo import TicketStatus, TicketType
 from .infra.repos import SqlCommentRepository, SqlReactionRepository, SqlTicketRepository
 from .loaders import TicketReferenceLoader
 from .schemas import TicketViewResponse

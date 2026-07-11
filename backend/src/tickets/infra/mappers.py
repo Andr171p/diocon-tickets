@@ -1,7 +1,9 @@
-from ...media.infra.repo import AttachmentMapper
-from ...shared.infra.repos import ModelMapper
+from src.media.infra.repo import AttachmentMapper
+from src.shared.domain.vo import Tag
+from src.shared.infra.repos import ModelMapper
+
 from ..domain.entities import Comment, Reaction, Ticket
-from ..domain.vo import Tag, TicketNumber
+from ..domain.vo import TicketNumber
 from .models import CommentOrm, ReactionOrm, TicketOrm
 
 # Маппинг ORM модели тикета в доменную сущность и обратно
