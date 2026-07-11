@@ -4,7 +4,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from src.activity_logs.domain.models import ActivityLog
-from src.activity_logs.registry import register
+from src.activity_logs.registry import register_activity_log_mapper
 from src.shared.domain.events import Event
 
 from .vo import TaskNumber, TaskStatus
@@ -123,7 +123,7 @@ class TaskArchived(Event):
     archived_by: UUID
 
 
-@register(TaskCreated)
+@register_activity_log_mapper(TaskCreated)
 def map_task_created_to_activity_log(event: TaskCreated) -> ActivityLog:
     return ActivityLog(
         aggregate_type="task",
@@ -134,7 +134,7 @@ def map_task_created_to_activity_log(event: TaskCreated) -> ActivityLog:
     )
 
 
-@register(TaskStatusChanged)
+@register_activity_log_mapper(TaskStatusChanged)
 def map_task_status_changed_to_activity_log(event: TaskStatusChanged) -> ActivityLog:
     return ActivityLog(
         aggregate_type="task",
@@ -145,7 +145,7 @@ def map_task_status_changed_to_activity_log(event: TaskStatusChanged) -> Activit
     )
 
 
-@register(TaskAssigned)
+@register_activity_log_mapper(TaskAssigned)
 def map_task_assigned_to_activity_log(event: TaskAssigned) -> ActivityLog:
     return ActivityLog(
         aggregate_type="task",
@@ -156,7 +156,7 @@ def map_task_assigned_to_activity_log(event: TaskAssigned) -> ActivityLog:
     )
 
 
-@register(TaskUnassigned)
+@register_activity_log_mapper(TaskUnassigned)
 def map_task_unassigned_to_activity_log(event: TaskUnassigned) -> ActivityLog:
     return ActivityLog(
         aggregate_type="task",

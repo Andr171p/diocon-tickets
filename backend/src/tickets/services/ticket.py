@@ -13,11 +13,12 @@ from src.projects.domain.entities import Project
 from src.projects.domain.repos import ProjectRepository
 from src.shared.domain.events import EventPublisher
 from src.shared.domain.repos import UnitOfWork, finalize, get_or_raise_404
+from src.shared.domain.vo import Tag
 
 from ..domain.authz import TicketAuthZService
 from ..domain.entities import Ticket
 from ..domain.repos import TicketRepository
-from ..domain.vo import ProjectKey, Tag, TicketNumber
+from ..domain.vo import ProjectKey, TicketNumber
 from ..mappers import map_ticket_to_response
 from ..schemas import TicketCreate, TicketEdit, TicketResponse
 
@@ -117,6 +118,7 @@ class TicketService:
             counterparty_name=context.counterparty_name,
         )
 
+        tags = [Tag(name=tag.name, color=tag.color) for tag in data.tags]
         ticket = Ticket.create(
             number=number,
             created_by=current_subject.id,
@@ -127,7 +129,7 @@ class TicketService:
             project_id=context.project_id,
             counterparty_id=context.counterparty_id,
             product_id=data.product_id,
-            tags=[Tag(name=tag.name, color=tag.color) for tag in data.tags],
+            tags=tags,
         )
         await self.ticket_repo.create(ticket)
         await finalize(
@@ -207,6 +209,7 @@ class TicketService:
             raise PermissionDeniedError(permission.reason)
 
         action(ticket)
+        await self.ticket_repo.update(ticket)
 
         await finalize(
             self.uow, ticket,

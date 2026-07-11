@@ -8,14 +8,16 @@ from .domain.models import ActivityLog
 
 EventType = TypeVar("EventType", bound=Event)
 
-ActivityMapper = Callable[[EventType], ActivityLog]
+ActivityLogMapper = Callable[[EventType], ActivityLog]
 
-_activity_mappers_registry: dict[type[EventType], ActivityMapper] = {}
+_activity_mappers_registry: dict[type[EventType], ActivityLogMapper] = {}
 
 
-def register[T: Event](event_type: type[T]) -> Callable[[ActivityMapper[T]], ActivityMapper[T]]:
+def register_activity_log_mapper[T: Event](
+        event_type: type[T],
+) -> Callable[[ActivityLogMapper[T]], ActivityLogMapper[T]]:
 
-    def decorator(func: ActivityMapper[T]) -> ActivityMapper[T]:
+    def decorator(func: ActivityLogMapper[T]) -> ActivityLogMapper[T]:
         _activity_mappers_registry[event_type] = func
         return func
 

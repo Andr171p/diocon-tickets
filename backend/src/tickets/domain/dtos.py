@@ -2,8 +2,9 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from src.shared.domain.dtos import TimeRangeFilters
+from src.shared.domain.vo import Priority
 
-from .vo import Priority, TicketStatus, TicketType
+from .vo import TicketStatus, TicketType
 
 
 @dataclass(frozen=True)

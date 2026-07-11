@@ -4,6 +4,7 @@ from uuid import UUID
 
 from src.shared.schemas import Page, Pagination
 
+from .dtos import ActivityLogFilters
 from .models import ActivityLog
 
 
@@ -19,6 +20,5 @@ class ActivityLogRepository(Protocol):
             aggregate_id: UUID,
             *,
             pagination: Pagination,
-            actor_id: UUID | None = None,
-            action: str | None = None,
+            filters: ActivityLogFilters | None = None,
     ) -> Page[ActivityLog]: ...

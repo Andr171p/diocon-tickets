@@ -4,7 +4,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, Query, status
 
-from src.iam.dependencies import CurrentSubjectDep, CurrentUserDep, get_current_user
+from src.activity_logs.dependencies import ActivityLogPaginatorFunc, get_activity_logs_paginator
+from src.activity_logs.schemas import ActivityLogResponse
+from src.iam.dependencies import (
+    CurrentSubjectDep,
+    CurrentUserDep,
+    get_current_subject,
+    get_current_user,
+)
 from src.shared.dependencies import PaginationDep
 from src.shared.domain.exceptions import NotFoundError
 from src.shared.schemas import Page
@@ -17,6 +24,7 @@ from .dependencies import (
     TicketRepoDep,
     TicketServiceDep,
 )
+from .domain.activity_logs import AGGREGATE_TYPE
 from .domain.vo import ReactionType
 from .infra.ai import suggest_ticket_fields
 from .mappers import map_ticket_to_response
@@ -135,6 +143,21 @@ async def delete_ticket(
         ticket_id: UUID, current_subject: CurrentSubjectDep, service: TicketServiceDep
 ) -> TicketResponse:
     return await service.archive(ticket_id=ticket_id, current_subject=current_subject)
+
+
+@router.get(
+    path="/{ticket_id}/history",
+    status_code=status.HTTP_200_OK,
+    response_model=Page[ActivityLogResponse],
+    dependencies=[Depends(get_current_subject)],
+    summary="Получить историю бизнес действий",
+    description="Журнал всех зарегистрированные события над заявкой"
+)
+async def get_ticket_history(
+        ticket_id: UUID,
+        paginator: ActivityLogPaginatorFunc = Depends(get_activity_logs_paginator),
+) -> Page[ActivityLogResponse]:
+    return await paginator(AGGREGATE_TYPE, ticket_id)
 
 
 @router.get(

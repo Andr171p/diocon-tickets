@@ -1,10 +1,11 @@
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.shared.schemas import Page, Pagination
 
+from ..domain.dtos import ActivityLogFilters
 from ..domain.models import ActivityLog
 from .models import ActivityLogOrm
 
@@ -54,24 +55,38 @@ class SqlActivityLogRepository:
         models = [self.model_mapper.to_orm(activity) for activity in activities]
         self.session.add_all(models)
 
+    def _apply_activity_log_filters(
+            self, stmt: Select[tuple[ActivityLogOrm]], filters: ActivityLogFilters,
+    ) -> Select[tuple[ActivityLogOrm]]:
+        if filters.actor_id:
+            stmt = stmt.where(self.model.actor_id == filters.actor_id)
+
+        if filters.actions is not None and filters.actions:
+            stmt = stmt.where(self.model.action.in_(filters.actions))
+
+        if filters.occurred_after:
+            stmt = stmt.where(self.model.occurred_on >= filters.occurred_after)
+
+        if filters.occurred_before:
+            stmt = stmt.where(self.model.occurred_on <= filters.occurred_before)
+
+        return stmt
+
     async def get_for_aggregate(
             self,
             aggregate_type: str,
             aggregate_id: UUID,
             *,
             pagination: Pagination,
-            actor_id: UUID | None = None,
-            action: str | None = None,
+            filters: ActivityLogFilters | None = None,
     ) -> Page[ActivityLog]:
         stmt = select(self.model).where(
             (self.model.aggregate_type == aggregate_type) &
             (self.model.aggregate_id == aggregate_id)
         )
 
-        if actor_id:
-            stmt = stmt.where(self.model.actor_id == actor_id)
-        if action:
-            stmt = stmt.where(self.model.action == action)
+        if filters:
+            stmt = self._apply_activity_log_filters(stmt, filters)
 
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total_items = await self.session.scalar(count_stmt) or 0

@@ -1,13 +1,29 @@
 from typing import ClassVar, Self
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum, auto
 
 from src.projects.domain.vo import ProjectKey
 from src.shared.domain.vo import ValueObject
 from src.shared.utils.text import get_latin_slug
 from src.shared.utils.time import current_datetime
+
+
+class TicketAction(StrEnum):
+    """Действия меняющие состояние заявки."""
+
+    EDIT = auto()
+    ASSIGN = auto()
+    START_PROGRESS = auto()
+    PAUSE = auto()
+    RESOLVE = auto()
+    CLOSE = auto()
+    REOPEN = auto()
+    CANCEL = auto()
+    APPROVE = auto()
+    SUBMIT_FOR_APPROVAL = auto()
+    REJECT = auto()
 
 
 class TicketStatus(StrEnum):
@@ -49,29 +65,6 @@ class TicketType(StrEnum):
     IMPROVEMENT = "Улучшение"
 
     OTHER = "Прочее"
-
-
-class Priority(StrEnum):
-    """Приоритет для Work Item"""
-
-    LOW = "Низкий"
-    MEDIUM = "Средний"
-    HIGH = "Высокий"
-    CRITICAL = "Критический"  # Время реакции поддержки - мгновенное
-
-
-@dataclass(frozen=True, kw_only=True)
-class Tag(ValueObject):
-    """
-    Теги - метки (ключевые слова), которые можно присваивать тикетам для дополнительной,
-    неструктурированной классификации.
-    """
-
-    name: str
-    color: str = field(default="#3498db")
-
-    def __str__(self) -> str:
-        return self.name
 
 
 class CommentType(StrEnum):

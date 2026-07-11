@@ -23,7 +23,7 @@ def worklog_factory():
             entry_date=kwargs.pop("entry_date", current_datetime().date()),
             description=kwargs.pop("description", None),
             status=kwargs.pop("status", WorklogStatus.DRAFT),
-            approved_by=kwargs.pop("requested_by", None),
+            approved_by=kwargs.pop("submitted_by", None),
             approved_at=kwargs.pop("approved_at", None),
             rejection_reason=kwargs.pop("rejection_reason", None),
         )
