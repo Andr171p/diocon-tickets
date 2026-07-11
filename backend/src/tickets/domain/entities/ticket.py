@@ -61,6 +61,7 @@ class Ticket(AggregateRoot):
     status: TicketStatus
     priority: Priority
 
+    approved_at: datetime | None = None
     resolved_at: datetime | None = None
     closed_at: datetime | None = None
 
@@ -347,6 +348,7 @@ class Ticket(AggregateRoot):
 
     def mark_approved(self, approved_by: UUID) -> None:
         self.approved_by = approved_by
+        self.approved_at = current_datetime()
 
         self.register_event(
             TicketApproved(
