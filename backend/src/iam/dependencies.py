@@ -17,7 +17,7 @@ from src.shared.schemas import Page
 from .domain.authz import Subject
 from .domain.entities import Invitation
 from .domain.exceptions import PermissionDeniedError, UnauthorizedError
-from .domain.repos import InvitationRepository, TokenStore, UserRepository
+from .domain.repos import InvitationRepository, TokenStore, UserFilters, UserRepository
 from .domain.vo import Email, UserRole
 from .infra.repos import SqlInvitationRepository, SqlUserRepository
 from .infra.token_store import RedisTokenStore
@@ -144,14 +144,19 @@ async def get_user_or_404(user_id: UUID, user_repo: UserRepoDep) -> UserResponse
     return map_user_to_response(user)
 
 
+def get_user_filters(
+        roles: list[UserRole] | None = Query(None, min_length=1, description="A least one filter"),
+        counterparty_id: UUID | None = Query(None, description="Идентификатор контрагента"),
+) -> UserFilters:
+    return UserFilters(roles=roles, counterparty_id=counterparty_id)
+
+
 async def paginate_users(
         pagination: PaginationDep,
         user_repo: UserRepoDep,
-        role: Annotated[
-            list[UserRole] | None, Query(..., description="Фильтр по ролям")
-        ] = None,
+        filters: UserFilters = Depends(get_user_filters),
 ) -> Page[UserResponse]:
-    page = await user_repo.paginate(pagination, roles=role)
+    page = await user_repo.paginate(pagination, filters=filters)
     return page.to_response(map_user_to_response)
 
 

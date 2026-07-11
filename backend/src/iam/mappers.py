@@ -8,8 +8,8 @@ def map_user_to_response(user: User) -> UserResponse:
         created_at=user.created_at,
         updated_at=user.updated_at,
         email=user.email.value,
-        username=user.username.value,
-        full_name=user.full_name.value,
+        username=user.username.value if user.username else None,
+        full_name=user.full_name.value if user.full_name else None,
         avatar_url=user.avatar_url,
         roles=user.roles,
         counterparty_id=user.counterparty_id,
@@ -20,7 +20,7 @@ def map_user_to_response(user: User) -> UserResponse:
 def map_user_to_reference(user: User) -> UserReference:
     return UserReference(
         id=user.id,
-        full_name=user.full_name.value,
+        full_name=user.full_name.value if user.full_name else None,
         email=user.email.value,
         type=user.type,
     )
