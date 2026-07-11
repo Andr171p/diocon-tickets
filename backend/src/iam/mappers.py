@@ -1,5 +1,5 @@
 from .domain.entities import Invitation, User
-from .schemas import InvitationResponse, UserResponse
+from .schemas import InvitationResponse, UserReference, UserResponse
 
 
 def map_user_to_response(user: User) -> UserResponse:
@@ -14,6 +14,15 @@ def map_user_to_response(user: User) -> UserResponse:
         roles=user.roles,
         counterparty_id=user.counterparty_id,
         is_active=user.is_active,
+    )
+
+
+def map_user_to_reference(user: User) -> UserReference:
+    return UserReference(
+        id=user.id,
+        full_name=user.full_name.value,
+        email=user.email.value,
+        type=user.type,
     )
 
 

@@ -173,3 +173,11 @@ class ProjectMemberCreate(BaseModel):
 
     user_id: UUID = Field(..., description="ID пользователя, которого нужно добавить")
     project_roles: set[MemberRole] = Field(..., description="Назначенные роли внутри проекта")
+
+
+class ProjectReference(BaseModel):
+    """Ссылка на проект."""
+
+    id: UUID = Field(description="Идентификатор проекта")
+    key: str = Field(description="Уникальный ключ проекта для UI", examples=["PRJ01"])
+    name: str = Field(description="Название проекта", examples=["Внедрение хуйни"])

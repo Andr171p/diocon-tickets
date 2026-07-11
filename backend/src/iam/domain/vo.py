@@ -9,6 +9,13 @@ from email_validator import EmailNotValidError, validate_email
 from src.shared.domain.vo import ValueObject
 
 
+class UserType(StrEnum):
+    """Тип пользователя."""
+
+    CUSTOMER = auto()
+    STAFF = auto()  # Внутренний сотрудник
+
+
 class UserRole(StrEnum):
     """Роли пользователей"""
 

@@ -11,7 +11,7 @@ from src.shared.domain.exceptions import InvariantViolationError
 from src.shared.utils.time import current_datetime, get_expiration_time
 
 from .events import UserInvited
-from .vo import Email, FullName, PasswordHash, Username, UserRole
+from .vo import Email, FullName, PasswordHash, Username, UserRole, UserType
 
 INVITATION_EXPIRES_IN_DAYS = 7
 
@@ -80,6 +80,10 @@ class User(Entity):
     @property
     def is_customer(self) -> bool:
         return any(role.is_customer for role in self.roles)
+
+    @property
+    def type(self) -> UserType:
+        return UserType.STAFF if self.is_staff else UserType.CUSTOMER
 
     def has_role(self, role: UserRole) -> bool:
         return role in self.roles

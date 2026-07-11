@@ -101,3 +101,13 @@ class CounterpartyResponse(CounterpartyBase):
     is_active: bool = Field(True, description="Доступен ли контрагент в системе")
     is_head: bool = Field(True, description="Является ли контрагент головным")
     is_branch: bool = Field(False, description="Является ли дочерним объектом")
+
+
+class CounterpartyReference(BaseModel):
+    """Ссылка на контрагента."""
+
+    id: UUID = Field(description="Идентификатор контрагента")
+    name: str = Field(description="Наименование", examples=["Шмяндекс"])
+    email: EmailStr = Field(
+        description="Официальная почта контрагента", examples=["shmyandex@mail.ru"]
+    )

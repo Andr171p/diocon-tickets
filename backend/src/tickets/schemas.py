@@ -1,10 +1,14 @@
 from datetime import datetime
+from enum import StrEnum, auto
 from uuid import UUID
 
 from pydantic import BaseModel, Field, NonNegativeFloat, NonNegativeInt
 
+from src.crm.schemas import CounterpartyReference
 from src.iam.domain.vo import UserRole
+from src.iam.schemas import UserReference
 from src.media.schemas import AttachmentResponse
+from src.projects.schemas import ProjectReference
 from src.shared.domain.vo import Priority
 
 from .domain.vo import CommentType, ReactionType, TicketStatus, TicketType
@@ -100,22 +104,16 @@ class TicketViewResponse(BaseModel):
     Облегчённая модель данных для представления тикета
     """
 
-    id: UUID = Field(..., description="Уникальный ID тикета")
-    created_at: datetime = Field(..., description="Дата создания")
-    updated_at: datetime = Field(..., description="Дата обновления")
+    id: UUID = Field(description="Уникальный ID тикета")
+    created_at: datetime = Field(description="Дата создания")
+    updated_at: datetime = Field(description="Дата последнего обновления")
 
-    reporter_full_name: str = Field(
-        ..., description="ФИО инициатора", examples=["Иванов Иван Иванович"]
-    )
-    assignee_full_name: str | None = Field(
-        None, description="ФИО исполнителя", examples=["Петров Пётр Петрович"]
-    )
+    reporter: UserReference = Field(description="Инициатор заявки")
+    assignee: UserReference | None = Field(None, description="Исполнитель заявки")
 
-    counterparty_name: str | None = Field(
-        None, description="Контрагент, которому принадлежит заявка", examples=["ООО Ромашка"]
-    )
-    project_key: str | None = Field(
-        None, description="Проект, которому принадлежит заявка", examples=["ROMASHKA"]
+    counterparty: CounterpartyReference | None = Field(None, description="Контрагент заявки")
+    project: ProjectReference | None = Field(
+        None, description="Проект, которому принадлежит заявка",
     )
 
     number: str = Field(..., description="Номер тикета", examples=["РОМ-26-00012456"])
@@ -229,3 +227,22 @@ class CommentEdit(BaseModel):
     """Редактирование комментария"""
 
     text: str = Field(..., description="Новый текст комментария")
+
+
+class TicketParticipantRole(StrEnum):
+    """Роль участника внутри заявки."""
+
+    CREATOR = auto()
+    REPORTER = auto()
+    ASSIGNEE = auto()
+    APPROVER = auto()
+    RESOLVER = auto()
+    CLOSER = auto()
+
+
+class TicketParticipant(BaseModel):
+    """Участник тикета."""
+
+    ticket_id: UUID = Field(description="Идентификатор заявки")
+    user: UserReference = Field(description="Ссылка на пользователя")
+    roles: set[TicketParticipantRole] = Field(description="Роль участника в рамках заявки")

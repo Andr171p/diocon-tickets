@@ -24,13 +24,16 @@ from src.shared.dependencies import (
 from src.shared.domain.vo import Priority
 from src.shared.schemas import Page
 
+from ..shared.domain.repos import get_or_raise_404
+from .data_loaders import ReferenceLoader
 from .domain.authz import TicketAuthZService
 from .domain.dtos import TicketFilters
+from .domain.entities import Ticket
 from .domain.repos import CommentRepository, ReactionRepository, TicketRepository
 from .domain.vo import TicketStatus, TicketType
 from .infra.repos import SqlCommentRepository, SqlReactionRepository, SqlTicketRepository
-from .loaders import TicketReferenceLoader
-from .schemas import TicketViewResponse
+from .mappers import map_ticket_to_response
+from .schemas import TicketResponse, TicketViewResponse
 from .services import CommentService, ReactionService, TicketQueryService, TicketService
 
 
@@ -80,35 +83,35 @@ def get_ticket_service(
     )
 
 
-async def fetch_users(user_ids: list[UUID]) -> list[User]:
+async def load_users(user_ids: list[UUID]) -> list[User]:
     async with session_factory() as session:
         user_repo = SqlUserRepository(session)
         return await user_repo.get_by_ids(user_ids)
 
 
-async def fetch_counterparties(counterparty_ids: list[UUID]) -> list[Counterparty]:
+async def load_counterparties(counterparty_ids: list[UUID]) -> list[Counterparty]:
     async with session_factory() as session:
         counterparty_repo = SqlCounterpartyRepository(session)
         return await counterparty_repo.get_by_ids(counterparty_ids)
 
 
-async def fetch_projects(project_ids: list[UUID]) -> list[Project]:
+async def load_projects(project_ids: list[UUID]) -> list[Project]:
     async with session_factory() as session:
         project_repo = SqlProjectRepository(session)
         return await project_repo.get_by_ids(project_ids)
 
 
-def get_ticket_reference_loader() -> TicketReferenceLoader:
-    return TicketReferenceLoader(
-        users_fetcher=fetch_users,
-        counterparties_fetcher=fetch_counterparties,
-        projects_fetcher=fetch_projects,
+def get_reference_loader() -> ReferenceLoader:
+    return ReferenceLoader(
+        users_loader=load_users,
+        counterparties_loader=load_counterparties,
+        projects_loader=load_projects,
     )
 
 
 def get_ticket_query_service(
         ticket_repo: TicketRepoDep,
-        reference_loader: TicketReferenceLoader = Depends(get_ticket_reference_loader)
+        reference_loader: ReferenceLoader = Depends(get_reference_loader),
 ) -> TicketQueryService:
     return TicketQueryService(ticket_repo=ticket_repo, reference_loader=reference_loader)
 
@@ -181,6 +184,12 @@ def get_ticket_filters(
 TicketFiltersDep = Annotated[TicketFilters, Depends(get_ticket_filters)]
 
 
+async def get_ticket_or_404(ticket_id: UUID, ticket_repo: TicketRepoDep) -> TicketResponse:
+    ticket = await get_or_raise_404(ticket_repo.read, ticket_id, Ticket)
+    return map_ticket_to_response(ticket)
+
+
 async def paginate_tickets(
-        pagination: PaginationDep, filters: TicketFilters, ticket_repo: TicketRepoDep
-) -> Page[TicketViewResponse]: ...
+        pagination: PaginationDep, filters: TicketFilters, service: TicketQueryServiceDep,
+) -> Page[TicketViewResponse]:
+    return await service.get_tickets(pagination, filters=filters)

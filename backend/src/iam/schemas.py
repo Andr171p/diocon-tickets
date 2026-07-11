@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import Body
 from pydantic import BaseModel, EmailStr, Field, PositiveInt
 
-from .domain.vo import UserRole
+from .domain.vo import UserRole, UserType
 
 RefreshToken = Annotated[
     str, Body(..., embed=True, description="Refresh токен для получения новой пары JWT")
@@ -78,6 +78,15 @@ class CurrentUser(BaseModel):
     email: EmailStr = Field(..., description="Email адрес учётной записи")
     roles: list[UserRole] = Field(..., description="Список назначенных ролей")
     counterparty_id: UUID | None = Field(None, description="ID контрагента (для клиентов)")
+
+
+class UserReference(BaseModel):
+    """Ссылка на пользователя."""
+
+    id: UUID = Field(description="Идентификатор пользователя")
+    full_name: str = Field(description="ФИО пользователя", examples=["Иванов Иван Иванович"])
+    email: EmailStr = Field(description="Логин пользователя")
+    type: UserType = Field(description="Сотрудник или внешний клиент")
 
 
 class InvitationBase(BaseModel):

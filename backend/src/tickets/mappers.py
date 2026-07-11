@@ -1,4 +1,11 @@
-from ..media.mappers import map_attachment_to_response
+from src.crm.domain.entities import Counterparty
+from src.crm.schemas import CounterpartyReference
+from src.iam.domain.entities import User
+from src.iam.schemas import UserReference
+from src.media.mappers import map_attachment_to_response
+from src.projects.domain.entities import Project
+from src.projects.schemas import ProjectReference
+
 from .domain.entities import Comment, Ticket
 from .domain.vo import ReactionType
 from .schemas import (
@@ -18,7 +25,7 @@ def map_ticket_to_preview(ticket: Ticket) -> TicketPreview:
         updated_at=ticket.updated_at,
         created_by=ticket.created_by,
         reporter_id=ticket.reporter_id,
-        number=f"{ticket.number}",
+        number=ticket.number.value,
         title=ticket.title,
         type=ticket.type,
         status=ticket.status,
@@ -28,19 +35,50 @@ def map_ticket_to_preview(ticket: Ticket) -> TicketPreview:
 
 def map_ticket_to_view_response(
         ticket: Ticket,
-        reporter_full_name: str,
-        assignee_full_name: str | None = None,
-        counterparty_name: str | None = None,
-        project_key: str | None = None,
+        reporter: User,
+        assignee: User | None = None,
+        counterparty: Counterparty | None = None,
+        project: Project | None = None,
 ) -> TicketViewResponse:
+    assignee_ref = (
+        UserReference(
+            id=assignee.id,
+            full_name=assignee.full_name.value,
+            email=assignee.email.value,
+            type=assignee.type,
+        )
+        if assignee else None
+    )
+    counterparty_ref = (
+        CounterpartyReference(
+            id=counterparty.id,
+            name=counterparty.name,
+            email=counterparty.email,
+        )
+        if counterparty else None
+    )
+    project_ref = (
+        ProjectReference(
+            id=project.id,
+            key=project.key.value,
+            name=project.name,
+        )
+        if project else None
+    )
+
     return TicketViewResponse(
         id=ticket.id,
         created_at=ticket.created_at,
         updated_at=ticket.updated_at,
-        reporter_full_name=reporter_full_name,
-        assignee_full_name=assignee_full_name,
-        counterparty_name=counterparty_name,
-        project_key=project_key,
+        reporter=UserReference(
+            id=reporter.id,
+            full_name=reporter.full_name.value,
+            email=reporter.email.value,
+            type=reporter.type,
+        ),
+        assignee=assignee_ref,
+        counterparty=counterparty_ref,
+        project=project_ref,
         number=ticket.number.value,
         title=ticket.title,
         type=ticket.type,
@@ -95,7 +133,6 @@ def map_ticket_to_response(ticket: Ticket) -> TicketResponse:
         project_id=ticket.project_id,
         counterparty_id=ticket.counterparty_id,
         product_id=ticket.product_id,
-        created_by_role=ticket.created_by_role,
         created_by=ticket.created_by,
         reporter_id=ticket.reporter_id,
         number=ticket.number.value,
