@@ -13,7 +13,7 @@ from ..domain.authz import ProjectAuthZService
 from ..domain.entities import Project
 from ..domain.repos import ProjectMemberRepository, ProjectRepository
 from ..domain.services import generate_key_suggestions
-from ..domain.vo import ProjectKey, MemberRole
+from ..domain.vo import MemberRole, ProjectKey
 from ..mappers import (
     map_project_stage_to_response,
     map_project_to_detailed_response,
@@ -103,7 +103,7 @@ class ProjectService:
             else:
                 owner = project.create_member(
                     user_id=current_subject.id,
-                    project_role=MemberRole.OWNER,
+                    roles=[MemberRole.OWNER],
                     created_by=current_subject.id,
                 )
                 await self.member_repo.create(owner)
