@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_fastapi_instrumentator import Instrumentator
 
+from src.comments.router import router as comments_router
 from src.core.broker import broker_router
 from src.core.logging import configure_logging
 from src.core.redis import redis_client
@@ -74,6 +75,7 @@ router = APIRouter(prefix="/api/v1")
 
 router.include_router(iam_router)
 router.include_router(counterparty_router)
+router.include_router(comments_router)
 router.include_router(media_router)
 router.include_router(tickets_router)
 router.include_router(shared_router)

@@ -83,7 +83,7 @@ def upgrade() -> None:
     op.create_index('ix_invitation_expires_at', 'invitations', ['expires_at'], unique=False)
     op.create_index('ix_invitation_roles_gin', 'invitations', ['granted_roles'], unique=False, postgresql_using='gin')
     op.create_table('notifications',
-    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('author_id', sa.Uuid(), nullable=False),
     sa.Column('title', sa.String(), nullable=False),
     sa.Column('message', sa.TEXT(), nullable=False),
     sa.Column('notification_type', sa.Enum('TICKET_CREATED', 'TICKET_ASSIGNED', 'TICKET_STATUS_CHANGED', 'COMMENT_ADDED', 'SYSTEM', name='notificationtype'), nullable=False),
@@ -153,7 +153,7 @@ def upgrade() -> None:
     sa.UniqueConstraint('project_id', 'ticket_id', name='uq_task_sequences', postgresql_nulls_not_distinct=True)
     )
     op.create_table('user_preferences',
-    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('author_id', sa.Uuid(), nullable=False),
     sa.Column('notification_type', sa.Enum('TICKET_CREATED', 'TICKET_ASSIGNED', 'TICKET_STATUS_CHANGED', 'COMMENT_ADDED', 'SYSTEM', name='notificationtype'), nullable=False),
     sa.Column('enabled_channels', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('muted_until', sa.DateTime(timezone=True), nullable=True),
@@ -162,7 +162,7 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('user_id', 'notification_type', name='uq_user_notification_type')
+    sa.UniqueConstraint('author_id', 'notification_type', name='uq_user_notification_type')
     )
     op.create_table('users',
     sa.Column('email', sa.String(), nullable=False),
@@ -216,7 +216,7 @@ def upgrade() -> None:
     op.create_index('ix_projects_owner_status', 'projects', ['owner_id', 'status'], unique=False)
     op.create_table('project_members',
     sa.Column('project_id', sa.Uuid(), nullable=False),
-    sa.Column('user_id', sa.Uuid(), nullable=False),
+    sa.Column('author_id', sa.Uuid(), nullable=False),
     sa.Column('roles', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('created_by', sa.Uuid(), nullable=False),
     sa.Column('id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
@@ -225,9 +225,9 @@ def upgrade() -> None:
     sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('project_id', 'user_id', name='uq_project_member')
+    sa.UniqueConstraint('project_id', 'author_id', name='uq_project_member')
     )
-    op.create_index('ix_project_members_user', 'project_members', ['user_id'], unique=False)
+    op.create_index('ix_project_members_user', 'project_members', ['author_id'], unique=False)
     op.create_table('project_stages',
     sa.Column('project_id', sa.Uuid(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),

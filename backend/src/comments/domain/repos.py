@@ -5,7 +5,7 @@ from uuid import UUID
 from src.shared.domain.repos import Repository
 from src.shared.schemas import Page, Pagination
 
-from .dtos import CommentFilters, ReactionStats
+from .dtos import CommentVisibilityPolicy, ReactionStats
 from .entities import Comment, Reaction
 from .vo import AggregateReference
 
@@ -17,7 +17,7 @@ class CommentRepository(Repository[Comment]):
             self,
             pagination: Pagination,
             aggregate_ref: AggregateReference | None = None,
-            filters: CommentFilters | None = None,
+            policy: CommentVisibilityPolicy | None = None,
     ) -> Page[Comment]: ...
 
     async def get_replies(
@@ -25,7 +25,7 @@ class CommentRepository(Repository[Comment]):
         comment_id: UUID,
         pagination: Pagination,
         *,
-        filters: CommentFilters | None = None,
+        policy: CommentVisibilityPolicy | None = None,
     ) -> Page[Comment]:
         """
         Получение вложенных ответов на комментарий (дерево комментариев).

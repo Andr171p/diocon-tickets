@@ -4,12 +4,16 @@ from uuid import UUID
 from .vo import CommentVisibility
 
 
-@dataclass(frozen=True)
-class CommentFilters:
-    """Фильтры для получения списка комментариев."""
+@dataclass(frozen=True, slots=True)
+class CommentVisibilityPolicy:
+    """Политика для фильтрации комментариев по области видимости."""
 
-    author_id: UUID | None = None
-    visibilities: set[CommentVisibility] | None = None
+    viewer_id: UUID | None
+    visible: set[CommentVisibility]
+
+    def __post_init__(self) -> None:
+        if self.viewer_id is None and CommentVisibility.NOTE in self.visible:
+            raise ValueError("Author ID required for received NOTE comments")
 
 
 @dataclass(frozen=True, slots=True)

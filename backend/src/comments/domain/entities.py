@@ -71,7 +71,7 @@ class Comment(AggregateRoot):
     def _increment_reply_count(self) -> None:
         self.reply_count += 1
 
-    def _decrement_reply_count(self) -> None:
+    def decrement_reply_count(self) -> None:
         if self.reply_count > 0:
             self.reply_count -= 1
 
@@ -160,3 +160,9 @@ class Comment(AggregateRoot):
                 edited_by=edited_by,
             )
         )
+
+    def remove(self) -> None:
+        if self.is_deleted:
+            return
+
+        self.deleted_at = current_datetime()

@@ -1,4 +1,7 @@
+from .domain.entities import Ticket
 from .schemas import TicketParticipantRole
+
+AGGREGATE_TYPE = Ticket.__name__.lower()
 
 # Поля участников заявки
 PARTICIPANT_FIELDS: tuple[tuple[TicketParticipantRole, str], ...] = (

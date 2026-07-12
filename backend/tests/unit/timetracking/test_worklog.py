@@ -18,7 +18,7 @@ def worklog_factory():
             timesheet_id=kwargs.pop("timesheet_id", None),
             ticket_id=kwargs.pop("ticket_id", uuid4()),
             task_id=kwargs.pop("task_id", uuid4()),
-            user_id=kwargs.pop("user_id", uuid4()),
+            user_id=kwargs.pop("author_id", uuid4()),
             hours_spent=kwargs.pop("hours_spent", Decimal(1)),
             entry_date=kwargs.pop("entry_date", current_datetime().date()),
             description=kwargs.pop("description", None),

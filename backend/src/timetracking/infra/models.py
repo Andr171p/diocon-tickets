@@ -33,9 +33,9 @@ class WorklogOrm(Base):
 
     __table_args__ = (
         Index(
-            "ix_worklogs_user_entry_date", "user_id", "entry_date", postgresql_using="btree"
+            "ix_worklogs_user_entry_date", "author_id", "entry_date", postgresql_using="btree"
         ),
-        Index("ix_worklogs_user_status", "user_id", "status"),
+        Index("ix_worklogs_user_status", "author_id", "status"),
     )
 
 
@@ -65,9 +65,9 @@ class TimesheetOrm(Base):
 
     __table_args__ = (
         # Уникальный ID листа учёта рабочего времени
-        UniqueConstraint("user_id", "period_start", "period_end", name="uq_timesheet_user_period"),
+        UniqueConstraint("author_id", "period_start", "period_end", name="uq_timesheet_user_period"),
         # Индексы
-        Index("ix_timesheet_user_period", "user_id", "period_start", "period_end"),
+        Index("ix_timesheet_user_period", "author_id", "period_start", "period_end"),
         Index("ix_timesheets_status", "status"),
-        Index("ix_timesheets_user_status_period", "user_id", "status", "period_start"),
+        Index("ix_timesheets_user_status_period", "author_id", "status", "period_start"),
     )

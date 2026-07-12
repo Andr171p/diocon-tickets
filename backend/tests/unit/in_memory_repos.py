@@ -88,7 +88,7 @@ class InMemoryTokenBlacklist:
         if ttl <= 0:
             return False
 
-        self.data[jti] = {"revoked_at": current_datetime(), "user_id": user_id, "reason": reason}
+        self.data[jti] = {"revoked_at": current_datetime(), "author_id": user_id, "reason": reason}
         return True
 
     async def is_revoked(self, jti: UUID) -> bool:

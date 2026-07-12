@@ -165,7 +165,7 @@ class AuthService:
 
         try:
             payload = validate_token(access_token)
-            jti, exp, user_id = payload.get("jti"), payload.get("exp", 0), payload.get("user_id")
+            jti, exp, user_id = payload.get("jti"), payload.get("exp", 0), payload.get("author_id")
 
             if jti is not None and exp:
                 await self.token_store.revoke(jti, user_id=user_id, exp=exp, reason="user_logout")
@@ -179,7 +179,7 @@ class AuthService:
                 jti, exp, user_id = (
                     payload.get("jti"),
                     payload.get("exp", 0),
-                    payload.get("user_id"),
+                    payload.get("author_id"),
                 )
                 if jti is not None and exp:
                     await self.token_store.revoke(

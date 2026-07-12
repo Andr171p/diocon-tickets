@@ -31,5 +31,5 @@ class UserPreferenceOrm(Base):
     muted_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
-        UniqueConstraint("user_id", "notification_type", name="uq_user_notification_type"),
+        UniqueConstraint("author_id", "notification_type", name="uq_user_notification_type"),
     )

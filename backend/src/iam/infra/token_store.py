@@ -23,7 +23,7 @@ class RedisTokenStore:
 
         ttl = timedelta(seconds=ttl)
         key = self._build_key(jti)
-        value = json.dumps({"revoked_at": now, "user_id": f"{user_id}", "reason": reason})
+        value = json.dumps({"revoked_at": now, "author_id": f"{user_id}", "reason": reason})
         await self.redis_client.setex(key, ttl, value)
         return True
 

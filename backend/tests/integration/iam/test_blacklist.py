@@ -63,5 +63,5 @@ class TestRedisTokenBlacklist:
 
         data = json.loads(raw_value)
         assert "revoked_at" in data
-        assert data["user_id"] == str(user_id)
+        assert data["author_id"] == str(user_id)
         assert data["reason"] == reason
