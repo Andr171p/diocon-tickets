@@ -1,25 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, status
 
-from src.iam.dependencies import CurrentSubjectDep, get_current_subject, require_role
-from src.iam.domain.constants import SUPPORT_MANAGER_OR_ABOVE
-from src.shared.schemas import Page
+from src.iam.dependencies import CurrentSubjectDep
 
-from .dependencies import (
-    MyProjectsDep,
-    ProjectDep,
-    ProjectMemberServiceDep,
-    ProjectServiceDep,
-    ProjectsPageDep,
-)
-from .domain.services import generate_project_key
-from .schemas import (
-    KeyCheckResult,
+from ..dependencies import ProjectMemberServiceDep, ProjectServiceDep
+from ..schemas import (
     NewProjectStagesOrder,
-    ProjectCreate,
-    ProjectMemberCreate,
-    ProjectMemberResponse,
     ProjectResponse,
     ProjectStageCreate,
     ProjectStagePlan,
@@ -27,110 +14,7 @@ from .schemas import (
     ProjectStageUpdate,
 )
 
-router = APIRouter(prefix="/projects", tags=["Проекты"])
-
-
-@router.get(
-    path="/key-suggestion",
-    status_code=status.HTTP_200_OK,
-    response_model=dict[str, str],
-    summary="Предлагает ключ проекта",
-    description="Генерирует человекочитаемый ключ проекта, например - `PRJ`"
-)
-def get_key_suggestion(
-        name: str = Query(..., description="Наименование проекта"),
-) -> dict[str, str]:
-    return {"key": generate_project_key(name)}
-
-
-@router.get(
-    path="/keys/{key}",
-    status_code=status.HTTP_200_OK,
-    response_model=KeyCheckResult,
-    dependencies=[Depends(require_role(SUPPORT_MANAGER_OR_ABOVE))],
-    summary="Проверяет свободен ли ключ"
-)
-async def check_project_key(key: str, service: ProjectServiceDep) -> KeyCheckResult:
-    return await service.check_key(key)
-
-
-@router.post(
-    path="",
-    status_code=status.HTTP_201_CREATED,
-    response_model=ProjectResponse,
-    summary="Создать новый проект",
-    description="Проекты могут создавать только внутренние сотрудники",
-    responses={
-        201: {"description": "Проект успешно создан."},
-        409: {"description": "Ключ уже занят (не удалось разрешить конфликт уникальности)."},
-        403: {"description": "Недостаточно прав для создания проекта (недоступно для клиентов)."},
-    },
-)
-async def create_project(
-        current_subject: CurrentSubjectDep, data: ProjectCreate, service: ProjectServiceDep
-) -> ProjectResponse:
-    return await service.create(data, current_subject)
-
-
-@router.get(
-    path="/my",
-    status_code=status.HTTP_200_OK,
-    response_model=Page[ProjectResponse],
-    summary="Мои проекты",
-)
-async def get_my_projects(my_projects: MyProjectsDep) -> Page[ProjectResponse]:
-    return my_projects
-
-
-@router.get(
-    path="/{project_id}",
-    status_code=status.HTTP_200_OK,
-    response_model=ProjectResponse,
-    dependencies=[Depends(get_current_subject)],
-    summary="Получить проект",
-)
-async def get_project(project: ProjectDep) -> ProjectResponse:
-    return project
-
-
-@router.get(
-    path="",
-    status_code=status.HTTP_200_OK,
-    response_model=Page[ProjectResponse],
-    dependencies=[Depends(require_role(SUPPORT_MANAGER_OR_ABOVE))],
-    summary="Пагинация проектов"
-)
-async def get_projects(page: ProjectsPageDep) -> Page[ProjectResponse]:
-    return page
-
-
-@router.post(
-    path="/{project_id}/members",
-    status_code=status.HTTP_201_CREATED,
-    response_model=ProjectMemberResponse,
-    summary="Добавить участника в проект"
-)
-async def create_project_member(
-        project_id: UUID,
-        data: ProjectMemberCreate,
-        current_subject: CurrentSubjectDep,
-        service: ProjectMemberServiceDep,
-) -> ProjectMemberResponse:
-    return await service.add_member(project_id, data, current_subject)
-
-
-@router.delete(
-    path="/{project_id}/members/{user_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Удалить участника из проекта"
-)
-async def delete_project_membership(
-        project_id: UUID,
-        user_id: UUID,
-        current_subject: CurrentSubjectDep,
-        service: ProjectMemberServiceDep,
-) -> None:
-    return await service.remove_member(project_id, user_id, current_subject)
+router = APIRouter(prefix="/projects", tags=["Этапы проекта"])
 
 
 @router.post(

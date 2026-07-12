@@ -20,7 +20,7 @@ from src.media.router import router as media_router
 from src.notifications.infra.handlers import router as notifications_broker_router
 from src.notifications.routers.notifications import router as notification_router
 from src.products.router import router as product_router
-from src.projects.router import router as project_router
+from src.projects.routers import router as project_router
 from src.shared.domain.exceptions import AppError
 from src.shared.infra.middlewares import LoggingMiddleware
 from src.shared.router import router as shared_router
