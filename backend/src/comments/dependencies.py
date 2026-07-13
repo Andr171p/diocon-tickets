@@ -15,9 +15,16 @@ from .mappers import map_comment_to_response
 from .schemas import CommentResponse
 from .services import CommentService, ReactionService
 
-VisibleParam = Annotated[
-    set[CommentVisibility] | None, Query(None, description="Области видимости")
-]
+
+def get_comment_visible_param(
+        visible: Annotated[
+            set[CommentVisibility] | None, Query(description="Область видимости")
+        ] = None,
+) -> set[CommentVisibility] | None:
+    return visible
+
+
+VisibleParam = Annotated[set[CommentVisibility] | None, Depends(get_comment_visible_param)]
 
 
 def get_aggregate_ref(aggregate_type: AggregateType, aggregate_id: UUID) -> AggregateReference:

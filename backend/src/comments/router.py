@@ -33,7 +33,7 @@ async def get_comment(comment: CommentResponse = Depends(get_comment_or_404)) ->
 @router.get(
     path="/{comment_id}/replies",
     status_code=status.HTTP_200_OK,
-    response_model=...,
+    response_model=Page[CommentWithReactionsResponse],
     summary="Получить ответы на комментарий",
 )
 async def get_comment_replies(

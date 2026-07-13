@@ -15,8 +15,6 @@ from src.shared.dependencies import PaginationDep
 from src.shared.schemas import Page
 
 from .dependencies import (
-    CommentServiceDep,
-    ReactionServiceDep,
     TicketQueryServiceDep,
     TicketServiceDep,
     get_ticket_or_404,

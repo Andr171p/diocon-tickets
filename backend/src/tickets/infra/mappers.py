@@ -2,49 +2,9 @@ from src.media.infra.repo import AttachmentMapper
 from src.shared.domain.vo import Tag
 from src.shared.infra.repos import ModelMapper
 
-from ..domain.entities import Comment, Reaction, Ticket
+from ..domain.entities import Ticket
 from ..domain.vo import TicketNumber
-from .models import CommentOrm, ReactionOrm, TicketOrm
-
-# Маппинг ORM модели тикета в доменную сущность и обратно
-
-
-class CommentMapper(ModelMapper[Comment, CommentOrm]):
-    @staticmethod
-    def to_entity(model: CommentOrm) -> Comment:
-        return Comment(
-            id=model.id,
-            created_at=model.created_at,
-            updated_at=model.updated_at,
-            deleted_at=model.deleted_at,
-            ticket_id=model.ticket_id,
-            author_id=model.author_id,
-            text=model.text,
-            type=model.comment_type,
-            parent_comment_id=model.parent_comment_id,
-            reply_count=model.reply_count,
-            attachments=[
-                AttachmentMapper.to_entity(attachment) for attachment in model.attachments
-            ],
-        )
-
-    @staticmethod
-    def from_entity(entity: Comment) -> CommentOrm:
-        return CommentOrm(
-            id=entity.id,
-            created_at=entity.created_at,
-            updated_at=entity.updated_at,
-            deleted_at=entity.deleted_at,
-            ticket_id=entity.ticket_id,
-            author_id=entity.author_id,
-            text=entity.text,
-            comment_type=entity.type,
-            parent_comment_id=entity.parent_comment_id,
-            reply_count=entity.reply_count,
-            attachments=[
-                AttachmentMapper.from_entity(attachment) for attachment in entity.attachments
-            ],
-        )
+from .models import TicketOrm
 
 
 class TicketMapper(ModelMapper[Ticket, TicketOrm]):
@@ -137,30 +97,4 @@ class TicketMapper(ModelMapper[Ticket, TicketOrm]):
             attachments=[
                 AttachmentMapper.from_entity(attachment) for attachment in entity.attachments
             ],
-        )
-
-
-class ReactionMapper(ModelMapper[Reaction, ReactionOrm]):
-    @staticmethod
-    def to_entity(model: ReactionOrm) -> Reaction:
-        return Reaction(
-            id=model.id,
-            created_at=model.created_at,
-            updated_at=model.updated_at,
-            deleted_at=model.deleted_at,
-            comment_id=model.comment_id,
-            author_id=model.author_id,
-            reaction_type=model.reaction_type,
-        )
-
-    @staticmethod
-    def from_entity(entity: Reaction) -> ReactionOrm:
-        return ReactionOrm(
-            id=entity.id,
-            created_at=entity.created_at,
-            updated_at=entity.updated_at,
-            deleted_at=entity.deleted_at,
-            comment_id=entity.comment_id,
-            author_id=entity.author_id,
-            reaction_type=entity.reaction_type,
         )

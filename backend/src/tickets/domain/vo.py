@@ -67,14 +67,6 @@ class TicketType(StrEnum):
     OTHER = "Прочее"
 
 
-class CommentType(StrEnum):
-    """Тип комментария"""
-
-    PUBLIC = "public"  # виден всем
-    INTERNAL = "internal"  # виден только сотрудникам поддержки
-    NOTE = "note"  # виден только автору
-
-
 @dataclass(frozen=True)
 class TicketNumber(ValueObject):
     """
@@ -205,15 +197,3 @@ class TicketNumber(ValueObject):
         """Является ли тикет внутренним"""
 
         return self.prefix == self.INTERNAL_PREFIX
-
-
-class ReactionType(StrEnum):
-    """
-    Тип реакции, которая оставлена к комментарию
-    """
-
-    LIKE = "like"  # 👍
-    THANKS = "thanks"  # 🙏
-    IN_PROGRESS = "in_progress"  # 👀
-    RESOLVED = "resolved"  # 🚀
-    IMPORTANT = "important"  # ❗

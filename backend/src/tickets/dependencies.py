@@ -34,7 +34,7 @@ from .domain.vo import TicketStatus, TicketType
 from .infra.repos import SqlCommentRepository, SqlReactionRepository, SqlTicketRepository
 from .mappers import map_ticket_to_response
 from .schemas import TicketResponse, TicketViewResponse
-from .services import CommentService, ReactionService, TicketQueryService, TicketService
+from .services import TicketQueryService, TicketService
 
 
 def get_ticket_repo(session: SessionDep) -> SqlTicketRepository:
@@ -116,40 +116,8 @@ def get_ticket_query_service(
     return TicketQueryService(ticket_repo=ticket_repo, reference_loader=reference_loader)
 
 
-def get_comment_service(
-        session: SessionDep,
-        ticket_repo: TicketRepoDep,
-        comment_repo: CommentRepoDep,
-        reaction_repo: ReactionRepoDep,
-        event_publisher: EventPublisherDep
-) -> CommentService:
-    return CommentService(
-        session=session,
-        ticket_repo=ticket_repo,
-        comment_repo=comment_repo,
-        reaction_repo=reaction_repo,
-        event_publisher=event_publisher
-    )
-
-
-def get_reaction_service(
-        session: SessionDep,
-        comment_repo: CommentRepoDep,
-        reaction_repo: ReactionRepoDep,
-        event_publisher: EventPublisherDep,
-) -> ReactionService:
-    return ReactionService(
-        session=session,
-        comment_repo=comment_repo,
-        reaction_repo=reaction_repo,
-        event_publisher=event_publisher
-    )
-
-
 TicketServiceDep = Annotated[TicketService, Depends(get_ticket_service)]
 TicketQueryServiceDep = Annotated[TicketQueryService, Depends(get_ticket_query_service)]
-CommentServiceDep = Annotated[CommentService, Depends(get_comment_service)]
-ReactionServiceDep = Annotated[ReactionService, Depends(get_reaction_service)]
 
 
 def get_ticket_filters(

@@ -4,7 +4,12 @@ from src.iam.dependencies import CurrentSubjectDep, get_current_subject, require
 from src.iam.domain.constants import SUPPORT_MANAGER_OR_ABOVE
 from src.shared.schemas import Page
 
-from ..dependencies import MyProjectsDep, ProjectDep, ProjectServiceDep, ProjectsPageDep
+from ..dependencies import (
+    ProjectServiceDep,
+    get_project_or_404,
+    paginate_my_projects,
+    paginate_projects,
+)
 from ..domain.services import generate_project_key
 from ..schemas import KeyCheckResult, ProjectCreate, ProjectResponse
 
@@ -59,7 +64,9 @@ async def create_project(
     response_model=Page[ProjectResponse],
     summary="Мои проекты",
 )
-async def get_my_projects(my_projects: MyProjectsDep) -> Page[ProjectResponse]:
+async def get_my_projects(
+        my_projects: Page[ProjectResponse] = Depends(paginate_my_projects),
+) -> Page[ProjectResponse]:
     return my_projects
 
 
@@ -70,7 +77,7 @@ async def get_my_projects(my_projects: MyProjectsDep) -> Page[ProjectResponse]:
     dependencies=[Depends(get_current_subject)],
     summary="Получить проект",
 )
-async def get_project(project: ProjectDep) -> ProjectResponse:
+async def get_project(project: ProjectResponse = Depends(get_project_or_404)) -> ProjectResponse:
     return project
 
 
@@ -81,5 +88,7 @@ async def get_project(project: ProjectDep) -> ProjectResponse:
     dependencies=[Depends(require_role(SUPPORT_MANAGER_OR_ABOVE))],
     summary="Пагинация проектов"
 )
-async def get_projects(page: ProjectsPageDep) -> Page[ProjectResponse]:
-    return page
+async def get_projects(
+        projects: Page[ProjectResponse] = Depends(paginate_projects),
+) -> Page[ProjectResponse]:
+    return projects

@@ -12,7 +12,7 @@ from src.shared.domain.exceptions import InvalidStateError
 from src.shared.domain.vo import Priority, Tag
 from src.shared.utils.time import current_datetime
 
-from ..events import (
+from .events import (
     TicketApprovalSubmitted,
     TicketApproved,
     TicketArchived,
@@ -27,8 +27,8 @@ from ..events import (
     TicketResolved,
     TicketStatusChanged,
 )
-from ..transition_factory import get_transition
-from ..vo import (
+from .transition_factory import get_transition
+from .vo import (
     TicketAction,
     TicketNumber,
     TicketStatus,

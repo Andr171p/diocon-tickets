@@ -11,8 +11,8 @@ from src.shared.schemas import Page
 
 from .domain.repos import ProjectMemberRepository, ProjectRepository
 from .infra.repos import SqlProjectMemberRepository, SqlProjectRepository
-from .mappers import map_project_to_response
-from .schemas import ProjectResponse
+from .mappers import map_member_to_response, map_project_to_response
+from .schemas import ProjectMemberResponse, ProjectResponse
 from .services import ProjectMemberService, ProjectService
 
 
@@ -70,14 +70,14 @@ async def get_project_or_404(project_id: UUID, project_repo: ProjectRepoDep) -> 
     return map_project_to_response(project)
 
 
-async def get_projects_page(
+async def paginate_projects(
         pagination: PaginationDep, project_repo: ProjectRepoDep
 ) -> Page[ProjectResponse]:
     page = await project_repo.paginate(pagination)
     return page.to_response(map_project_to_response)
 
 
-async def get_my_projects(
+async def paginate_my_projects(
         current_subject: CurrentSubjectDep,
         pagination: PaginationDep,
         project_repo: ProjectRepoDep,
@@ -93,6 +93,18 @@ async def get_my_projects(
     return page.to_response(map_project_to_response)
 
 
-ProjectDep = Annotated[ProjectResponse, Depends(get_project_or_404)]
-ProjectsPageDep = Annotated[Page[ProjectResponse], Depends(get_projects_page)]
-MyProjectsDep = Annotated[Page[ProjectResponse], Depends(get_my_projects)]
+async def get_member_or_404(
+        project_id: UUID, user_id: UUID, member_repo: ProjectMemberRepoDep,
+) -> ProjectMemberResponse:
+    member = await member_repo.find(project_id, user_id)
+    if member is None:
+        raise NotFoundError(f"Member {user_id} does not exist in project {project_id}")
+
+    return map_member_to_response(member)
+
+
+async def paginate_members(
+        project_id: UUID, pagination: PaginationDep, member_repo: ProjectMemberRepoDep,
+) -> Page[ProjectMemberResponse]:
+    page = await member_repo.paginate(pagination, project_id=project_id)
+    return page.to_response(map_member_to_response)

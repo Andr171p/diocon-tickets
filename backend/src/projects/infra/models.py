@@ -20,8 +20,8 @@ class ProjectMemberOrm(Base):
     project: Mapped["ProjectOrm"] = relationship(back_populates="members")
 
     __table_args__ = (
-        UniqueConstraint("project_id", "author_id", name="uq_project_member"),
-        Index("ix_project_members_user", "author_id"),
+        UniqueConstraint("project_id", "user_id", name="uq_project_member"),
+        Index("ix_project_members_user", "user_id"),
     )
 
 

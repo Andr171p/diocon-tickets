@@ -20,7 +20,7 @@ async def register(
         data: UserCreate,
         service: AuthServiceDep,
 ) -> Tokens:
-    return await service.register_activity_log_mapper(token, data)
+    return await service.register(token, data)
 
 
 @router.post(

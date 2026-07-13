@@ -521,7 +521,7 @@ class Project(AggregateRoot):
         self.stages.remove(stage)
 
         for i, stage in enumerate(sorted(self.stages, key=lambda s: s.execution_order), start=1):
-            stage.order = i
+            stage.execution_order = i
 
         self.updated_at = current_datetime()
 

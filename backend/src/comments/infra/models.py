@@ -45,8 +45,23 @@ class CommentOrm(Base):
     reactions: Mapped[list["ReactionOrm"]] = relationship(back_populates="comment")
 
     __table_args__ = (
-        Index("ix_comments_ticket_id", "ticket_id"),
-        Index("ix_comments_parent_comment_id", "parent_comment_id"),
+        Index("ix_comments_aggregate", "aggregate_type", "aggregate_id", "created_at"),
+        Index("ix_comments_author", "author_id", "created_at"),
+        # Частичный индекс для ускорения `WHERE parent_comment_id IS NULL`
+        Index(
+            "ix_comments_root_null",
+            "aggregate_type",
+            "aggregate_id",
+            "created_at",
+            postgresql_where=(parent_comment_id.is_(None)),
+        ),
+        Index(
+            "ix_comments_aggregate_visibility",
+            "aggregate_type",
+            "aggregate_id",
+            "visibility",
+            "created_at",
+        ),
     )
 
 
@@ -60,8 +75,7 @@ class ReactionOrm(Base):
     comment: Mapped["CommentOrm"] = relationship(back_populates="reactions")
 
     __table_args__ = (
-        UniqueConstraint(
-            "comment_id", "author_id", "emoji", name="uq_comment_reaction"
-        ),
-        Index("ix_reactions_comment_author", "comment_id", "author_id"),
+        UniqueConstraint("comment_id", "author_id", "emoji", name="uq_comment_reaction"),
+        Index("ix_reactions_comment_emoji", "comment_id", "emoji"),
+        Index("ix_reactions_author", "author_id", "created_at"),
     )

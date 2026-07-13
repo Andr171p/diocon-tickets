@@ -33,7 +33,6 @@ dependencies = [
     "python-json-logger>=4.1.0",
     "pytz>=2026.1.post1",
     "redis>=7.4.0",
-    "ruff==0.15.7",
     "sqlalchemy>=2.0.48",
     "sse-starlette>=3.4.4",
     "taskiq>=0.12.4",
@@ -187,3 +186,8 @@ markers = [
     "e2e: end-to-end сценарии"
 ]
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.7",
+]
