@@ -29,9 +29,9 @@ from .data_loaders import ReferenceLoader
 from .domain.authz import TicketAuthZService
 from .domain.dtos import TicketFilters
 from .domain.entities import Ticket
-from .domain.repos import CommentRepository, ReactionRepository, TicketRepository
+from .domain.repos import TicketRepository
 from .domain.vo import TicketStatus, TicketType
-from .infra.repos import SqlCommentRepository, SqlReactionRepository, SqlTicketRepository
+from .infra.repos import SqlTicketRepository
 from .mappers import map_ticket_to_response
 from .schemas import TicketResponse, TicketViewResponse
 from .services import TicketQueryService, TicketService
@@ -41,17 +41,7 @@ def get_ticket_repo(session: SessionDep) -> SqlTicketRepository:
     return SqlTicketRepository(session)
 
 
-def get_comment_repo(session: SessionDep) -> SqlCommentRepository:
-    return SqlCommentRepository(session)
-
-
-def get_reaction_repo(session: SessionDep) -> SqlReactionRepository:
-    return SqlReactionRepository(session)
-
-
 TicketRepoDep = Annotated[TicketRepository, Depends(get_ticket_repo)]
-CommentRepoDep = Annotated[CommentRepository, Depends(get_comment_repo)]
-ReactionRepoDep = Annotated[ReactionRepository, Depends(get_reaction_repo)]
 
 
 def get_ticket_authz_service(member_repo: ProjectMemberRepoDep) -> TicketAuthZService:
@@ -77,7 +67,7 @@ def get_ticket_service(
         ticket_repo=ticket_repo,
         project_repo=project_repo,
         user_repo=user_repo,
-        ticket_authz_service=ticket_authz_service,
+        authz_service=ticket_authz_service,
         activity_log_recorder=activity_log_recorder,
         event_publisher=event_publisher
     )
