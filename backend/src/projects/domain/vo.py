@@ -93,7 +93,7 @@ class ProjectKey(ValueObject):
                 "and contain only letters and digits (no spaces, underscores, or Cyrillic)."
             )
 
-        object.__setattr__(self, "value", cleaned)
+        object.__setattr__(self, "string", cleaned)
 
     def __str__(self) -> str:
         return self.value

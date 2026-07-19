@@ -70,7 +70,7 @@ class Counterparty(Entity):
         if self.counterparty_type == CounterpartyType.BRANCH and self.parent_id is None:
             raise InvariantViolationError(
                 "It is necessary to specify the ID of the head counterparty "
-                "to attach a branch. Missing parent_id value."
+                "to attach a branch. Missing parent_id string."
             )
 
         # 5. Телефон и электронная почат контактного лица должны быть уникальны

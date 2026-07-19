@@ -32,7 +32,7 @@ from .schemas import (
     ReactionResponse,
     TicketAssign,
     TicketCreate,
-    TicketEdit,
+    TicketUpdate,
     TicketParticipant,
     TicketPredict,
     TicketResponse,
@@ -101,7 +101,7 @@ async def get_ticket_participants(
 )
 async def update_ticket(
         ticket_id: UUID,
-        data: TicketEdit,
+        data: TicketUpdate,
         current_subject: CurrentSubjectDep,
         service: TicketServiceDep,
 ) -> TicketResponse:

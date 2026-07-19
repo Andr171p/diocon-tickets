@@ -50,7 +50,7 @@ class NonNegativeDecimal(ValueObject):
 
     def __post_init__(self) -> None:
         if not isinstance(self.value, Decimal):
-            object.__setattr__(self, "value", Decimal(f"{self.value}"))
+            object.__setattr__(self, "string", Decimal(f"{self.value}"))
 
         if self.value <= 0:
             raise ValueError(f"Value must be positive, got {self.value}")

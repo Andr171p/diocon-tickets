@@ -11,44 +11,7 @@ from src.media.schemas import AttachmentResponse
 from src.projects.schemas import ProjectReference
 from src.shared.domain.vo import Priority
 
-from .domain.vo import CommentType, ReactionType, TicketStatus, TicketType
-
-
-class CommentResponse(BaseModel):
-    """Схема API ответа для комментария"""
-
-    id: UUID = Field(..., description="Уникальный ID комментария")
-    created_at: datetime = Field(..., description="Дата создания")
-    updated_at: datetime = Field(..., description="Дата обновления")
-    ticket_id: UUID = Field(..., description="ID тикета к которому оставлен комментарий")
-    author_id: UUID = Field(..., description="ID автора (тот кто написал комментарий)")
-    author_role: UserRole = Field(..., description="Роль автора в системе")
-    text: str = Field(..., description="Текст комментария")
-    type: CommentType = Field(..., description="Тип комментария")
-    parent_comment_id: UUID | None = Field(
-        None, description="ID комментария, на который был сделан ответ"
-    )
-    reply_count: NonNegativeInt = Field(..., description="Количество ответов")
-    attachments: list[AttachmentResponse] = Field(
-        default_factory=list, description="Медиа контент внутри тикета"
-    )
-
-
-class ReactionResponse(BaseModel):
-    """Сводка реакций для одного комментария"""
-
-    reaction_counts: dict[ReactionType, NonNegativeInt] = Field(
-        default_factory=dict,
-        description="Счётчик для каждой оставленной реакции",
-        examples=[{ReactionType.LIKE: 17, ReactionType.IN_PROGRESS: 2, ReactionType.RESOLVED: 1}],
-    )
-    user_reactions: list[ReactionType] = Field(
-        default_factory=list, description="Реакции, которые оставил текущий пользователь"
-    )
-
-
-class CommentWithReactionsResponse(CommentResponse, ReactionResponse):
-    """Комментарий с реакциями"""
+from .domain.vo import TicketStatus, TicketType
 
 
 class Tag(BaseModel):
@@ -181,7 +144,7 @@ class TicketStatusChange(BaseModel):
     status: TicketStatus = Field(..., description="Статус, который нужно установить")
 
 
-class TicketEdit(BaseModel):
+class TicketUpdate(BaseModel):
     """Редактирование тикета"""
 
     title: str | None = Field(None, description="Заголовок")

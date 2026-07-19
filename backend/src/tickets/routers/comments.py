@@ -9,7 +9,7 @@ from src.iam.dependencies import CurrentSubjectDep
 from src.shared.dependencies import PaginationDep
 from src.shared.schemas import Page
 
-router = APIRouter(prefix="/tickets", tags=["Комментарии заявки"])
+router = APIRouter(prefix="/tickets", tags=["Заявки | Комментарии"])
 
 
 @router.get(

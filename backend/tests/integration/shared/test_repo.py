@@ -18,7 +18,7 @@ def example_repo(session):
 
 @pytest.fixture
 def sample_entity():
-    return ExampleEntity(value="sample-value")
+    return ExampleEntity(value="sample-string")
 
 
 class TestSqlAlchemyRepository:
@@ -35,8 +35,8 @@ class TestSqlAlchemyRepository:
 
     @pytest.mark.asyncio
     async def test_create_failure_raises_integrity_error(self, session, example_repo):
-        entity1 = ExampleEntity(value="some-value")
-        entity2 = ExampleEntity(value="some-value")
+        entity1 = ExampleEntity(value="some-string")
+        entity2 = ExampleEntity(value="some-string")
         entity2.id = entity1.id
 
         await example_repo.create(entity1)
@@ -68,17 +68,17 @@ class TestSqlAlchemyRepository:
     async def test_create_and_update_success(self, session, example_repo, sample_entity):
         await example_repo.create(sample_entity)
         await session.commit()
-        updated_entity = await example_repo.update(sample_entity.id, value="updated-value")
+        updated_entity = await example_repo.update(sample_entity.id, value="updated-string")
 
         assert isinstance(updated_entity, ExampleEntity)
         assert updated_entity.id == sample_entity.id
-        assert updated_entity.value == "updated-value"
+        assert updated_entity.value == "updated-string"
         assert updated_entity.created_at == sample_entity.created_at
         assert updated_entity.updated_at != sample_entity.updated_at
 
     @pytest.mark.asyncio
     async def test_update_returns_none(self, example_repo, sample_entity):
-        entity = await example_repo.update(sample_entity.id, value="updated-value")
+        entity = await example_repo.update(sample_entity.id, value="updated-string")
 
         assert entity is None
 
@@ -87,7 +87,7 @@ class TestSqlAlchemyRepository:
         await example_repo.create(sample_entity)
         await session.commit()
 
-        sample_entity.value = "refreshed-value"
+        sample_entity.value = "refreshed-string"
         await example_repo.update(sample_entity)
         await session.commit()
 
@@ -95,7 +95,7 @@ class TestSqlAlchemyRepository:
 
         assert isinstance(entity, ExampleEntity)
         assert entity.id == sample_entity.id
-        assert entity.value == "refreshed-value"
+        assert entity.value == "refreshed-string"
         assert entity.created_at == sample_entity.created_at
         assert entity.updated_at != sample_entity.updated_at
 

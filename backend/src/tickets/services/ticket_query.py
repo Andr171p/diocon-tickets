@@ -75,7 +75,7 @@ class TicketQueryService:
             projects={ticket.project_id for ticket in page.items if ticket.project_id},
         )
 
-        def mapper(ticket: Ticket) -> TicketViewResponse:
+        def _mapper(ticket: Ticket) -> TicketViewResponse:
             return map_ticket_to_view_response(
                 ticket=ticket,
                 reporter=relations.users.get(ticket.reporter_id),
@@ -84,7 +84,7 @@ class TicketQueryService:
                 project=relations.projects.get(ticket.project_id),
             )
 
-        return page.to_response(mapper)
+        return page.to_response(_mapper)
 
     async def get_ticket_participants(self, ticket_id: UUID) -> list[TicketParticipant]:
         """Получить участников тикета."""

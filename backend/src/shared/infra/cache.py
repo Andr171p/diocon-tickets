@@ -23,7 +23,7 @@ Database
 
 Design principles
 -----------------
-- Cache implements a generic key-value storage.
+- Cache implements a generic key-string storage.
 - CachedRepository implements the Cache-Aside pattern.
 - MultiLevelCache implements a read-through L1/L2 cache.
 - L1 is an in-process memory cache.
@@ -216,6 +216,8 @@ class MultiLevelCache[T](Cache[T]):
 
 
 class CachedRepository[EntityT: Entity](RepositoryDecorator[EntityT]):
+    """Декоратор для репозитория реализующий Cache-Aside паттерн."""
+
     def __init__(self, repo: Repository[EntityT], cache: Cache[EntityT], prefix: str) -> None:
         super().__init__(repo)
         self.cache = cache

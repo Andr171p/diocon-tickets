@@ -97,7 +97,7 @@ class FullName(ValueObject):
         normalized_parts = [p.title() for p in parts]
         normalized = " ".join(normalized_parts)
 
-        object.__setattr__(self, "value", normalized)
+        object.__setattr__(self, "string", normalized)
 
     def __str__(self) -> str:
         return self.value
@@ -185,7 +185,7 @@ class Username(ValueObject):
         if cleaned.isdigit():
             raise ValueError("Username cannot contains only digits")
 
-        object.__setattr__(self, "value", cleaned)
+        object.__setattr__(self, "string", cleaned)
 
     def __str__(self) -> str:
         return self.value
@@ -215,7 +215,7 @@ class Email:
         except EmailNotValidError as e:
             raise ValueError("Invalid email address") from e
 
-        object.__setattr__(self, "value", normalized)
+        object.__setattr__(self, "string", normalized)
 
     def __str__(self) -> str:
         return self.value

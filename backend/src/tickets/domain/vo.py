@@ -7,7 +7,6 @@ from enum import StrEnum, auto
 from src.projects.domain.vo import ProjectKey
 from src.shared.domain.vo import ValueObject
 from src.shared.utils.text import get_latin_slug
-from src.shared.utils.time import current_datetime
 
 
 class TicketAction(StrEnum):
@@ -68,132 +67,102 @@ class TicketType(StrEnum):
 
 
 @dataclass(frozen=True)
-class TicketNumber(ValueObject):
+class TicketPrefix(ValueObject):
     """
-    Уникальный номер тикета в формате - PREFIX-YY-SEQUENCE
+    Префикс для номера заявки.
+    Префиксом может быть: ключ проекта, транслитерация наименования контрагента, ...
 
     Примеры:
-     - РОМASHKA-26-00012456
-     - INT-26-00004521
-     - YANDEX-26-00123769
+     - INT
+     - CRM
+     - YANDEX
     """
 
-    INTERNAL_PREFIX: ClassVar[str] = "INT"
-    MAX_PREFIX_LENGTH: ClassVar[int] = 10  # Максимальная длина префикса
-    MIN_PREFIX_LENGTH: ClassVar[int] = 1
-    SEQUENCE_LENGTH: ClassVar[int] = 8
-    YEAR_LENGTH: ClassVar[int] = 2
-    PREFIX_LENGTH: ClassVar[int] = 3
-    NUMBER_PARTS: ClassVar[int] = 3
+    INTERNAL: ClassVar[str] = "INT"
+
+    MIN_LENGTH: ClassVar[int] = 1
+    MAX_LENGTH: ClassVar[int] = 10
+
+    _PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"^[A-Z0-9]{1,10}$")
 
     value: str
 
     def __post_init__(self) -> None:
-
-        # 1. Номер не должен быть пустым
-        if not self.value.strip():
-            raise ValueError("Ticket number cannot be empty")
-
-        # 2. Проверка формата
-        if not self.is_valid_format(self.value):
-            raise ValueError(
-                f"Invalid ticket number format: {self.value}. "
-                f"Expected: PREFIX-YY-NNNNNNNN (e.g: ROMASHKA-26-00012345)"
-            )
+        if not self._PATTERN.fullmatch(self.value):
+            raise ValueError(f"Invalid ticket prefix: {self.value}")
 
     @classmethod
-    def is_valid_format(cls, number: str) -> bool:
-        """Проверка формата PREFIX-YY-NNNNNNNN"""
-
-        if len(number) > cls.MAX_PREFIX_LENGTH + 1 + cls.YEAR_LENGTH + 1 + cls.SEQUENCE_LENGTH:
-            return False
-
-        parts = number.split("-")
-        if len(parts) != cls.NUMBER_PARTS:
-            return False
-
-        prefix, year, seq = parts
-
-        return (
-            cls._is_valid_prefix(prefix)
-            and len(year) == cls.YEAR_LENGTH
-            and year.isdigit()
-            and len(seq) == cls.SEQUENCE_LENGTH
-            and seq.isdigit()
-        )
+    def internal(cls) -> Self:
+        return cls(cls.INTERNAL)
 
     @classmethod
-    def _is_valid_prefix(cls, prefix: str) -> bool:
-        """Префикс должен состоять только из заглавных латинских букв и цифр"""
-
-        if not cls.MIN_PREFIX_LENGTH <= len(prefix) <= cls.MAX_PREFIX_LENGTH:
-            return False
-        return bool(re.fullmatch(r"[A-Z0-9]+", prefix))
+    def from_project(cls, key: ProjectKey) -> Self:
+        return cls(key.value)
 
     @classmethod
-    def create(
-            cls,
-            total_tickets: int,
-            /,
-            project_key: ProjectKey | None = None,
-            counterparty_name: str | None = None,
-    ) -> Self:
-        """Генерация уникального номера для тикета"""
+    def from_counterparty(cls, name: str) -> Self:
+        slug = get_latin_slug(name, upper=True)
+        return cls(slug[:cls.MAX_LENGTH])
 
-        # 1. Проверка количества тикетов + валидация входных параметров
-        if total_tickets < 0:
-            raise ValueError("Total tickets cannot be negative")
-
-        if project_key is not None and counterparty_name is not None:
-            raise ValueError("Only one of the project key or counterparty name must be specified")
-
-        # 2. Определение префикса
-        if project_key is not None:
-            prefix = project_key.value
-        elif counterparty_name is not None:
-            # Транслитерация и нормализация префикса
-            slug = get_latin_slug(counterparty_name, upper=True)
-            prefix = slug[: cls.MAX_PREFIX_LENGTH]
-        else:
-            # Если ни проект, ни контрагент не указан, то тикет внутренний
-            prefix = cls.INTERNAL_PREFIX
-
-        # 3. Год (две последние цифры)
-        year_short = current_datetime().year % 100
-
-        # 4. Числовая последовательность, последние 8 цифр
-        sequence = f"{total_tickets + 1}".zfill(cls.SEQUENCE_LENGTH)
-
-        # 5. Формирование номера
-        number = f"{prefix}-{year_short:02d}-{sequence}"
-        return cls(value=number)
+    @property
+    def is_internal(self) -> bool:
+        return self.value == self.INTERNAL
 
     def __str__(self) -> str:
         return self.value
 
+
+@dataclass(frozen=True)
+class TicketNumber(ValueObject):
+    """Уникальный номер заявки в формате - PREFIX-YY-NNNNNNNN."""
+
+    YEAR_MIN: ClassVar[int] = 0
+    YEAR_MAX: ClassVar[int] = 99
+
+    SEQUENCE_MIN: ClassVar[int] = 1
+    SEQUENCE_WIDTH: ClassVar[int] = 8
+
+    _PATTERN: ClassVar[re.Pattern[str]] = re.compile(
+        r"^(?P<prefix>[A-Z0-9]{1,10})-"
+        r"(?P<year>\d{2})-"
+        r"(?P<sequence>\d{8})$"
+    )
+
+    prefix: TicketPrefix
+    year: int
+    sequence: int
+
+    def __post_init__(self) -> None:
+        if not self.YEAR_MIN <= self.year <= self.YEAR_MAX:
+            raise ValueError(f"Year must be in range {self.YEAR_MIN}-{self.YEAR_MAX}.")
+
+        if self.sequence < self.SEQUENCE_MIN:
+            raise ValueError("Sequence must be positive.")
+
+    @classmethod
+    def parse(cls, string: str) -> Self:
+        """Парсит номер заявки из сырой строки."""
+
+        match = cls._PATTERN.fullmatch(string)
+
+        if match is None:
+            raise ValueError(
+                f"Invalid ticket number: {string!r}. Expected format PREFIX-YY-NNNNNNNN."
+            )
+
+        return cls(
+            prefix=TicketPrefix(match["prefix"]),
+            year=int(match["year"]),
+            sequence=int(match["sequence"]),
+        )
+
+    def __str__(self) -> str:
+        return f"{self.prefix}-{self.year:02d}-{self.sequence:0{self.SEQUENCE_WIDTH}d}"
+
     def __repr__(self) -> str:
-        return f"TicketNumber({self.value!r})"
-
-    @property
-    def prefix(self) -> str:
-        """Префикс (РОМ, INT, ЯНД и т.д.)"""
-
-        return self.value.split("-")[0]
-
-    @property
-    def year_short(self) -> int:
-        """Год (две последние цифры)"""
-
-        return int(self.value.split("-")[1])
-
-    @property
-    def sequence(self) -> str:
-        """Порядковый номер"""
-
-        return self.value.split("-")[2]
-
-    @property
-    def is_internal(self) -> bool:
-        """Является ли тикет внутренним"""
-
-        return self.prefix == self.INTERNAL_PREFIX
+        return (
+            f"{type(self).__name__}("
+            f"prefix={self.prefix!r}, "
+            f"year={self.year}, "
+            f"sequence={self.sequence})"
+        )

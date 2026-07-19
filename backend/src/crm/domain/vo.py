@@ -39,7 +39,7 @@ class Inn(ValueObject):
         if len(cleaned) not in self.LENGTHS:
             raise ValueError(f"INN must contain 10 or 12 digits (received {len(cleaned)})")
 
-        object.__setattr__(self, "value", cleaned)
+        object.__setattr__(self, "string", cleaned)
 
     def __str__(self) -> str:
         v = self.value
@@ -82,7 +82,7 @@ class Kpp(ValueObject):
         if len(cleaned) != self.LENGTH:
             raise ValueError(f"KPP must contain exactly 9 digits (received {len(cleaned)})")
 
-        object.__setattr__(self, "value", cleaned)
+        object.__setattr__(self, "string", cleaned)
 
     def __str__(self) -> str:
         v = self.value
@@ -112,7 +112,7 @@ class Okpo(ValueObject):
         if len(cleaned) not in self.LENGTHS:
             raise ValueError(f"OKPO must contains 8 or 10 digits (received {len(cleaned)})")
 
-        object.__setattr__(self, "value", cleaned)
+        object.__setattr__(self, "string", cleaned)
 
     def __str__(self) -> str:
         return self.value
@@ -178,7 +178,7 @@ class Phone:
                 f"Phone number must contains 10 digits after +7 (received {len(digits)})"
             )
 
-        object.__setattr__(self, "value", normalized)
+        object.__setattr__(self, "string", normalized)
 
     def __str__(self) -> str:
         return f"+7 ({self.value[2:5]}) {self.value[5:8]}-{self.value[8:10]}-{self.value[10:12]}"
