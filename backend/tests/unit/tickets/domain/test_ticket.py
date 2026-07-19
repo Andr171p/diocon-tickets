@@ -284,7 +284,7 @@ class TestAssignTo:
         """
 
         assignee_id = uuid.uuid4()
-        ticket_in_open.assign(assignee_id=assignee_id, assigned_by=support_agent_id)
+        ticket_in_open.assign(assignee_id=assignee_id, actor_id=support_agent_id)
 
         assert ticket_in_open.assignee_id == assignee_id
         assert ticket_in_open.history[-1].action == "assigned"
@@ -296,11 +296,11 @@ class TestAssignTo:
         """
 
         first_support_agent_id = uuid.uuid4()
-        ticket_in_open.assign(assignee_id=first_support_agent_id, assigned_by=support_agent_id)
+        ticket_in_open.assign(assignee_id=first_support_agent_id, actor_id=support_agent_id)
         old_updated_at = ticket_in_open.updated_at
 
         second_agent_id = uuid.uuid4()
-        ticket_in_open.assign(assignee_id=second_agent_id, assigned_by=first_support_agent_id)
+        ticket_in_open.assign(assignee_id=second_agent_id, actor_id=first_support_agent_id)
 
         assert ticket_in_open.assignee_id == second_agent_id
         assert ticket_in_open.history[-1].action == "assigned"
@@ -312,11 +312,11 @@ class TestAssignTo:
         """
 
         assignee_id = uuid.uuid4()
-        ticket_in_open.assign(assignee_id=assignee_id, assigned_by=support_agent_id)
+        ticket_in_open.assign(assignee_id=assignee_id, actor_id=support_agent_id)
         old_updated_at = ticket_in_open.updated_at
         old_ticket_history_length = len(ticket_in_open.history)
 
-        ticket_in_open.assign(assignee_id=assignee_id, assigned_by=support_agent_id)
+        ticket_in_open.assign(assignee_id=assignee_id, actor_id=support_agent_id)
 
         assert len(ticket_in_open.history) == old_ticket_history_length
         assert ticket_in_open.assignee_id == assignee_id
@@ -338,7 +338,7 @@ class TestAssignTo:
         ticket_in_open.status = new_status
 
         with pytest.raises(InvalidStateError, match="Cannot assign ticket in status"):
-            ticket_in_open.assign(assignee_id=uuid.uuid4(), assigned_by=uuid.uuid4())
+            ticket_in_open.assign(assignee_id=uuid.uuid4(), actor_id=uuid.uuid4())
 
         assert ticket_in_open.assignee_id is None
 

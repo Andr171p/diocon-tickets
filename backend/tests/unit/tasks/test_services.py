@@ -61,7 +61,7 @@ async def created_project(fake_project_repo, fake_membership_repo, current_suppo
     membership = ProjectMember(
         project_id=project.id,
         user_id=current_support_user.user_id,
-        project_role=MemberRole.CONTRIBUTOR,
+        project_role=MemberRole.MEMBER,
         added_by=uuid4(),
         added_at=current_datetime(),
     )

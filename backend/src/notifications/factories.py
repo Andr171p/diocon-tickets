@@ -47,7 +47,7 @@ class NotificationFactory:
                     "title": event.title,
                     "ticket_title": event.title,
                     "ticket_url": f"{settings.frontend_url}/tickets/{event.number}",
-                    "assigned_by": f"{event.assigned_by}",
+                    "actor_id": f"{event.assigned_by}",
                     "assignee_id": f"{event.assignee_id}",
                     "old_assignee": (
                         None if event.old_assignee is None else f"{event.old_assignee}"

@@ -54,7 +54,7 @@ class TestCreateMembership:
 
         with pytest.raises(InvalidStateError):
             project.create_member(
-                user_id=uuid4(), project_role=MemberRole.CONTRIBUTOR, created_by=uuid4(),
+                user_id=uuid4(), project_role=MemberRole.MEMBER, created_by=uuid4(),
             )
 
 

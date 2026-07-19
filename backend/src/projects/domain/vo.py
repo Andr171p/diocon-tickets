@@ -33,18 +33,18 @@ class MemberRole(StrEnum):
 
     OWNER = auto()
     MANAGER = auto()  # Может управлять участниками, настройками
-    CONTRIBUTOR = auto()  # Обычный участник (агент, разработчик)
+    MEMBER = auto()  # Обычный участник (агент, разработчик)
     VIEWER = auto()  # только просмотр (аудитор)
     CUSTOMER = auto()  # клиент (принадлежит контрагенту)
-    CUSTOMER_MANAGER = auto()  # расширенные права (менеджер со стороны клиента)
+    CUSTOMER_ADMIN = auto()  # расширенные права (менеджер со стороны клиента)
 
     @property
     def is_staff(self) -> bool:
-        return self in {self.CONTRIBUTOR, self.MANAGER, self.OWNER}
+        return self in {self.MEMBER, self.MANAGER, self.OWNER}
 
     @property
     def is_customer(self) -> bool:
-        return self in {self.CUSTOMER, self.CUSTOMER_MANAGER}
+        return self in {self.CUSTOMER, self.CUSTOMER_ADMIN}
 
     @classmethod
     def staff_roles(cls) -> set[Self]:
@@ -52,7 +52,7 @@ class MemberRole(StrEnum):
         Набор ролей для внутренних сотрудников.
         """
 
-        return {cls.CONTRIBUTOR, cls.MANAGER, cls.OWNER}
+        return {cls.MEMBER, cls.MANAGER, cls.OWNER}
 
     @classmethod
     def customer_roles(cls) -> set[Self]:
@@ -60,7 +60,7 @@ class MemberRole(StrEnum):
         Набор ролей для внешних клиентов.
         """
 
-        return {cls.VIEWER, cls.CUSTOMER, cls.CUSTOMER_MANAGER}
+        return {cls.VIEWER, cls.CUSTOMER, cls.CUSTOMER_ADMIN}
 
 
 @dataclass(frozen=True)

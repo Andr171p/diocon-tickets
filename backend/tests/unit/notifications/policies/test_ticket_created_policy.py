@@ -140,7 +140,7 @@ class TestTicketCreatedPolicy:
             fake_membership(
                 project_id=project.id,
                 user_id=project_member_id,
-                project_role=MemberRole.CONTRIBUTOR
+                project_role=MemberRole.MEMBER
             ),
             fake_membership(
                 project_id=project.id,
@@ -262,12 +262,12 @@ class TestTicketCreatedPolicy:
             fake_membership(
                 project_id=project.id,
                 user_id=project_member_id,
-                project_role=MemberRole.CONTRIBUTOR,
+                project_role=MemberRole.MEMBER,
             ),
             fake_membership(
                 project_id=project.id,
                 user_id=customer_admin.id,
-                project_role=MemberRole.CUSTOMER_MANAGER
+                project_role=MemberRole.CUSTOMER_ADMIN
             ),
         ]
         await fake_project_repo.create(project)

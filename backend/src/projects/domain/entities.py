@@ -1,6 +1,5 @@
 from typing import Annotated, Self
 
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from uuid import UUID
@@ -34,10 +33,10 @@ class ProjectMember(Entity):
     def has_role(self, role: MemberRole) -> bool:
         return role in self.roles
 
-    def has_any_role(self, roles: Iterable[MemberRole]) -> None:
-        bool(self.roles & set(roles))
+    def has_any_role(self, *roles: MemberRole) -> bool:
+        return bool(self.roles & set(roles))
 
-    def has_all_roles(self, roles: Iterable[MemberRole]) -> bool:
+    def has_all_roles(self, *roles: MemberRole) -> bool:
         return set(roles).issubset(self.roles)
 
     def grant_role(self, role: MemberRole) -> None:

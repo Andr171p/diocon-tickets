@@ -11,7 +11,7 @@ from .vo import TaskStatus
 
 class IsProjectStaffRule:
     ALLOWED_PROJECT_ROLES: ClassVar[set[MemberRole]] = {
-        MemberRole.CONTRIBUTOR, MemberRole.MANAGER, MemberRole.OWNER
+        MemberRole.MEMBER, MemberRole.MANAGER, MemberRole.OWNER
     }
 
     def __init__(self, membership: ProjectMember | None = None) -> None:

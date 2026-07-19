@@ -1,6 +1,5 @@
 from typing import Any, Protocol
 
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import StrEnum, auto
 from uuid import UUID
@@ -44,10 +43,10 @@ class Subject:
     def has_role(self, role: str) -> bool:
         return role in self.roles
 
-    def has_any_role(self, roles: Iterable[str]) -> bool:
+    def has_any_role(self, *roles: str) -> bool:
         return any(self.has_role(role) for role in roles)
 
-    def has_all_roles(self, roles: Iterable[str]) -> bool:
+    def has_all_roles(self, *roles: str) -> bool:
         return set(roles) == self.roles
 
     def has_scope(self, scope: str) -> bool:
@@ -62,6 +61,30 @@ class PermissionResult:
     def __post_init__(self) -> None:
         if not self.allowed and self.reason is None:
             raise ValueError("Reason required, when not allowed")
+
+
+def any_allowed(*permissions: PermissionResult) -> PermissionResult:
+    reasons = []
+
+    for permission in permissions:
+        if permission.allowed:
+            return permission
+
+        reasons.append(permission.reason)
+
+    return PermissionResult(False, "; ".join(reasons))
+
+
+def all_allowed(*permissions: PermissionResult) -> PermissionResult:
+    for permission in permissions:
+        if not permission.allowed:
+            return permission
+
+    return PermissionResult()
+
+
+def require(condition: bool, reason: str) -> PermissionResult:
+    return PermissionResult(True) if condition else PermissionResult(False, reason)
 
 
 class AuthorizationRule(Protocol):

@@ -27,3 +27,7 @@ class TicketRepository(Repository[Ticket]):
         """
 
     async def get_by_reporter(self, reporter_id: UUID, params: Pagination) -> Page[Ticket]: ...
+
+    async def get_next_sequence(
+            self, project_id: UUID | None = None, counterparty_id: UUID | None = None,
+    ) -> int: ...

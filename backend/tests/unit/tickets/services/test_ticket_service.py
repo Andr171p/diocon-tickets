@@ -218,7 +218,7 @@ class TestCreate:
         # Добавление агента поддержки в проект
         membership = created_project.create_member(
             user_id=current_support_agent.user_id,
-            project_role=MemberRole.CONTRIBUTOR,
+            project_role=MemberRole.MEMBER,
             created_by=uuid4(),
         )
         await fake_membership_repo.create(membership)
@@ -465,7 +465,7 @@ class TestAssignTo:
         # Создание членства в проекте
         membership = created_project.create_member(
             user_id=current_support_agent.user_id,
-            project_role=MemberRole.CONTRIBUTOR,
+            project_role=MemberRole.MEMBER,
             created_by=uuid4(),
         )
         await fake_membership_repo.create(membership)
@@ -514,7 +514,7 @@ class TestAssignTo:
         # Создание членства в проекте
         contributor = created_project.create_member(
             user_id=current_support_agent.user_id,
-            project_role=MemberRole.CONTRIBUTOR,
+            project_role=MemberRole.MEMBER,
             created_by=uuid4(),
         )
         await fake_membership_repo.create(contributor)
@@ -610,7 +610,7 @@ class TestChangeStatus:
         # Создание членства в проекте
         contributor = created_project.create_member(
             user_id=current_support_agent.user_id,
-            project_role=MemberRole.CONTRIBUTOR,
+            project_role=MemberRole.MEMBER,
             created_by=uuid4(),
         )
         await fake_membership_repo.create(contributor)

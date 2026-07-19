@@ -45,7 +45,7 @@ class TestTicketScopeService:
         await membership_factory(
             user_id=user_id,
             project_id=project_ids[0],
-            project_role=MemberRole.CUSTOMER_MANAGER,
+            project_role=MemberRole.CUSTOMER_ADMIN,
         )
         await membership_factory(
             user_id=user_id,
@@ -89,7 +89,7 @@ class TestTicketScopeService:
         await membership_factory(
             user_id=user_id,
             project_id=project_ids[0],
-            project_role=MemberRole.CUSTOMER_MANAGER,
+            project_role=MemberRole.CUSTOMER_ADMIN,
         )
         await membership_factory(
             user_id=user_id,

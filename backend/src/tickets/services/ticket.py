@@ -146,7 +146,7 @@ class TicketService:
 
         ticket = await get_or_raise_404(self.ticket_repo.read, ticket_id, Ticket)
 
-        permission = self.ticket_authz_service.can_edit_ticket(
+        permission = await self.ticket_authz_service.can_edit_ticket(
             subject=current_subject, ticket=ticket,
         )
         if not permission.allowed:
@@ -235,7 +235,7 @@ class TicketService:
         if not permission.allowed:
             raise PermissionDeniedError(permission.reason)
 
-        ticket.assign(assignee_id=assignee_id, assigned_by=current_subject.id)
+        ticket.assign(assignee_id=assignee_id, actor_id=current_subject.id)
         await self.ticket_repo.update(ticket)
         await finalize(
             self.uow, ticket,
@@ -251,7 +251,7 @@ class TicketService:
         return await self._execute(
             ticket_id=ticket_id,
             current_subject=current_subject,
-            authz=self.ticket_authz_service.can_track_ticket,
+            authz=self.ticket_authz_service.can_manage_ticket,
             action=lambda t: t.start_progress(current_subject.id),
         )
 
@@ -261,7 +261,7 @@ class TicketService:
         return await self._execute(
             ticket_id=ticket_id,
             current_subject=current_subject,
-            authz=self.ticket_authz_service.can_track_ticket,
+            authz=self.ticket_authz_service.can_manage_ticket,
             action=lambda t: t.resolve(current_subject.id),
         )
 

@@ -1,10 +1,26 @@
+from collections.abc import Iterable
+
 from .authz import PermissionResult, Subject, SubjectType
 from .entities import Invitation, User
 from .vo import UserRole
 
 
+def is_admin_user(subject: Subject | User) -> PermissionResult:
+    if subject.has_any_role(UserRole.ADMIN):
+        return PermissionResult(True)
+
+    return PermissionResult(False, "Admin required")
+
+
+def is_support_user(subject: Subject | User) -> PermissionResult:
+    if subject.has_any_role(UserRole.support_roles()):
+        return PermissionResult(True)
+
+    return PermissionResult(False, "Require support user")
+
+
 class HasAnyUserRoleRule:
-    def __init__(self, subject: Subject, required_roles: list[UserRole]) -> None:
+    def __init__(self, subject: Subject, required_roles: Iterable[UserRole]) -> None:
         self.subject = subject
         self.required_roles = required_roles
 

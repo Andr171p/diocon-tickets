@@ -51,7 +51,7 @@ class TicketCreatedPolicy:
                     self.project_membership_repo,
                     project_id=event.project_id,
                     include_project_roles=[
-                        MemberRole.OWNER, MemberRole.MANAGER, MemberRole.CONTRIBUTOR
+                        MemberRole.OWNER, MemberRole.MANAGER, MemberRole.MEMBER
                     ]
             ):
                 targets.update({member.user_id for member in members})

@@ -75,7 +75,7 @@ class TicketNumber(ValueObject):
     Примеры:
      - РОМASHKA-26-00012456
      - INT-26-00004521
-     - YANDEXT-26-00123769
+     - YANDEX-26-00123769
     """
 
     INTERNAL_PREFIX: ClassVar[str] = "INT"

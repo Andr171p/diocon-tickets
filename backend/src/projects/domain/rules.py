@@ -4,7 +4,7 @@
 
 from typing import ClassVar
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 
 from src.iam.domain.authz import AnyOf, PermissionResult
 from src.iam.domain.entities import User
@@ -15,7 +15,7 @@ from .vo import MemberRole
 
 class IsProjectStaffRule:
     ALLOWED_PROJECT_ROLES: ClassVar[set[MemberRole]] = {
-        MemberRole.CONTRIBUTOR, MemberRole.MANAGER, MemberRole.OWNER
+        MemberRole.MEMBER, MemberRole.MANAGER, MemberRole.OWNER
     }
 
     def __init__(self, membership: ProjectMember | None = None) -> None:
@@ -49,11 +49,11 @@ class IsMemberExistsRule:
 
 
 class IsProjectOwnerRule:
-    def __init__(self, member: ProjectMember) -> None:
+    def __init__(self, member: ProjectMember | None) -> None:
         self.member = member
 
     def check(self) -> PermissionResult:
-        if self.member.has_role(MemberRole.OWNER):
+        if self.member and self.member.has_role(MemberRole.OWNER):
             return PermissionResult(True)
 
         return PermissionResult(False, "You are not owner of this project")
@@ -118,13 +118,13 @@ class GrantProjectRoleRule:
 
 class TargetRoleAssignmentRule:
     ASSIGNMENT_MATRIX: ClassVar[Mapping[MemberRole, set[MemberRole]]] = {
-        MemberRole.CONTRIBUTOR: {
+        MemberRole.MEMBER: {
             MemberRole.VIEWER,
             MemberRole.CUSTOMER,
-            MemberRole.CONTRIBUTOR,
+            MemberRole.MEMBER,
         },
-        MemberRole.CUSTOMER_MANAGER: {
-            MemberRole.CUSTOMER, MemberRole.CUSTOMER_MANAGER
+        MemberRole.CUSTOMER_ADMIN: {
+            MemberRole.CUSTOMER, MemberRole.CUSTOMER_ADMIN
         },
         MemberRole.MANAGER: set(MemberRole) - {MemberRole.OWNER},
         MemberRole.OWNER: set(MemberRole) - {MemberRole.OWNER},
@@ -157,7 +157,7 @@ class TargetRoleAssignmentRule:
 
 
 class HasAnyMemberRoleRule:
-    def __init__(self, member: ProjectMember | None, required_roles: list[MemberRole]) -> None:
+    def __init__(self, member: ProjectMember | None, required_roles: Iterable[MemberRole]) -> None:
         self.member = member
         self.required_roles = required_roles
 

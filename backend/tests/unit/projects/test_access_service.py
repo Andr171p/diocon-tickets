@@ -11,19 +11,19 @@ from src.shared.utils.time import current_datetime
 # Правильный набор ролей для добавления участника в проект
 VALID_ROLES_SET = [
     # Клиенты
-    (UserRole.CUSTOMER, MemberRole.CUSTOMER_MANAGER),
+    (UserRole.CUSTOMER, MemberRole.CUSTOMER_ADMIN),
     (UserRole.CUSTOMER, MemberRole.CUSTOMER),
-    (UserRole.CUSTOMER_ADMIN, MemberRole.CUSTOMER_MANAGER),
+    (UserRole.CUSTOMER_ADMIN, MemberRole.CUSTOMER_ADMIN),
     (UserRole.CUSTOMER_ADMIN, MemberRole.CUSTOMER),
     (UserRole.CUSTOMER, MemberRole.VIEWER),
     (UserRole.CUSTOMER_ADMIN, MemberRole.VIEWER),
     # Менеджер поддержки
     (UserRole.SUPPORT_MANAGER, MemberRole.MANAGER),
-    (UserRole.SUPPORT_MANAGER, MemberRole.CONTRIBUTOR),
+    (UserRole.SUPPORT_MANAGER, MemberRole.MEMBER),
     (UserRole.SUPPORT_MANAGER, MemberRole.VIEWER),
     # Агент поддержки
     (UserRole.SUPPORT_AGENT, MemberRole.MANAGER),
-    (UserRole.SUPPORT_AGENT, MemberRole.CONTRIBUTOR),
+    (UserRole.SUPPORT_AGENT, MemberRole.MEMBER),
     (UserRole.SUPPORT_AGENT, MemberRole.VIEWER),
 ]
 
@@ -139,7 +139,7 @@ class TestCanAddMembers:
         Клиенту нельзя назначить внутреннею роль в проекте
         """
 
-        for project_role in {MemberRole.MANAGER, MemberRole.CONTRIBUTOR}:
+        for project_role in {MemberRole.MANAGER, MemberRole.MEMBER}:
             permission = await access_service.can_add_members(
                 project=active_project,
                 target_user_role=target_user_role,
@@ -162,7 +162,7 @@ class TestCanAddMembers:
         Внутреннему сотруднику нельзя назначить клиентскую роль в проекте
         """
 
-        for project_role in {MemberRole.CUSTOMER, MemberRole.CUSTOMER_MANAGER}:
+        for project_role in {MemberRole.CUSTOMER, MemberRole.CUSTOMER_ADMIN}:
             permission = await access_service.can_add_members(
                 project=active_project,
                 target_user_role=target_user_role,
@@ -268,9 +268,9 @@ class TestCanAddMembers:
         [
             (UserRole.CUSTOMER, {MemberRole.VIEWER, MemberRole.CUSTOMER}),
             (UserRole.CUSTOMER_ADMIN, {MemberRole.VIEWER, MemberRole.CUSTOMER}),
-            (UserRole.SUPPORT_AGENT, {MemberRole.VIEWER, MemberRole.CONTRIBUTOR}),
-            (UserRole.DEVELOPER, {MemberRole.VIEWER, MemberRole.CONTRIBUTOR}),
-            (UserRole.SUPPORT_MANAGER, {MemberRole.VIEWER, MemberRole.CONTRIBUTOR}),
+            (UserRole.SUPPORT_AGENT, {MemberRole.VIEWER, MemberRole.MEMBER}),
+            (UserRole.DEVELOPER, {MemberRole.VIEWER, MemberRole.MEMBER}),
+            (UserRole.SUPPORT_MANAGER, {MemberRole.VIEWER, MemberRole.MEMBER}),
         ]
     )
     async def test_contributor_can_add_limited_roles(
@@ -282,14 +282,14 @@ class TestCanAddMembers:
             target_project_roles
     ):
         """
-        CONTRIBUTOR проекта может добавлять участников с ограниченным набором ролей
+        MEMBER проекта может добавлять участников с ограниченным набором ролей
         """
 
         user_id = uuid4()
         contributor = make_membership(
             project_id=active_project.id,
             user_id=user_id,
-            project_role=MemberRole.CONTRIBUTOR,
+            project_role=MemberRole.MEMBER,
         )
         await fake_membership_repo.create(contributor)
 
@@ -309,14 +309,14 @@ class TestCanAddMembers:
             self, access_service, active_project, fake_membership_repo
     ):
         """
-        CONTRIBUTOR не может добавить менеджера проекта
+        MEMBER не может добавить менеджера проекта
         """
 
         user_id = uuid4()
         contributor = make_membership(
             project_id=active_project.id,
             user_id=user_id,
-            project_role=MemberRole.CONTRIBUTOR,
+            project_role=MemberRole.MEMBER,
         )
         await fake_membership_repo.create(contributor)
 
@@ -333,7 +333,7 @@ class TestCanAddMembers:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "target_project_role", [MemberRole.CUSTOMER, MemberRole.CUSTOMER_MANAGER]
+        "target_project_role", [MemberRole.CUSTOMER, MemberRole.CUSTOMER_ADMIN]
     )
     async def test_customer_manager_can_add_customers(
             self, access_service, active_project, fake_membership_repo, target_project_role
@@ -346,7 +346,7 @@ class TestCanAddMembers:
         customer_manager = make_membership(
             project_id=active_project.id,
             user_id=user_id,
-            project_role=MemberRole.CUSTOMER_MANAGER,
+            project_role=MemberRole.CUSTOMER_ADMIN,
         )
         await fake_membership_repo.create(customer_manager)
 
@@ -362,7 +362,7 @@ class TestCanAddMembers:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "target_project_role", [MemberRole.CONTRIBUTOR, MemberRole.MANAGER]
+        "target_project_role", [MemberRole.MEMBER, MemberRole.MANAGER]
     )
     async def test_customer_manager_cannot_add_internal_roles(
             self, access_service, active_project, fake_membership_repo, target_project_role
@@ -375,7 +375,7 @@ class TestCanAddMembers:
         customer_manager = make_membership(
             project_id=active_project.id,
             user_id=user_id,
-            project_role=MemberRole.CUSTOMER_MANAGER,
+            project_role=MemberRole.CUSTOMER_ADMIN,
         )
         await fake_membership_repo.create(customer_manager)
 
@@ -402,7 +402,7 @@ class TestCanAddMembers:
         membership = make_membership(
             project_id=active_project.id,
             user_id=user_id,
-            project_role=MemberRole.CONTRIBUTOR,
+            project_role=MemberRole.MEMBER,
             is_deleted=True
         )
         await fake_membership_repo.create(membership)
@@ -410,7 +410,7 @@ class TestCanAddMembers:
         permission = await access_service.can_add_members(
             project=active_project,
             target_user_role=UserRole.SUPPORT_AGENT,
-            target_project_role=MemberRole.CONTRIBUTOR,
+            target_project_role=MemberRole.MEMBER,
             user_id=user_id,
             user_role=UserRole.DEVELOPER,
         )
